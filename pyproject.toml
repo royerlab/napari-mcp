@@ -1,0 +1,83 @@
+[project]
+name = "napari-mcp"
+version = "0.1.0"
+description = "MCP server for remote control of napari viewers via Model Context Protocol"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "napari-mcp contributors"},
+]
+maintainers = [
+    {name = "napari-mcp contributors"},
+]
+keywords = ["napari", "mcp", "microscopy", "image-analysis", "ai", "claude"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "fastmcp>=2.7.0",
+    "napari>=0.5.5",
+    "PyQt6>=6.5.0",
+    "qtpy>=2.4.1",
+    "Pillow>=10.3.0",
+    "imageio>=2.34.0",
+    "numpy>=1.26.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/USERNAME/napari-mcp"
+Repository = "https://github.com/USERNAME/napari-mcp"
+Documentation = "https://github.com/USERNAME/napari-mcp#readme"
+"Bug Tracker" = "https://github.com/USERNAME/napari-mcp/issues"
+Changelog = "https://github.com/USERNAME/napari-mcp/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.0.0",
+]
+dev = [
+    "ruff>=0.1.8",
+    "mypy>=1.7.0",
+    "types-Pillow>=10.0.0",
+    "pre-commit>=3.5.0",
+    "bandit>=1.7.5",
+    "safety>=2.3.0",
+]
+all = [
+    "napari-mcp[test,dev]",
+]
+
+[project.scripts]
+napari-mcp = "napari_mcp_server:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["napari_mcp_server"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.pytest.ini_options]
+addopts = "-q -p no:napari"
+asyncio_mode = "auto"
+markers = [
+    "realgui: marks tests that require a real napari GUI session (deselect with -m 'not realgui')",
+]

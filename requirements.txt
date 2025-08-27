@@ -1,0 +1,6 @@
+napari>=0.5.5
+PyQt6>=6.5.0
+qtpy>=2.4.1
+Pillow>=10.3.0
+imageio>=2.34.0
+numpy>=1.26.0
