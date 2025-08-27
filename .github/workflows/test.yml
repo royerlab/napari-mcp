@@ -31,7 +31,8 @@ jobs:
     - name: Install uv
       uses: astral-sh/setup-uv@v2
       with:
-        version: "latest"
+        version: "0.5.13"
+        enable-cache: true
 
     - name: Install system dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
@@ -69,7 +70,8 @@ jobs:
     - name: Install uv
       uses: astral-sh/setup-uv@v2
       with:
-        version: "latest"
+        version: "0.5.13"
+        enable-cache: true
 
     - name: Install dependencies
       run: |
