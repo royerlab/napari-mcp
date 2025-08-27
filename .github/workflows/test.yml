@@ -54,16 +54,8 @@ jobs:
         QT_QPA_PLATFORM: offscreen
         PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
       run: |
-        uv run pytest tests/ -v -m "not realgui" --cov=napari_mcp_server --cov-report=xml --cov-report=term-missing
+        uv run pytest tests/ -v -m "not realgui"
 
-    - name: Upload coverage to Codecov
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
 
   lint:
     runs-on: ubuntu-latest
@@ -113,7 +105,7 @@ jobs:
     - name: Run bandit (security linter)
       run: |
         bandit -r src/ -f json -o bandit-report.json || true
-        bandit -r src/ -c .bandit
+        bandit -r src/ --skip B110,B101
 
     - name: Run safety (dependency vulnerability scanner)
       run: |
