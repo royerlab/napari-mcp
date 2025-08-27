@@ -1,13 +1,5 @@
 [bandit]
 # Ignore specific security warnings that are legitimate for this MCP server
-
-# B110: Try, Except, Pass - legitimate error handling for optional features
+# B110: Try, Except, Pass - legitimate error handling for optional features  
 # B101: Assert used - acceptable for internal consistency checks
-# B102: exec_used - required for Python code execution feature
-# B307: eval used - required for Python expression evaluation feature
-
 skips = B110,B101
-
-# Only skip exec/eval for the specific execute_python function
-[bandit.B102]
-[bandit.B307]
