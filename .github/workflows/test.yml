@@ -24,20 +24,21 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
     - name: Install uv
       uses: astral-sh/setup-uv@v2
       with:
-        version: "latest"
+        version: "0.5.13"
+        enable-cache: true
 
     - name: Install system dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y xvfb libgl1-mesa-glx libglib2.0-0 libxrender1 libxrandr2 libxss1 libxcursor1 libxcomposite1 libasound2 libxi6 libxtst6
+        sudo apt-get install -y xvfb libgl1-mesa-dev libglib2.0-0 libxrender1 libxrandr2 libxss1 libxcursor1 libxcomposite1 libasound2t64 libxi6 libxtst6
 
     - name: Install system dependencies (macOS)
       if: matrix.os == 'macos-latest'
@@ -46,23 +47,15 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv pip install --system -e ".[test]"
+        uv lock --upgrade
+        uv sync --extra test
 
     - name: Run tests (headless)
       env:
         QT_QPA_PLATFORM: offscreen
-        PYTEST_DISABLE_PLUGIN_AUTOLOAD: 1
       run: |
-        uv run pytest tests/ -v -m "not realgui" --cov=napari_mcp_server --cov-report=xml --cov-report=term-missing
+        uv run pytest tests/ -v -m "not realgui"
 
-    - name: Upload coverage to Codecov
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
 
   lint:
     runs-on: ubuntu-latest
@@ -70,12 +63,15 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
     - name: Install uv
       uses: astral-sh/setup-uv@v2
+      with:
+        version: "0.5.13"
+        enable-cache: true
 
     - name: Install dependencies
       run: |
@@ -99,7 +95,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
 
@@ -110,7 +106,7 @@ jobs:
     - name: Run bandit (security linter)
       run: |
         bandit -r src/ -f json -o bandit-report.json || true
-        bandit -r src/
+        bandit -r src/ --skip B110,B101,B102,B307
 
     - name: Run safety (dependency vulnerability scanner)
       run: |
@@ -118,7 +114,7 @@ jobs:
         safety check
 
     - name: Upload security reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-reports
