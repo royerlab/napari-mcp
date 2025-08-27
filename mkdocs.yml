@@ -1,0 +1,150 @@
+site_name: Napari MCP Server
+site_url: https://royerlab.github.io/napari-mcp
+site_author: Ilan Theodoro
+site_description: MCP server for remote control of napari viewers via Model Context Protocol. Perfect for AI-assisted microscopy analysis with Claude Desktop and other LLM applications.
+
+repo_name: royerlab/napari-mcp
+repo_url: https://github.com/royerlab/napari-mcp
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - toc.follow
+    - announce.dismiss
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+  logo: https://napari.org/assets/logo.png
+  favicon: https://napari.org/assets/favicon.ico
+
+plugins:
+  - search
+  - gen-files:
+      scripts:
+        - docs/scripts/gen_ref_pages.py
+  - literate-nav:
+      nav_file: SUMMARY.md
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            show_root_toc_entry: false
+            show_object_full_path: false
+            show_category_heading: true
+            heading_level: 2
+            members_order: source
+            docstring_section_style: table
+            show_if_no_docstring: false
+            show_signature: true
+            show_signature_annotations: true
+            separate_signature: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Anchor link to this section
+      title: On this page
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.caret
+  - pymdownx.tilde
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - getting-started/index.md
+      - Quick Start: getting-started/quickstart.md
+      - Zero Install Guide: getting-started/zero-install.md
+      - Traditional Installation: getting-started/installation.md
+  - Integrations:
+      - integrations/index.md
+      - Claude Desktop: integrations/claude-desktop.md
+      - Claude Code: integrations/claude-code.md
+      - Cursor: integrations/cursor.md
+      - ChatGPT: integrations/chatgpt.md
+  - API Reference:
+      - api/index.md
+      - Session & Viewer: api/viewer-controls.md
+      - Layer Management: api/layer-management.md
+      - Utilities: api/utilities.md
+      - Complete Reference: api/reference.md
+  - User Guide:
+      - guides/index.md
+      - Troubleshooting: guides/troubleshooting.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/royerlab/napari-mcp
+  generator: false
+  analytics:
+    feedback:
+      title: Was this page helpful?
+      ratings:
+        - icon: material/thumb-up-outline
+          name: This page was helpful
+          data: 1
+          note: >-
+            Thanks for your feedback!
+        - icon: material/thumb-down-outline
+          name: This page could be improved
+          data: 0
+          note: >-
+            Thanks for your feedback! Help us improve this page by
+            <a href="https://github.com/royerlab/napari-mcp/issues/new/?title=[Docs]+{title}+-+{url}" target="_blank" rel="noopener">telling us what you found lacking</a>.
+
+extra_css:
+  - stylesheets/extra.css
+
+copyright: >
+  Copyright &copy; 2024-2025 Ilan Theodoro and contributors –
+  <a href="#__consent">Change cookie settings</a>
