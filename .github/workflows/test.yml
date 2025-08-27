@@ -32,8 +32,6 @@ jobs:
       uses: astral-sh/setup-uv@v2
       with:
         version: "latest"
-      with:
-        version: "latest"
 
     - name: Install system dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
