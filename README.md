@@ -12,6 +12,14 @@ MCP server for remote control of napari viewers via Model Context Protocol (MCP)
 
 **No installation required!** Run directly with uv:
 
+### Option 1: Run Directly from GitHub (No Download)
+```bash
+# Run directly from GitHub - most convenient!
+uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
+  fastmcp run https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py
+```
+
+### Option 2: Download and Run
 ```bash
 # Download and run in one command
 curl -O https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py
@@ -19,7 +27,23 @@ uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --
   fastmcp run napari_mcp_server.py
 ```
 
-**Claude Desktop config:**
+**Claude Desktop config (Direct from GitHub):**
+```json
+{
+  "mcpServers": {
+    "napari": {
+      "command": "uv",
+      "args": [
+        "run", "--with", "Pillow", "--with", "PyQt6", "--with", "fastmcp",
+        "--with", "imageio", "--with", "napari", "--with", "numpy", "--with", "qtpy",
+        "fastmcp", "run", "https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py"
+      ]
+    }
+  }
+}
+```
+
+**Alternative config (Downloaded file):**
 ```json
 {
   "mcpServers": {
@@ -39,7 +63,8 @@ uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --
 - ✅ **Zero Installation** - No pip install, no virtual environments
 - ✅ **Single File** - Easy to share, version, and deploy  
 - ✅ **Auto Dependencies** - uv handles all dependencies automatically
-- ✅ **Works from GitHub** - Run latest version directly from repo
+- ✅ **Direct GitHub Execution** - Run latest version directly from repo without downloading
+- ✅ **Always Up-to-Date** - GitHub URL ensures you get the latest version
 - ✅ **Reproducible** - Same dependencies every time
 
 ## 🤖 Multi-LLM Support

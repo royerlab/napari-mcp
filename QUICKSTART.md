@@ -5,17 +5,20 @@ Run napari with AI control instantly - no installation required!
 ## ⚡ Super Quick Setup (Option 1: Direct Run)
 
 ### Step 1: Run Server (30 seconds)
+
+**Fastest method - Run directly from GitHub (no download needed):**
+```bash
+# Run directly from GitHub - most convenient!
+uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
+  fastmcp run https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py
+```
+
+**Alternative - Download first then run:**
 ```bash
 # Download and run in one command (requires uv)
 curl -O https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py
 uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
   fastmcp run napari_mcp_server.py
-```
-
-Or if you have the file locally:
-```bash
-uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
-  fastmcp run /path/to/napari_mcp_server.py
 ```
 
 You should see:
@@ -25,7 +28,30 @@ You should see:
 
 ### Step 2: Configure Claude Desktop (1 minute)
 
-Add this to your Claude Desktop MCP configuration:
+**Option A: Direct GitHub execution (recommended):**
+```json
+{
+  "mcpServers": {
+    "napari": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--with", "Pillow",
+        "--with", "PyQt6", 
+        "--with", "fastmcp",
+        "--with", "imageio",
+        "--with", "napari",
+        "--with", "numpy",
+        "--with", "qtpy",
+        "fastmcp", "run",
+        "https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py"
+      ]
+    }
+  }
+}
+```
+
+**Option B: Downloaded file:**
 ```json
 {
   "mcpServers": {
@@ -48,7 +74,7 @@ Add this to your Claude Desktop MCP configuration:
 }
 ```
 
-**Important**: Replace `/absolute/path/to/napari_mcp_server.py` with the actual path to your downloaded file.
+**Note**: For Option B, replace `/absolute/path/to/napari_mcp_server.py` with the actual path to your downloaded file.
 
 ### Step 3: Test Connection (30 seconds)
 
@@ -156,7 +182,8 @@ This is handled automatically by `--with fastmcp` - no action needed.
 ✅ **Zero Installation** - No pip install, no virtual environments  
 ✅ **Single File** - Easy to share, version, and deploy  
 ✅ **Auto Dependencies** - uv handles all dependencies automatically  
-✅ **Works from GitHub** - Run latest version directly from repo  
+✅ **Direct GitHub Execution** - Run latest version directly from repo without downloading  
+✅ **Always Up-to-Date** - GitHub URL ensures you get the latest version  
 ✅ **Reproducible** - Same dependencies every time
 
 **You're ready for AI-assisted microscopy analysis!**
