@@ -37,7 +37,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y xvfb libgl1-mesa-glx libglib2.0-0 libxrender1 libxrandr2 libxss1 libxcursor1 libxcomposite1 libasound2 libxi6 libxtst6
+        sudo apt-get install -y xvfb libgl1-mesa-dev libglib2.0-0 libxrender1 libxrandr2 libxss1 libxcursor1 libxcomposite1 libasound2t64 libxi6 libxtst6
 
     - name: Install system dependencies (macOS)
       if: matrix.os == 'macos-latest'
@@ -112,7 +112,7 @@ jobs:
     - name: Run bandit (security linter)
       run: |
         bandit -r src/ -f json -o bandit-report.json || true
-        bandit -r src/
+        bandit -r src/ -c .bandit
 
     - name: Run safety (dependency vulnerability scanner)
       run: |
