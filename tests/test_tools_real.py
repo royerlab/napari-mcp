@@ -1,5 +1,5 @@
-import os
 import base64
+import os
 from pathlib import Path
 
 import numpy as np
@@ -10,10 +10,12 @@ if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
 
 import pytest
 
-
 # Opt-in: only run this test when explicitly requested
 if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
-    pytest.skip("Skipping real GUI tests; set RUN_REAL_NAPARI_TESTS=1 to enable.", allow_module_level=True)
+    pytest.skip(
+        "Skipping real GUI tests; set RUN_REAL_NAPARI_TESTS=1 to enable.",
+        allow_module_level=True,
+    )
 
 
 # For macOS with a real session, prefer default cocoa platform
@@ -27,24 +29,24 @@ else:
 
 
 from napari_mcp_server import (  # noqa: E402
-    init_viewer,
-    close_viewer,
-    list_layers,
     add_image,
     add_labels,
     add_points,
+    close_viewer,
+    init_viewer,
+    list_layers,
     remove_layer,
     rename_layer,
-    set_layer_properties,
     reorder_layer,
-    set_active_layer,
     reset_view,
-    set_zoom,
+    screenshot,
+    set_active_layer,
     set_camera,
-    set_ndisplay,
     set_dims_current_step,
     set_grid,
-    screenshot,
+    set_layer_properties,
+    set_ndisplay,
+    set_zoom,
 )
 
 
@@ -56,7 +58,7 @@ async def test_all_tools_with_real_napari(tmp_path: Path) -> None:
     assert res["status"] == "ok"
 
     # Create small test image and labels
-    img = (np.linspace(0, 255, 5 * 16 * 16, dtype=np.uint8).reshape(5, 16, 16))
+    img = np.linspace(0, 255, 5 * 16 * 16, dtype=np.uint8).reshape(5, 16, 16)
     img_path = tmp_path / "img.tif"
     import imageio.v3 as iio
 
@@ -64,7 +66,7 @@ async def test_all_tools_with_real_napari(tmp_path: Path) -> None:
     res = await add_image(str(img_path), name="img")
     assert res["status"] == "ok"
 
-    labels = (np.random.randint(0, 4, size=(16, 16), dtype=np.uint8))
+    labels = np.random.randint(0, 4, size=(16, 16), dtype=np.uint8)
     labels_path = tmp_path / "labels.tif"
     iio.imwrite(labels_path, labels)
     assert (await add_labels(str(labels_path), name="labels"))["status"] == "ok"
@@ -75,12 +77,14 @@ async def test_all_tools_with_real_napari(tmp_path: Path) -> None:
 
     # Layer ops
     layers = await list_layers()
-    names = {l["name"] for l in layers}
+    names = {layer["name"] for layer in layers}
     assert {"img", "labels", "pts"}.issubset(names)
 
     assert (await reorder_layer("labels", before="img"))["status"] == "ok"
     assert (await set_active_layer("img"))["status"] == "ok"
-    assert (await set_layer_properties("img", visible=False, opacity=0.5))["status"] == "ok"
+    assert (await set_layer_properties("img", visible=False, opacity=0.5))[
+        "status"
+    ] == "ok"
 
     # View ops
     assert (await reset_view())["status"] == "ok"
@@ -103,5 +107,3 @@ async def test_all_tools_with_real_napari(tmp_path: Path) -> None:
     assert (await rename_layer("img", "image1"))["status"] == "ok"
     assert (await remove_layer("labels"))["status"] == "removed"
     assert (await close_viewer())["status"] in {"closed", "no_viewer"}
-
-

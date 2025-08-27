@@ -1,24 +1,75 @@
 # Napari MCP Server
 
-[![Tests](https://github.com/USERNAME/napari-mcp/workflows/Tests/badge.svg)](https://github.com/USERNAME/napari-mcp/actions)
-[![Coverage](https://codecov.io/gh/USERNAME/napari-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/USERNAME/napari-mcp)
+[![Tests](https://github.com/royerlab/napari-mcp/workflows/Tests/badge.svg)](https://github.com/royerlab/napari-mcp/actions)
+[![Coverage](https://codecov.io/gh/royerlab/napari-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/royerlab/napari-mcp)
 [![PyPI version](https://badge.fury.io/py/napari-mcp.svg)](https://badge.fury.io/py/napari-mcp)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 MCP server for remote control of napari viewers via Model Context Protocol (MCP). Perfect for AI-assisted analysis with Claude Desktop.
 
-## 🚀 Quick Start
+## 🚀 Zero-Install Quick Start
+
+**No installation required!** Run directly with uv:
 
 ```bash
-# Install
+# Download and run in one command
+curl -O https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py
+uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
+  fastmcp run napari_mcp_server.py
+```
+
+**Claude Desktop config:**
+```json
+{
+  "mcpServers": {
+    "napari": {
+      "command": "uv",
+      "args": [
+        "run", "--with", "Pillow", "--with", "PyQt6", "--with", "fastmcp",
+        "--with", "imageio", "--with", "napari", "--with", "numpy", "--with", "qtpy",
+        "fastmcp", "run", "/absolute/path/to/napari_mcp_server.py"
+      ]
+    }
+  }
+}
+```
+
+**Why this approach?**
+- ✅ **Zero Installation** - No pip install, no virtual environments
+- ✅ **Single File** - Easy to share, version, and deploy  
+- ✅ **Auto Dependencies** - uv handles all dependencies automatically
+- ✅ **Works from GitHub** - Run latest version directly from repo
+- ✅ **Reproducible** - Same dependencies every time
+
+## 🤖 Multi-LLM Support
+
+Works with multiple AI assistants and IDEs:
+
+| Application | Status | Setup Method |
+|-------------|--------|--------------|
+| **Claude Desktop** | ✅ Full Support | Manual config (recommended) |
+| **Claude Code** | ✅ Full Support | `fastmcp install claude-code` |
+| **Cursor** | ✅ Full Support | `fastmcp install cursor` |
+| **ChatGPT** | 🟡 Limited | Remote deployment only |
+
+**→ See [LLM_INTEGRATIONS.md](LLM_INTEGRATIONS.md) for complete setup guides**
+
+## 🔧 Alternative Installation Methods
+
+### Traditional Package Installation
+
+```bash
+# Clone and install
+git clone https://github.com/royerlab/napari-mcp.git
+cd napari-mcp
 pip install -e .
 
-# Run MCP server
+# Run
 napari-mcp
 ```
 
-Add to Claude Desktop config:
+Claude Desktop config for installed version:
 ```json
 {
   "mcpServers": {
@@ -30,22 +81,19 @@ Add to Claude Desktop config:
 }
 ```
 
-## 🔧 Installation
+### Development Installation
 
 ```bash
+# With uv (recommended for development)
+uv pip install -e ".[test,dev]"
+
 # With pip
-pip install -e .
-
-# With uv (recommended)
-uv pip install -e .
-
-# Include test dependencies
-pip install -e ".[test]"
+pip install -e ".[test,dev]"
 ```
 
 **Requirements:**
 - Python 3.10+
-- napari 0.5.5+  
+- napari 0.5.5+
 - Qt Backend (PyQt6 installed automatically)
 
 ## 🛠 Available MCP Tools
@@ -56,7 +104,7 @@ pip install -e ".[test]"
 ### Layer Management
 - `list_layers()` - Get all layers and their properties
 - `add_image(path, name?, colormap?, blending?, channel_axis?)` - Add image layer from file
-- `add_labels(path, name?)` - Add segmentation labels from file  
+- `add_labels(path, name?)` - Add segmentation labels from file
 - `add_points(points, name?, size?)` - Add point annotations
 - `remove_layer(name)` - Remove layer by name
 - `rename_layer(old_name, new_name)` - Rename layer
@@ -68,7 +116,7 @@ pip install -e ".[test]"
 - `init_viewer(title?, width?, height?)` - Create or configure viewer
 - `close_viewer()` - Close viewer window
 - `start_gui(focus?)` - Start GUI event loop
-- `stop_gui()` - Stop GUI event loop  
+- `stop_gui()` - Stop GUI event loop
 - `is_gui_running()` - Check GUI status
 - `reset_view()` - Reset camera to fit all data
 - `set_zoom(zoom)` - Set zoom level
@@ -77,7 +125,7 @@ pip install -e ".[test]"
 - `set_dims_current_step(axis, value)` - Navigate dimensions (time, Z-stack)
 - `set_grid(enabled?)` - Enable/disable grid view
 
-### Utilities  
+### Utilities
 - `screenshot(canvas_only?)` - Capture PNG image as base64
 - `execute_code(code)` - Run Python with access to viewer, napari, numpy
 - `install_packages(packages, ...)` - Install Python packages dynamically
@@ -98,83 +146,115 @@ pip install -e ".[test]"
 **Recommended Usage:**
 - Use only on `localhost` connections
 - Run in isolated virtual environments
-- Monitor all code execution requests
-- Consider disabling these tools for sensitive environments
+- Only use with trusted AI assistants
+
+## 📖 Usage Examples
+
+### Basic Layer Operations
+
+**Add and manipulate images:**
+```
+Ask Claude: "Add a sample image to napari and set its colormap to 'viridis'"
+```
+
+**Work with annotations:**
+```  
+Ask Claude: "Create some point annotations at coordinates [[100,100], [200,200]] and make them size 10"
+```
+
+### Advanced Analysis
+
+**Execute custom code:**
+```
+Ask Claude: "Execute this code to create a synthetic image: 
+import numpy as np
+data = np.random.random((512, 512))
+viewer.add_image(data, name='random_noise')"
+```
+
+**Install packages on-demand:**
+```
+Ask Claude: "Install scipy and create a Gaussian filtered version of the current image"
+```
+
+### View Management
+
+**Control the camera:**
+```
+Ask Claude: "Reset the view, then zoom to 2x and center on coordinates [256, 256]"
+```
+
+**Switch display modes:**
+```
+Ask Claude: "Switch to 3D display mode and take a screenshot"
+```
 
 ## 🧪 Testing
 
 ```bash
-# Install test dependencies
-uv pip install -e ".[test]"
+# Run basic tests
+pytest tests/
 
-# Run all tests (96% coverage)
-uv run pytest
+# Run with GUI tests (requires display)
+RUN_REAL_NAPARI_TESTS=1 pytest tests/test_tools_real.py
 
-# Run with coverage report
-uv run pytest --cov=napari_mcp_server --cov-report=html
-```
-
-## 💡 Usage Examples
-
-### Basic Layer Control
-```python
-# Ask Claude:
-# "Create a new napari viewer and add a random image"
-# "Take a screenshot of the current view"
-# "What layers are currently loaded?"
-```
-
-### Image Analysis Workflow
-```python
-# Ask Claude:
-# "Load this image file: /path/to/data.tif"
-# "Add some annotation points at interesting features" 
-# "Execute this analysis code: np.mean(viewer.layers[0].data)"
-```
-
-### Automated Visualization
-```python
-# Ask Claude:
-# "Set up a nice colormap for the image layer"
-# "Adjust the camera to focus on the center region"
-# "Switch to 3D view and rotate the camera"
+# Run with coverage
+pytest --cov=src --cov-report=html tests/
 ```
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Quick Development Setup
 1. Fork the repository
-2. Install development dependencies: `uv pip install -e ".[test]"`  
-3. Install pre-commit hooks: `pre-commit install`
-4. Test your changes: `uv run pytest`
-5. Submit pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes with tests
+4. Run pre-commit hooks: `pre-commit run --all-files`
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
-For security-related contributions, please review our [Security Policy](SECURITY.md).
+**Development setup:**
+```bash
+git clone https://github.com/royerlab/napari-mcp.git
+cd napari-mcp
+uv pip install -e ".[test,dev]"
+pre-commit install
+```
 
-## 🐛 Troubleshooting
+## 📋 Architecture
 
-### Server Won't Start
-- Check if port is already in use: `lsof -i :3000`
-- Try different port or kill existing process
+The server architecture consists of:
 
-### Claude Desktop Connection Issues  
-- Restart Claude Desktop after config changes
-- Verify JSON config syntax is valid
-- Check Python path in config is correct
+- **FastMCP Server**: Handles MCP protocol communication
+- **Napari Integration**: Manages viewer lifecycle and operations
+- **Qt Event Loop**: Asynchronous GUI event processing
+- **Tool Layer**: Exposes napari functionality as MCP tools
 
-### Performance Issues
-- Large images may slow screenshot transfers
-- Use localhost connections only
-- Monitor memory usage for long sessions
+Key design decisions:
+- **Thread-safe**: All napari operations are serialized through locks
+- **Non-blocking**: Qt event loop runs asynchronously
+- **Stateful**: Maintains viewer state across tool calls
+- **Extensible**: Easy to add new tools and functionality
+
+## 📚 Resources
+
+- **[QUICKSTART.md](QUICKSTART.md)** - Get running in 2 minutes
+- **[LLM_INTEGRATIONS.md](LLM_INTEGRATIONS.md)** - Complete guide for Claude Desktop, Claude Code, Cursor, ChatGPT
+- **[Model Context Protocol](https://modelcontextprotocol.io/)** - MCP specification
+- **[FastMCP](https://github.com/jlowin/fastmcp)** - Python MCP framework
+- **[napari](https://napari.org/)** - Multi-dimensional image viewer
+- **[Claude Desktop](https://claude.ai/download)** - AI assistant with MCP support
 
 ## 📄 License
 
-[Add your license information here]
+MIT License - see [LICENSE](LICENSE) file for details.
 
-## 🙋 Support
+## 🙏 Acknowledgments
 
-- **Issues**: Report bugs and request features on GitHub
-- **Documentation**: See examples in the repository
-- **MCP Protocol**: [Model Context Protocol docs](https://modelcontextprotocol.io/)
+- [napari team](https://napari.org/team/) for the excellent imaging platform
+- [FastMCP](https://github.com/jlowin/fastmcp) for the MCP framework
+- [Anthropic](https://www.anthropic.com/) for Claude and MCP development
+- [astral-sh](https://astral.sh/) for uv dependency management
+
+---
+
+**Built with ❤️ for the microscopy and AI communities**

@@ -176,17 +176,17 @@ Brief description of the changes
 ```python
 # ✅ Good: Clear function signature with type hints
 async def add_image(
-    path: str, 
-    name: Optional[str] = None, 
+    path: str,
+    name: Optional[str] = None,
     colormap: Optional[str] = None
 ) -> Dict[str, Any]:
     """Add an image layer from a file path.
-    
+
     Args:
         path: Path to an image readable by imageio
         name: Optional layer name
         colormap: Optional napari colormap name
-        
+
     Returns:
         Dict with status, name, and shape information
     """
@@ -229,10 +229,10 @@ async def test_add_image_success():
     """Test successful image addition."""
     # Arrange
     test_image_path = "test_data/sample.png"
-    
+
     # Act
     result = await add_image(test_image_path, name="test_image")
-    
+
     # Assert
     assert result["status"] == "ok"
     assert result["name"] == "test_image"
@@ -282,7 +282,7 @@ When contributing changes to these areas, extra security review is required:
 
 If you have questions about:
 - **Architecture** - How the MCP server works
-- **Testing** - How to write or run tests  
+- **Testing** - How to write or run tests
 - **napari Integration** - How napari APIs work
 - **MCP Protocol** - Model Context Protocol details
 

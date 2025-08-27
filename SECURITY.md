@@ -65,7 +65,7 @@ If you need to use napari-mcp in a more controlled environment, consider:
 Instead, please:
 
 1. **Email**: Send details to [security-contact-email] (replace with actual contact)
-2. **Include**: 
+2. **Include**:
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact

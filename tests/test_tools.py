@@ -1,7 +1,7 @@
+import base64
 import os
 import sys
 import types
-import base64
 from pathlib import Path
 
 import numpy as np
@@ -86,7 +86,9 @@ class _FakeViewer:
         self.dims = _FakeDims()
         self.grid = _FakeGrid()
 
-    def add_image(self, data, name=None, colormap=None, blending=None, channel_axis=None):
+    def add_image(
+        self, data, name=None, colormap=None, blending=None, channel_axis=None
+    ):
         lyr = _FakeLayer(name or "image")
         lyr.colormap = colormap
         lyr.blending = blending
@@ -119,6 +121,7 @@ def _install_fake_napari() -> None:
     fake.Viewer = _FakeViewer
     sys.modules["napari"] = fake
 
+
 # Only install the fake napari if not running real GUI tests
 if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
     _install_fake_napari()
@@ -126,25 +129,25 @@ if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
 
 # Import after stubbing napari
 from napari_mcp_server import (  # noqa: E402
-    init_viewer,
-    close_viewer,
-    list_layers,
     add_image,
     add_labels,
     add_points,
+    close_viewer,
+    execute_code,
+    init_viewer,
+    list_layers,
     remove_layer,
     rename_layer,
-    set_layer_properties,
     reorder_layer,
-    set_active_layer,
     reset_view,
-    set_zoom,
+    screenshot,
+    set_active_layer,
     set_camera,
-    set_ndisplay,
     set_dims_current_step,
     set_grid,
-    screenshot,
-    execute_code,
+    set_layer_properties,
+    set_ndisplay,
+    set_zoom,
 )
 
 
@@ -156,7 +159,7 @@ async def test_all_tools_end_to_end(tmp_path: Path) -> None:
     assert isinstance(res["layers"], list)
 
     # create sample image (T, Y, X) to exercise dims slider
-    img = (np.linspace(0, 255, 5 * 32 * 32, dtype=np.uint8).reshape(5, 32, 32))
+    img = np.linspace(0, 255, 5 * 32 * 32, dtype=np.uint8).reshape(5, 32, 32)
     img_path = tmp_path / "img.tif"
     import imageio.v3 as iio
 
@@ -168,7 +171,7 @@ async def test_all_tools_end_to_end(tmp_path: Path) -> None:
     assert res["name"] == "img"
 
     # add labels
-    labels = (np.random.randint(0, 4, size=(32, 32), dtype=np.uint8))
+    labels = np.random.randint(0, 4, size=(32, 32), dtype=np.uint8)
     labels_path = tmp_path / "labels.tif"
     iio.imwrite(labels_path, labels)
     res = await add_labels(str(labels_path), name="labels")

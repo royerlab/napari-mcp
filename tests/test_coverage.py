@@ -21,6 +21,7 @@ if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
 
 class _MockViewer:
     """Mock viewer for testing error conditions."""
+
     def __init__(self, should_fail=False):
         self.should_fail = should_fail
         self.title = "Mock Viewer"
@@ -163,31 +164,29 @@ if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
 
 
 from napari_mcp_server import (  # noqa: E402
-    init_viewer,
+    _ensure_qt_app,
+    _ensure_viewer,
+    add_image,
+    add_points,
     close_viewer,
-    start_gui,
-    stop_gui,
+    execute_code,
+    init_viewer,
+    install_packages,
     is_gui_running,
     list_layers,
-    add_image,
-    add_labels,
-    add_points,
     remove_layer,
     rename_layer,
-    set_layer_properties,
     reorder_layer,
+    screenshot,
     set_active_layer,
-    reset_view,
-    set_zoom,
     set_camera,
-    set_ndisplay,
     set_dims_current_step,
     set_grid,
-    screenshot,
-    execute_code,
-    install_packages,
-    _ensure_viewer,
-    _ensure_qt_app,
+    set_layer_properties,
+    set_ndisplay,
+    set_zoom,
+    start_gui,
+    stop_gui,
 )
 
 
@@ -206,19 +205,19 @@ async def test_gui_lifecycle():
     res = await is_gui_running()
     assert res["status"] == "ok"
     assert isinstance(res["running"], bool)
-    
+
     # Start GUI
     res = await start_gui(focus=False)
     assert res["status"] in ["started", "already_running"]
-    
+
     # Check running state
     res = await is_gui_running()
     assert res["running"] is True
-    
+
     # Stop GUI
     res = await stop_gui()
     assert res["status"] == "stopped"
-    
+
     # Check stopped state
     res = await is_gui_running()
     assert res["running"] is False
@@ -228,23 +227,23 @@ async def test_gui_lifecycle():
 async def test_layer_error_cases():
     """Test error handling in layer operations."""
     await init_viewer()
-    
+
     # Test removing non-existent layer
     res = await remove_layer("nonexistent")
     assert res["status"] == "not_found"
-    
+
     # Test renaming non-existent layer
     res = await rename_layer("nonexistent", "new_name")
     assert res["status"] == "not_found"
-    
+
     # Test setting properties on non-existent layer
     res = await set_layer_properties("nonexistent", visible=False)
     assert res["status"] == "not_found"
-    
+
     # Test reordering non-existent layer
     res = await reorder_layer("nonexistent", index=0)
     assert res["status"] == "not_found"
-    
+
     # Test setting active layer to non-existent
     res = await set_active_layer("nonexistent")
     assert res["status"] == "not_found"
@@ -254,28 +253,28 @@ async def test_layer_error_cases():
 async def test_reorder_layer_edge_cases():
     """Test edge cases in layer reordering."""
     await init_viewer()
-    
+
     # Add some layers
     await add_points([[1, 1]], name="layer1")
     await add_points([[2, 2]], name="layer2")
     await add_points([[3, 3]], name="layer3")
-    
+
     # Test invalid parameter combinations
     res = await reorder_layer("layer1")  # No target specified
     assert res["status"] == "error"
     assert "exactly one" in res["message"]
-    
+
     res = await reorder_layer("layer1", index=0, before="layer2")  # Multiple targets
     assert res["status"] == "error"
     assert "exactly one" in res["message"]
-    
+
     # Test before/after with non-existent targets
     res = await reorder_layer("layer1", before="nonexistent")
     assert res["status"] == "not_found"
-    
+
     res = await reorder_layer("layer1", after="nonexistent")
     assert res["status"] == "not_found"
-    
+
     # Test valid reordering
     res = await reorder_layer("layer1", after="layer2")
     assert res["status"] == "ok"
@@ -286,7 +285,7 @@ async def test_set_layer_properties_comprehensive():
     """Test comprehensive layer property setting."""
     await init_viewer()
     await add_points([[1, 1]], name="test_layer")
-    
+
     # Test setting all properties
     res = await set_layer_properties(
         "test_layer",
@@ -295,7 +294,7 @@ async def test_set_layer_properties_comprehensive():
         colormap="viridis",
         blending="additive",
         contrast_limits=[0.1, 0.9],
-        gamma=1.5
+        gamma=1.5,
     )
     assert res["status"] == "ok"
 
@@ -304,23 +303,25 @@ async def test_set_layer_properties_comprehensive():
 async def test_execute_code_error_cases():
     """Test error handling in code execution."""
     await init_viewer()
-    
+
     # Test syntax error
     res = await execute_code("invalid python syntax !!!")
     assert res["status"] == "error"
     assert res["stderr"]
-    
+
     # Test runtime error
     res = await execute_code("raise ValueError('test error')")
     assert res["status"] == "error"
     assert "test error" in res["stderr"]
-    
+
     # Test stdout/stderr capture
-    res = await execute_code("import sys; print('stdout'); print('stderr', file=sys.stderr)")
+    res = await execute_code(
+        "import sys; print('stdout'); print('stderr', file=sys.stderr)"
+    )
     assert res["status"] == "ok"
     assert "stdout" in res["stdout"]
     assert "stderr" in res["stderr"]
-    
+
     # Test expression evaluation
     res = await execute_code("x = 42\nx")
     assert res["status"] == "ok"
@@ -334,7 +335,7 @@ async def test_install_packages_validation():
     res = await install_packages([])
     assert res["status"] == "error"
     assert "non-empty list" in res["message"]
-    
+
     # Test invalid package list type
     res = await install_packages("not_a_list")  # type: ignore
     assert res["status"] == "error"
@@ -345,18 +346,20 @@ async def test_install_packages_validation():
 async def test_screenshot_with_different_dtypes():
     """Test screenshot with different image data types."""
     await init_viewer()
-    
+
     # Mock viewer with different array types
     viewer = _ensure_viewer()
-    
+
     # Test with float array
     original_screenshot = viewer.screenshot
-    viewer.screenshot = lambda canvas_only=True: np.random.rand(20, 20, 3).astype(np.float32)
-    
+    viewer.screenshot = lambda canvas_only=True: np.random.rand(20, 20, 3).astype(
+        np.float32
+    )
+
     res = await screenshot()
     assert res["mime_type"] == "image/png"
     assert "base64_data" in res
-    
+
     # Restore original
     viewer.screenshot = original_screenshot
 
@@ -366,8 +369,9 @@ async def test_close_viewer_no_viewer():
     """Test closing viewer when none exists."""
     # Reset global viewer state
     import napari_mcp_server
+
     napari_mcp_server._viewer = None
-    
+
     res = await close_viewer()
     assert res["status"] == "no_viewer"
 
@@ -376,18 +380,18 @@ async def test_close_viewer_no_viewer():
 async def test_camera_operations():
     """Test comprehensive camera operations."""
     await init_viewer()
-    
+
     # Test individual camera operations
     res = await set_zoom(2.5)
     assert res["status"] == "ok"
     assert abs(res["zoom"] - 2.5) < 0.01
-    
+
     # Test camera with all parameters
     res = await set_camera(center=[100, 200], zoom=1.5, angle=45.0)
     assert res["status"] == "ok"
     assert res["zoom"] == 1.5
     assert res["center"] == [100.0, 200.0]
-    
+
     # Test camera with partial parameters
     res = await set_camera(zoom=3.0)
     assert res["status"] == "ok"
@@ -398,12 +402,12 @@ async def test_camera_operations():
 async def test_dims_operations():
     """Test dimension-related operations."""
     await init_viewer()
-    
+
     # Test ndisplay
     res = await set_ndisplay(3)
     assert res["status"] == "ok"
     assert res["ndisplay"] == 3
-    
+
     # Test dims current step
     res = await set_dims_current_step(0, 5)
     assert res["status"] == "ok"
@@ -415,31 +419,33 @@ async def test_dims_operations():
 async def test_grid_operations():
     """Test grid enable/disable."""
     await init_viewer()
-    
+
     # Enable grid
     res = await set_grid(True)
     assert res["status"] == "ok"
     assert res["grid"] is True
-    
+
     # Disable grid
     res = await set_grid(False)
     assert res["status"] == "ok"
     assert res["grid"] is False
 
 
-@pytest.mark.asyncio 
+@pytest.mark.asyncio
 async def test_list_layers_with_properties():
     """Test layer listing with various properties."""
     await init_viewer()
-    
+
     # Add layer and set properties
     await add_points([[1, 1]], name="test_points")
     await set_layer_properties("test_points", opacity=0.8, visible=False)
-    
+
     layers = await list_layers()
     assert len(layers) >= 1
-    
-    points_layer = next((l for l in layers if l["name"] == "test_points"), None)
+
+    points_layer = next(
+        (layer for layer in layers if layer["name"] == "test_points"), None
+    )
     assert points_layer is not None
     assert points_layer["opacity"] == 0.8
     assert points_layer["visible"] is False
@@ -458,7 +464,7 @@ async def test_image_loading_error(tmp_path: Path):
     # Create an invalid file
     bad_file = tmp_path / "bad_image.tif"
     bad_file.write_text("not an image")
-    
+
     # This should raise an exception that gets propagated
-    with pytest.raises(Exception):
+    with pytest.raises((ValueError, OSError, RuntimeError)):
         await add_image(str(bad_file))

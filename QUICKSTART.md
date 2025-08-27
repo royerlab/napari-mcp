@@ -1,19 +1,21 @@
-# 🚀 Quick Start Guide - 5 Minutes to AI-Controlled Napari
+# 🚀 Zero-Install Quick Start - Napari MCP in 2 Minutes!
 
-Get napari working with Claude Desktop in 5 minutes!
+Run napari with AI control instantly - no installation required!
 
-## ⚡ Setup Steps
+## ⚡ Super Quick Setup (Option 1: Direct Run)
 
-### Step 1: Install (1 minute)
+### Step 1: Run Server (30 seconds)
 ```bash
-# Install the package
-pip install -e .
+# Download and run in one command (requires uv)
+curl -O https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py
+uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
+  fastmcp run napari_mcp_server.py
 ```
 
-### Step 2: Start MCP Server (30 seconds)
+Or if you have the file locally:
 ```bash
-# Start the napari MCP server
-napari-mcp
+uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
+  fastmcp run /path/to/napari_mcp_server.py
 ```
 
 You should see:
@@ -21,29 +23,64 @@ You should see:
 - "Starting MCP server" message  
 - Napari window opens automatically
 
-### Step 3: Configure Claude Desktop (2 minutes)
+### Step 2: Configure Claude Desktop (1 minute)
 
-1. **Open Claude Desktop settings**
-2. **Add this to your MCP configuration:**
-   ```json
-   {
-     "mcpServers": {
-       "napari": {
-         "command": "python",
-         "args": ["-m", "napari_mcp_server"]
-       }
-     }
-   }
-   ```
-3. **Restart Claude Desktop**
+Add this to your Claude Desktop MCP configuration:
+```json
+{
+  "mcpServers": {
+    "napari": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--with", "Pillow",
+        "--with", "PyQt6", 
+        "--with", "fastmcp",
+        "--with", "imageio",
+        "--with", "napari",
+        "--with", "numpy",
+        "--with", "qtpy",
+        "fastmcp", "run",
+        "/absolute/path/to/napari_mcp_server.py"
+      ]
+    }
+  }
+}
+```
 
-### Step 4: Test Connection (1 minute)
+**Important**: Replace `/absolute/path/to/napari_mcp_server.py` with the actual path to your downloaded file.
 
-Ask Claude:
+### Step 3: Test Connection (30 seconds)
+
+Restart Claude Desktop and ask:
 - **"Can you call session_information() to tell me about my napari session?"**
 - Should return: `"session_type": "napari_mcp_standalone_session"`
-- **"Take a screenshot of my napari viewer"**
-- **"What layers do I currently have?"**
+
+## 🎯 Alternative: Traditional Installation
+
+If you prefer installing as a package:
+
+```bash
+# Clone and install
+git clone https://github.com/royerlab/napari-mcp.git
+cd napari-mcp
+pip install -e .
+
+# Run
+napari-mcp
+```
+
+Claude Desktop config for installed version:
+```json
+{
+  "mcpServers": {
+    "napari": {
+      "command": "python",
+      "args": ["-m", "napari_mcp_server"]
+    }
+  }
+}
+```
 
 ## 🎯 First Things to Try
 
@@ -52,43 +89,74 @@ Ask Claude:
 - **"Create some annotation points at random locations"**
 - **"Change the colormap of the image layer to 'viridis'"**
 - **"Reset the view to fit all data"**
+- **"Take a screenshot of my napari viewer"**
 
-### Fun Experiments  
+### Advanced Experiments
 - **"Execute this code: `print(f'Current zoom: {viewer.camera.zoom}')`"**
 - **"Install the scipy package and create a Gaussian filtered image"**
 - **"Switch to 3D view mode"**
-- **"Take a screenshot and describe what you see"**
 
-## ❌ Common Issues
+## 🛠 Prerequisites
 
-### "napari-mcp command not found"
+**Required:**
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) - Python package installer
+- Python 3.10+ (automatically managed by uv)
+
+**Install uv if needed:**
 ```bash
-pip install -e . --force-reinstall
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# With pip
+pip install uv
 ```
-
-### "Claude can't see napari tools"
-- Restart Claude Desktop after config changes
-- Check config JSON syntax
-- Verify Python path in config
-
-### "Server won't start"
-- Check if port in use: `lsof -i :stdio`
-- Kill other napari processes
-- Try restarting terminal
 
 ## ✅ Success Checklist
 
 After following this guide:
-- [ ] `napari-mcp` command starts without errors
-- [ ] Napari window opens automatically  
-- [ ] Claude Desktop config added and restarted
+- [ ] Server starts without errors and napari window opens
+- [ ] Claude Desktop config added with correct file path
+- [ ] Claude Desktop restarted
 - [ ] `session_information()` returns standalone session type
 - [ ] Screenshot and layer operations work via Claude
 
+## ❌ Common Issues
+
+### "uv: command not found"
+```bash
+# Install uv first
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Restart terminal
+```
+
+### "fastmcp: command not found"
+This is handled automatically by `--with fastmcp` - no action needed.
+
+### "Claude can't see napari tools"
+- Double-check the file path in Claude Desktop config is absolute
+- Restart Claude Desktop after config changes
+- Verify the server is running (should show FastMCP output)
+
+### "File not found" error
+- Use absolute paths in Claude Desktop config: `/Users/yourname/path/to/napari_mcp_server.py`
+- Check file permissions: `chmod +x napari_mcp_server.py`
+
 ## 🆘 Need Help?
 
-- **Issues**: Check the main README troubleshooting section
-- **Examples**: Try the usage examples in README.md  
-- **Advanced**: Use `execute_code()` for custom Python analysis
+- **Download Issues**: Ensure you have internet connection and curl installed
+- **Path Issues**: Use `pwd` to get current directory and construct absolute paths
+- **Permission Issues**: Run `chmod +x napari_mcp_server.py` 
+- **Advanced Usage**: Check the main README.md for more examples
 
-**🎉 You're ready for AI-assisted microscopy analysis!**
+## 🎉 Why This Approach?
+
+✅ **Zero Installation** - No pip install, no virtual environments  
+✅ **Single File** - Easy to share, version, and deploy  
+✅ **Auto Dependencies** - uv handles all dependencies automatically  
+✅ **Works from GitHub** - Run latest version directly from repo  
+✅ **Reproducible** - Same dependencies every time
+
+**You're ready for AI-assisted microscopy analysis!**
