@@ -1,5 +1,2 @@
 [bandit]
-# Ignore specific security warnings that are legitimate for this MCP server
-# B110: Try, Except, Pass - legitimate error handling for optional features  
-# B101: Assert used - acceptable for internal consistency checks
 skips = B110,B101

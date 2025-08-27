@@ -46,6 +46,7 @@ jobs:
 
     - name: Install dependencies
       run: |
+        uv lock --upgrade
         uv sync --extra test
 
     - name: Run tests (headless)
