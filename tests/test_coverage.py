@@ -155,12 +155,40 @@ class _MockSize:
 def _install_mock_napari():
     mock = types.ModuleType("napari")
     mock.Viewer = _MockViewer
+    mock.current_viewer = lambda: None
     sys.modules["napari"] = mock
+    
+    # Also create submodules with proper attributes
+    mock_viewer = types.ModuleType("napari.viewer")
+    mock_viewer.Viewer = _MockViewer
+    sys.modules["napari.viewer"] = mock_viewer
 
+
+# Store original napari before mocking
+_original_napari = sys.modules.get("napari")
+_original_napari_viewer = sys.modules.get("napari.viewer")
 
 # Only install mock if not running real GUI tests
 if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
     _install_mock_napari()
+
+
+@pytest.fixture(scope="module", autouse=True)
+def cleanup_mocks():
+    """Cleanup mock napari after tests."""
+    yield
+    # Clean up napari submodules
+    if "napari.viewer" in sys.modules:
+        if _original_napari_viewer is not None:
+            sys.modules["napari.viewer"] = _original_napari_viewer
+        else:
+            del sys.modules["napari.viewer"]
+    
+    # Restore or remove napari
+    if _original_napari is not None:
+        sys.modules["napari"] = _original_napari
+    elif "napari" in sys.modules:
+        del sys.modules["napari"]
 
 
 from napari_mcp_server import (  # noqa: E402
