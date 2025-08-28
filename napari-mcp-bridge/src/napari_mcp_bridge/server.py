@@ -42,6 +42,14 @@ class QtBridge(QObject):
     
     def run_in_main_thread(self, operation):
         """Run an operation in the main thread and return the result."""
+        from qtpy.QtCore import QThread
+        
+        # Check if we're already on the main thread using Qt's method
+        if QThread.currentThread() == QApplication.instance().thread():
+            # We're already on the main thread, execute directly
+            return operation()
+        
+        # Use signal/slot mechanism for cross-thread execution
         future = Future()
         self.operation_requested.emit(operation, future)
         return future.result(timeout=5.0)
@@ -68,6 +76,10 @@ class NapariBridgeServer:
         self.thread = None
         self._exec_globals: dict[str, Any] = {}
         self.qt_bridge = QtBridge()
+        # Move QtBridge to main thread for proper signal/slot communication
+        app = QApplication.instance()
+        if app and app.thread() != self.qt_bridge.thread():
+            self.qt_bridge.moveToThread(app.thread())
         self._setup_tools()
     
     def _run_in_main(self, func):
@@ -129,10 +141,8 @@ class NapariBridgeServer:
                     "bridge_port": self.port,
                 }
             
-            # Run in main thread
-            return await asyncio.get_event_loop().run_in_executor(
-                None, self.qt_bridge.run_in_main_thread, get_info
-            )
+            # Run in main thread via Qt bridge
+            return self.qt_bridge.run_in_main_thread(get_info)
         
         @self.server.tool
         async def list_layers() -> list[dict[str, Any]]:
@@ -151,9 +161,7 @@ class NapariBridgeServer:
                     result.append(entry)
                 return result
             
-            return await asyncio.get_event_loop().run_in_executor(
-                None, self.qt_bridge.run_in_main_thread, get_layers
-            )
+            return self.qt_bridge.run_in_main_thread(get_layers)
         
         @self.server.tool
         async def add_image(
@@ -176,9 +184,7 @@ class NapariBridgeServer:
                 layer = self.viewer.add_image(img_data, name=name, colormap=colormap)
                 return {"status": "ok", "name": layer.name, "shape": list(img_data.shape)}
             
-            return await asyncio.get_event_loop().run_in_executor(
-                None, self.qt_bridge.run_in_main_thread, add_layer
-            )
+            return self.qt_bridge.run_in_main_thread(add_layer)
         
         @self.server.tool
         async def add_points(
@@ -193,9 +199,7 @@ class NapariBridgeServer:
                 layer = self.viewer.add_points(arr, name=name, size=size)
                 return {"status": "ok", "name": layer.name, "n_points": int(arr.shape[0])}
             
-            return await asyncio.get_event_loop().run_in_executor(
-                None, self.qt_bridge.run_in_main_thread, add_layer
-            )
+            return self.qt_bridge.run_in_main_thread(add_layer)
         
         @self.server.tool
         async def remove_layer(name: str) -> dict[str, Any]:
@@ -206,9 +210,7 @@ class NapariBridgeServer:
                     return {"status": "removed", "name": name}
                 return {"status": "not_found", "name": name}
             
-            return await asyncio.get_event_loop().run_in_executor(
-                None, self.qt_bridge.run_in_main_thread, remove
-            )
+            return self.qt_bridge.run_in_main_thread(remove)
         
         @self.server.tool
         async def rename_layer(old_name: str, new_name: str) -> dict[str, Any]:
@@ -220,9 +222,7 @@ class NapariBridgeServer:
                 lyr.name = new_name
                 return {"status": "ok", "old": old_name, "new": new_name}
             
-            return await asyncio.get_event_loop().run_in_executor(
-                None, self.qt_bridge.run_in_main_thread, rename
-            )
+            return self.qt_bridge.run_in_main_thread(rename)
         
         @self.server.tool
         async def set_layer_properties(
@@ -244,9 +244,7 @@ class NapariBridgeServer:
                     lyr.colormap = colormap
                 return {"status": "ok", "name": lyr.name}
             
-            return await asyncio.get_event_loop().run_in_executor(
-                None, self.qt_bridge.run_in_main_thread, set_props
-            )
+            return self.qt_bridge.run_in_main_thread(set_props)
         
         @self.server.tool
         async def reset_view() -> dict[str, Any]:
@@ -255,9 +253,7 @@ class NapariBridgeServer:
                 self.viewer.reset_view()
                 return {"status": "ok"}
             
-            return await asyncio.get_event_loop().run_in_executor(
-                None, self.qt_bridge.run_in_main_thread, reset
-            )
+            return self.qt_bridge.run_in_main_thread(reset)
         
         @self.server.tool
         async def set_zoom(zoom: float) -> dict[str, Any]:
@@ -266,9 +262,7 @@ class NapariBridgeServer:
                 self.viewer.camera.zoom = float(zoom)
                 return {"status": "ok", "zoom": float(self.viewer.camera.zoom)}
             
-            return await asyncio.get_event_loop().run_in_executor(
-                None, self.qt_bridge.run_in_main_thread, set_z
-            )
+            return self.qt_bridge.run_in_main_thread(set_z)
         
         @self.server.tool
         async def set_ndisplay(ndisplay: int) -> dict[str, Any]:
@@ -277,9 +271,7 @@ class NapariBridgeServer:
                 self.viewer.dims.ndisplay = int(ndisplay)
                 return {"status": "ok", "ndisplay": int(self.viewer.dims.ndisplay)}
             
-            return await asyncio.get_event_loop().run_in_executor(
-                None, self.qt_bridge.run_in_main_thread, set_nd
-            )
+            return self.qt_bridge.run_in_main_thread(set_nd)
         
         @self.server.tool
         async def screenshot(canvas_only: bool = True) -> dict[str, str]:
@@ -292,9 +284,7 @@ class NapariBridgeServer:
                     arr = arr.astype(np.uint8, copy=False)
                 return self._encode_png_base64(arr)
             
-            return await asyncio.get_event_loop().run_in_executor(
-                None, self.qt_bridge.run_in_main_thread, take_screenshot
-            )
+            return self.qt_bridge.run_in_main_thread(take_screenshot)
         
         @self.server.tool
         async def execute_code(code: str) -> dict[str, Any]:
@@ -340,9 +330,7 @@ class NapariBridgeServer:
                         "stderr": stderr_buf.getvalue() + tb,
                     }
             
-            return await asyncio.get_event_loop().run_in_executor(
-                None, self.qt_bridge.run_in_main_thread, execute
-            )
+            return self.qt_bridge.run_in_main_thread(execute)
     
     def _run_server_thread(self):
         """Run the server in a separate thread with its own event loop."""
@@ -385,6 +373,42 @@ class NapariBridgeServer:
         # Clean up loop reference
         self.loop = None
         return True
+    
+    # Method wrappers to expose tools as direct methods for easier testing
+    async def session_information(self) -> dict[str, Any]:
+        """Get session information via the registered tool."""
+        tool = await self.server.get_tool("session_information")
+        return await tool.fn()
+    
+    async def list_layers(self) -> list[dict[str, Any]]:
+        """List layers via the registered tool."""
+        tool = await self.server.get_tool("list_layers")
+        return await tool.fn()
+    
+    async def execute_code(self, code: str) -> dict[str, Any]:
+        """Execute code via the registered tool."""
+        tool = await self.server.get_tool("execute_code") 
+        return await tool.fn(code)
+    
+    async def screenshot(self, canvas_only: bool = True) -> dict[str, str]:
+        """Take screenshot via the registered tool."""
+        tool = await self.server.get_tool("screenshot")
+        return await tool.fn(canvas_only)
+    
+    async def add_image(self, **kwargs) -> dict[str, Any]:
+        """Add image via the registered tool."""
+        tool = await self.server.get_tool("add_image")
+        return await tool.fn(**kwargs)
+    
+    async def add_points(self, **kwargs) -> dict[str, Any]:
+        """Add points via the registered tool."""
+        tool = await self.server.get_tool("add_points")
+        return await tool.fn(**kwargs)
+    
+    async def remove_layer(self, name: str) -> dict[str, Any]:
+        """Remove layer via the registered tool."""
+        tool = await self.server.get_tool("remove_layer")
+        return await tool.fn(name)
     
     @property
     def is_running(self) -> bool:

@@ -33,6 +33,9 @@ class _FakeLayers:
 
     def __iter__(self):
         return iter(self._layers)
+    
+    def __len__(self):
+        return len(self._layers)
 
     def __contains__(self, name: str) -> bool:
         return any(lyr.name == name for lyr in self._layers)
@@ -118,13 +121,39 @@ class _FakeViewer:
 
 def _install_fake_napari() -> None:
     fake = types.ModuleType("napari")
+    fake.__file__ = None  # Mark as fake
     fake.Viewer = _FakeViewer
+    fake.current_viewer = lambda: None  # Default to no viewer
     sys.modules["napari"] = fake
+    
+    # Also create submodules that might be imported
+    fake_viewer = types.ModuleType("napari.viewer")
+    sys.modules["napari.viewer"] = fake_viewer
 
+
+# Store original napari if it exists
+_original_napari = sys.modules.get("napari")
 
 # Only install the fake napari if not running real GUI tests
 if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
     _install_fake_napari()
+
+
+@pytest.fixture(scope="module", autouse=True)
+def cleanup_fake_napari():
+    """Cleanup fake napari after test_tools.py completes."""
+    yield
+    # Clean up fake napari modules
+    if "napari.viewer" in sys.modules:
+        del sys.modules["napari.viewer"]
+    
+    # Restore original napari or remove fake one
+    if _original_napari is not None:
+        sys.modules["napari"] = _original_napari
+    elif "napari" in sys.modules:
+        # If there was no original napari and we have a fake one, remove it
+        if not hasattr(sys.modules["napari"], "__file__") or not sys.modules["napari"].__file__:
+            del sys.modules["napari"]
 
 
 # Import after stubbing napari

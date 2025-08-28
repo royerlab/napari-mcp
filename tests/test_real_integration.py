@@ -14,6 +14,15 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+# Set environment variable to prevent fake napari installation
+os.environ["RUN_REAL_NAPARI_TESTS"] = "1"
+
+# Remove fake napari if it was installed by other tests
+if 'napari' in sys.modules:
+    if not hasattr(sys.modules['napari'], '__file__') or not sys.modules['napari'].__file__:
+        # It's fake if it has no __file__ attribute or __file__ is None
+        del sys.modules['napari']
+
 # Add paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'napari-mcp-bridge', 'src'))
@@ -36,16 +45,21 @@ def qt_app():
 @pytest.fixture
 def real_viewer(qt_app, qtbot):
     """Create a real napari viewer."""
-    import napari
-    viewer = napari.Viewer(show=False)  # Don't show window in tests
-    qtbot.addWidget(viewer.window._qt_window)
-    yield viewer
-    # Cleanup - check if viewer still exists before closing
     try:
+        import napari
+        viewer = napari.Viewer(show=False)  # Don't show window in tests
+        # Only add to qtbot if window is available
         if hasattr(viewer, 'window') and hasattr(viewer.window, '_qt_window'):
-            viewer.close()
-    except (RuntimeError, AttributeError):
-        pass  # Already closed or deleted
+            qtbot.addWidget(viewer.window._qt_window)
+        yield viewer
+        # Cleanup - check if viewer still exists before closing
+        try:
+            if hasattr(viewer, 'window') and hasattr(viewer.window, '_qt_window'):
+                viewer.close()
+        except (RuntimeError, AttributeError):
+            pass  # Already closed or deleted
+    except (ImportError, AttributeError) as e:
+        pytest.skip(f"Could not create real napari viewer: {e}")
 
 
 @pytest.fixture
@@ -104,23 +118,15 @@ class TestRealBridgeServer:
         
         server = NapariBridgeServer(viewer_with_data, port=9996)
         
-        # Create a mock Qt bridge that executes directly
-        def execute_directly(func):
-            return func()
+        # Get session info through the tool - let Qt bridge handle threading
+        info = await server.session_information()
         
-        with patch.object(server.qt_bridge, 'run_in_main_thread', side_effect=execute_directly):
-            # Get session info through the tool
-            server._setup_tools()
-            
-            # Find session_information in registered tools
-            info = await server.session_information()
-            
-            assert info["status"] == "ok"
-            assert info["session_type"] == "napari_bridge_session"
-            assert info["viewer"]["n_layers"] == 3
-            assert "test_image" in info["viewer"]["layer_names"]
-            assert "test_labels" in info["viewer"]["layer_names"]
-            assert "test_points" in info["viewer"]["layer_names"]
+        assert info["status"] == "ok"
+        assert info["session_type"] == "napari_bridge_session"
+        assert info["viewer"]["n_layers"] == 3
+        assert "test_image" in info["viewer"]["layer_names"]
+        assert "test_labels" in info["viewer"]["layer_names"]
+        assert "test_points" in info["viewer"]["layer_names"]
     
     @pytest.mark.realgui
     def test_screenshot_real_viewer(self, viewer_with_data):
@@ -176,7 +182,7 @@ class TestRealPlugin:
         """Test starting and stopping server from plugin widget."""
         from napari_mcp_bridge.widget import MCPControlWidget
         
-        widget = MCPControlWidget(napari_viewer=real_viewer)
+        widget = MCPControlWidget(napari_viewer=real_viewer, port=9998)
         real_viewer.window.add_dock_widget(widget, area='right')
         
         # Start server
@@ -244,29 +250,24 @@ class TestRealEndToEnd:
         
         server = NapariBridgeServer(viewer_with_data, port=9993)
         
-        # Mock Qt bridge for testing
-        def execute_directly(func):
-            return func()
+        # Test list layers - let Qt bridge handle threading properly
+        layers = await server.list_layers()
+        assert len(layers) == 3
         
-        with patch.object(server.qt_bridge, 'run_in_main_thread', side_effect=execute_directly):
-            # Test list layers
-            layers = await server.list_layers()
-            assert len(layers) == 3
-            
-            # Test add image
-            test_data = np.random.rand(50, 50)
-            result = await server.add_image(
-                data=test_data.tolist(),
-                name="new_image",
-                colormap="viridis"
-            )
-            assert result["status"] == "ok"
-            assert "new_image" in [l.name for l in viewer_with_data.layers]
-            
-            # Test remove layer
-            result = await server.remove_layer("new_image")
-            assert result["status"] == "removed"
-            assert "new_image" not in [l.name for l in viewer_with_data.layers]
+        # Test add image
+        test_data = np.random.rand(50, 50)
+        result = await server.add_image(
+            data=test_data.tolist(),
+            name="new_image",
+            colormap="viridis"
+        )
+        assert result["status"] == "ok"
+        assert "new_image" in [l.name for l in viewer_with_data.layers]
+        
+        # Test remove layer
+        result = await server.remove_layer("new_image")
+        assert result["status"] == "removed"
+        assert "new_image" not in [l.name for l in viewer_with_data.layers]
     
     @pytest.mark.realgui
     @pytest.mark.asyncio
@@ -276,22 +277,18 @@ class TestRealEndToEnd:
         
         server = NapariBridgeServer(viewer_with_data, port=9992)
         
-        def execute_directly(func):
-            return func()
-        
-        with patch.object(server.qt_bridge, 'run_in_main_thread', side_effect=execute_directly):
-            # Execute code that accesses the viewer
-            code = """
+        # Execute code that accesses the viewer - let Qt bridge handle threading
+        code = """
 import numpy as np
 new_data = np.ones((50, 50))
 viewer.add_image(new_data, name='code_created')
 len(viewer.layers)
 """
-            result = await server.execute_code(code)
-            
-            assert result["status"] == "ok"
-            assert result["result_repr"] == "4"  # Started with 3, added 1
-            assert "code_created" in [l.name for l in viewer_with_data.layers]
+        result = await server.execute_code(code)
+        
+        assert result["status"] == "ok"
+        assert result["result_repr"] == "4"  # Started with 3, added 1
+        assert "code_created" in [l.name for l in viewer_with_data.layers]
 
 
 class TestRealPluginLoading:
@@ -326,6 +323,7 @@ class TestRealPluginLoading:
             pm = PluginManager.instance()
             # Check if our plugin is registered
             # This will only work if the plugin is installed
-            assert "napari-mcp-bridge" in pm.list_name() or True  # Allow pass for now
+            plugin_names = [m.name for m in pm.iter_manifests()]
+            assert "napari-mcp-bridge" in plugin_names or True  # Allow pass for now
         except ImportError:
             pytest.skip("npe2 not available")

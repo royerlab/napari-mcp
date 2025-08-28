@@ -83,34 +83,45 @@ class TestNapariBridgeServer:
 class TestQtBridge:
     """Test the Qt bridge for thread safety."""
     
-    def test_initialization(self):
+    def test_initialization(self, qtbot):
         """Test Qt bridge initialization."""
         bridge = QtBridge()
         assert bridge is not None
     
-    @patch('napari_mcp_bridge.server.Future')
-    def test_run_in_main_thread(self, mock_future_class):
+    def test_run_in_main_thread(self, qtbot):
         """Test running operation in main thread."""
+        from qtpy.QtCore import QThread
+        from threading import Thread
+        import time
+        
         # Create bridge
         bridge = QtBridge()
         
-        # Mock future
-        mock_future = Mock()
-        mock_future.result.return_value = "test_result"
-        mock_future_class.return_value = mock_future
+        # Track results
+        results = []
         
-        # Create operation
-        operation = Mock(return_value="test_result")
+        def test_operation():
+            """Operation to run in main thread."""
+            results.append("executed")
+            return "test_result"
         
-        # Run operation
-        with patch.object(bridge, 'operation_requested') as mock_signal:
-            result = bridge.run_in_main_thread(operation)
-            
-            # Check signal was emitted
-            mock_signal.emit.assert_called_once()
-            
-            # Check future result was returned
-            assert result == "test_result"
+        # Test from a different thread
+        def run_from_thread():
+            result = bridge.run_in_main_thread(test_operation)
+            results.append(result)
+        
+        # Run operation from a separate thread
+        thread = Thread(target=run_from_thread)
+        thread.start()
+        
+        # Process Qt events to handle the signal
+        qtbot.wait(100)  # Wait for signal to be processed
+        
+        thread.join(timeout=1.0)
+        
+        # Check results
+        assert "executed" in results
+        assert "test_result" in results
 
 
 class TestBridgeServerTools:
@@ -119,9 +130,6 @@ class TestBridgeServerTools:
     @pytest.mark.asyncio
     async def test_session_information_tool(self, bridge_server, mock_viewer):
         """Test session_information tool."""
-        # Setup the tool
-        bridge_server._setup_tools()
-        
         # Mock the Qt bridge to avoid thread issues in tests
         with patch.object(bridge_server.qt_bridge, 'run_in_main_thread') as mock_run:
             # Set up mock to execute the function directly
@@ -130,9 +138,10 @@ class TestBridgeServerTools:
             mock_run.side_effect = execute_directly
             
             # Find and execute the session_information tool
-            for name, func in bridge_server.server._tools.items():
+            tools = await bridge_server.server.get_tools()
+            for name, tool in tools.items():
                 if name == 'session_information':
-                    result = await func()
+                    result = await tool.fn()
                     break
             else:
                 pytest.fail("session_information tool not found")
@@ -147,16 +156,15 @@ class TestBridgeServerTools:
     @pytest.mark.asyncio
     async def test_list_layers_empty(self, bridge_server, mock_viewer):
         """Test list_layers with no layers."""
-        bridge_server._setup_tools()
-        
         with patch.object(bridge_server.qt_bridge, 'run_in_main_thread') as mock_run:
             def execute_directly(func):
                 return func()
             mock_run.side_effect = execute_directly
             
-            for name, func in bridge_server.server._tools.items():
+            tools = await bridge_server.server.get_tools()
+            for name, tool in tools.items():
                 if name == 'list_layers':
-                    result = await func()
+                    result = await tool.fn()
                     break
             else:
                 pytest.fail("list_layers tool not found")
@@ -184,16 +192,15 @@ class TestBridgeServerTools:
         
         mock_viewer.layers.__iter__ = Mock(return_value=iter([mock_layer1, mock_layer2]))
         
-        bridge_server._setup_tools()
-        
         with patch.object(bridge_server.qt_bridge, 'run_in_main_thread') as mock_run:
             def execute_directly(func):
                 return func()
             mock_run.side_effect = execute_directly
             
-            for name, func in bridge_server.server._tools.items():
+            tools = await bridge_server.server.get_tools()
+            for name, tool in tools.items():
                 if name == 'list_layers':
-                    result = await func()
+                    result = await tool.fn()
                     break
             
             assert len(result) == 2
@@ -207,16 +214,15 @@ class TestBridgeServerTools:
     @pytest.mark.asyncio
     async def test_execute_code_simple(self, bridge_server, mock_viewer):
         """Test execute_code with simple Python code."""
-        bridge_server._setup_tools()
-        
         with patch.object(bridge_server.qt_bridge, 'run_in_main_thread') as mock_run:
             def execute_directly(func):
                 return func()
             mock_run.side_effect = execute_directly
             
-            for name, func in bridge_server.server._tools.items():
+            tools = await bridge_server.server.get_tools()
+            for name, tool in tools.items():
                 if name == 'execute_code':
-                    result = await func("x = 2 + 2\nx")
+                    result = await tool.fn("x = 2 + 2\nx")
                     break
             else:
                 pytest.fail("execute_code tool not found")
@@ -229,16 +235,15 @@ class TestBridgeServerTools:
     @pytest.mark.asyncio
     async def test_execute_code_with_viewer(self, bridge_server, mock_viewer):
         """Test execute_code with viewer access."""
-        bridge_server._setup_tools()
-        
         with patch.object(bridge_server.qt_bridge, 'run_in_main_thread') as mock_run:
             def execute_directly(func):
                 return func()
             mock_run.side_effect = execute_directly
             
-            for name, func in bridge_server.server._tools.items():
+            tools = await bridge_server.server.get_tools()
+            for name, tool in tools.items():
                 if name == 'execute_code':
-                    result = await func("viewer.title")
+                    result = await tool.fn("viewer.title")
                     break
             
             assert result["status"] == "ok"
@@ -247,16 +252,15 @@ class TestBridgeServerTools:
     @pytest.mark.asyncio
     async def test_execute_code_error(self, bridge_server, mock_viewer):
         """Test execute_code with error."""
-        bridge_server._setup_tools()
-        
         with patch.object(bridge_server.qt_bridge, 'run_in_main_thread') as mock_run:
             def execute_directly(func):
                 return func()
             mock_run.side_effect = execute_directly
             
-            for name, func in bridge_server.server._tools.items():
+            tools = await bridge_server.server.get_tools()
+            for name, tool in tools.items():
                 if name == 'execute_code':
-                    result = await func("1/0")
+                    result = await tool.fn("1/0")
                     break
             
             assert result["status"] == "error"
@@ -269,8 +273,6 @@ class TestBridgeServerLayerOperations:
     @pytest.mark.asyncio
     async def test_add_image_from_data(self, bridge_server, mock_viewer):
         """Test adding an image from data."""
-        bridge_server._setup_tools()
-        
         # Mock add_image
         mock_layer = Mock()
         mock_layer.name = "test_image"
@@ -283,9 +285,10 @@ class TestBridgeServerLayerOperations:
             
             test_data = [[1, 2], [3, 4]]
             
-            for name, func in bridge_server.server._tools.items():
+            tools = await bridge_server.server.get_tools()
+            for name, tool in tools.items():
                 if name == 'add_image':
-                    result = await func(data=test_data, name="test", colormap="gray")
+                    result = await tool.fn(data=test_data, name="test", colormap="gray")
                     break
             
             assert result["status"] == "ok"
@@ -301,8 +304,6 @@ class TestBridgeServerLayerOperations:
     @pytest.mark.asyncio
     async def test_remove_layer(self, bridge_server, mock_viewer):
         """Test removing a layer."""
-        bridge_server._setup_tools()
-        
         # Setup mock layers
         mock_viewer.layers.__contains__ = Mock(return_value=True)
         mock_viewer.layers.remove = Mock()
@@ -312,9 +313,10 @@ class TestBridgeServerLayerOperations:
                 return func()
             mock_run.side_effect = execute_directly
             
-            for name, func in bridge_server.server._tools.items():
+            tools = await bridge_server.server.get_tools()
+            for name, tool in tools.items():
                 if name == 'remove_layer':
-                    result = await func("test_layer")
+                    result = await tool.fn("test_layer")
                     break
             
             assert result["status"] == "removed"
@@ -324,8 +326,6 @@ class TestBridgeServerLayerOperations:
     @pytest.mark.asyncio
     async def test_remove_layer_not_found(self, bridge_server, mock_viewer):
         """Test removing a non-existent layer."""
-        bridge_server._setup_tools()
-        
         mock_viewer.layers.__contains__ = Mock(return_value=False)
         
         with patch.object(bridge_server.qt_bridge, 'run_in_main_thread') as mock_run:
@@ -333,9 +333,10 @@ class TestBridgeServerLayerOperations:
                 return func()
             mock_run.side_effect = execute_directly
             
-            for name, func in bridge_server.server._tools.items():
+            tools = await bridge_server.server.get_tools()
+            for name, tool in tools.items():
                 if name == 'remove_layer':
-                    result = await func("nonexistent")
+                    result = await tool.fn("nonexistent")
                     break
             
             assert result["status"] == "not_found"

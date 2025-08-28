@@ -141,27 +141,28 @@ class TestProxyFunctionality:
     """Test proxying tool calls to external viewer."""
     
     @pytest.mark.asyncio
-    @patch('napari_mcp_server._external_client')
     @patch('napari_mcp_server._use_external', True)
-    async def test_proxy_to_external_success(self, mock_client):
+    @patch('napari_mcp_server.Client')
+    async def test_proxy_to_external_success(self, mock_client_class):
         """Test successful proxy to external viewer."""
-        # Setup mock client
+        # Setup mock client instance
         mock_client_instance = AsyncMock()
         mock_result = Mock()
         mock_result.content = [Mock(text='{"status": "ok", "result": "test"}')]
         mock_client_instance.call_tool.return_value = mock_result
         
-        # Mock Client context manager
-        mock_client.__aenter__ = AsyncMock(return_value=mock_client_instance)
-        mock_client.__aexit__ = AsyncMock(return_value=None)
+        # Mock Client class to return our mock instance
+        mock_client_class.return_value = mock_client_instance
+        mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+        mock_client_instance.__aexit__ = AsyncMock(return_value=None)
         
-        with patch('napari_mcp_server._external_client', mock_client):
-            result = await _proxy_to_external("test_tool", {"param": "value"})
+        result = await _proxy_to_external("test_tool", {"param": "value"})
         
         assert result is not None
         assert result["status"] == "ok"
         assert result["result"] == "test"
         mock_client_instance.call_tool.assert_called_once_with("test_tool", {"param": "value"})
+        mock_client_class.assert_called_once_with("http://localhost:9999/mcp")
     
     @pytest.mark.asyncio
     @patch('napari_mcp_server._use_external', False)
@@ -171,7 +172,6 @@ class TestProxyFunctionality:
         assert result is None
     
     @pytest.mark.asyncio
-    @patch('napari_mcp_server._external_client', None)
     @patch('napari_mcp_server._use_external', True)
     @patch('napari_mcp_server.Client')
     async def test_proxy_to_external_initialize_client(self, mock_client_class):
@@ -195,20 +195,20 @@ class TestProxyFunctionality:
         mock_client_class.assert_called_once_with("http://localhost:9999/mcp")
     
     @pytest.mark.asyncio
-    @patch('napari_mcp_server._external_client')
     @patch('napari_mcp_server._use_external', True)
-    async def test_proxy_to_external_invalid_json(self, mock_client):
+    @patch('napari_mcp_server.Client')
+    async def test_proxy_to_external_invalid_json(self, mock_client_class):
         """Test proxy with invalid JSON response."""
         mock_client_instance = AsyncMock()
         mock_result = Mock()
         mock_result.content = [Mock(text='invalid json')]
         mock_client_instance.call_tool.return_value = mock_result
         
-        mock_client.__aenter__ = AsyncMock(return_value=mock_client_instance)
-        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_client_class.return_value = mock_client_instance
+        mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+        mock_client_instance.__aexit__ = AsyncMock(return_value=None)
         
-        with patch('napari_mcp_server._external_client', mock_client):
-            result = await _proxy_to_external("test_tool")
+        result = await _proxy_to_external("test_tool")
         
         assert result is not None
         assert result["status"] == "error"
@@ -305,7 +305,9 @@ class TestViewerDetectionAndSelection:
     @patch('napari_mcp_server._detect_external_viewer')
     async def test_select_viewer_string_parsing(self, mock_detect):
         """Test selecting viewer with string parameter."""
-        mock_detect.return_value = (Mock(), {"test": "info"})
+        mock_client = AsyncMock()
+        mock_client.close = AsyncMock()
+        mock_detect.return_value = (mock_client, {"test": "info"})
         
         # Test string "true"
         result = await select_viewer(use_external="true")

@@ -16,13 +16,15 @@ from .server import NapariBridgeServer
 class MCPControlWidget(QWidget):
     """Widget to control MCP server for current napari viewer."""
     
-    def __init__(self, napari_viewer: napari.Viewer = None):
+    def __init__(self, napari_viewer: napari.Viewer = None, port: int = 9999):
         """Initialize the MCP control widget.
         
         Parameters
         ----------
         napari_viewer : napari.Viewer, optional
             The napari viewer instance. If not provided, will get current viewer.
+        port : int, optional
+            Port to run the MCP server on. Default is 9999.
         """
         super().__init__()
         # Get the current viewer if not provided
@@ -31,7 +33,7 @@ class MCPControlWidget(QWidget):
             raise RuntimeError("No napari viewer found")
         
         self.server = None
-        self.port = 9999
+        self.port = port
         self._setup_ui()
         
         # Timer to update status

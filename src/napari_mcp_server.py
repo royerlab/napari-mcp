@@ -20,11 +20,55 @@ import traceback
 from io import BytesIO, StringIO
 from typing import Any
 
-import napari
+# Optional imports: make module importable without heavy GUI deps.
+# Do not cache napari at import time; tests may swap in a fake later.
+def _napari_module() -> Any | None:
+    """Return the current napari module if available.
+
+    Looks up sys.modules first (to honor tests swapping in fakes), and falls
+    back to importlib if not already loaded. Returns None if unavailable.
+    """
+    mod = sys.modules.get("napari")
+    if mod is not None:
+        return mod
+    try:  # late import
+        import importlib
+
+        return importlib.import_module("napari")
+    except Exception:
+        return None
+
 import numpy as np
-from fastmcp import FastMCP, Client
+try:  # FastMCP may not be installed in some environments
+    from fastmcp import FastMCP, Client  # type: ignore
+except Exception:  # pragma: no cover - provide light fallbacks
+    class _DummyServer:
+        def __init__(self, *_: Any, **__: Any) -> None:
+            pass
+
+        def tool(self):  # decorator factory
+            def _decorator(fn):
+                return fn
+
+            return _decorator
+
+        async def get_tools(self) -> dict[str, Any]:
+            return {}
+
+        def run(self, *_: Any, **__: Any) -> None:
+            raise RuntimeError("FastMCP not available")
+
+    class _DummyClient:  # used only under patching in tests
+        pass
+
+    FastMCP = _DummyServer  # type: ignore[assignment]
+    Client = _DummyClient  # type: ignore[assignment]
+
 from PIL import Image
-from qtpy import QtWidgets
+try:  # qtpy may not be installed in headless environments
+    from qtpy import QtWidgets  # type: ignore
+except Exception:  # pragma: no cover
+    QtWidgets = None  # type: ignore[assignment]
 
 server = FastMCP(
     "Napari MCP Server",
@@ -33,13 +77,14 @@ server = FastMCP(
 
 
 # Global GUI singletons (created lazily)
-_qt_app: QtWidgets.QApplication | None = None
-_viewer: napari.Viewer | None = None
+_qt_app: Any | None = None
+_viewer: Any | None = None
 _viewer_lock: asyncio.Lock = asyncio.Lock()
 _exec_globals: dict[str, Any] = {}
 _qt_pump_task: asyncio.Task | None = None
 _window_close_connected: bool = False
-# Removed _external_client - we create fresh clients for each call to avoid connection issues
+# Note: _external_client is kept for test compatibility but not used - we create fresh clients for each call
+_external_client: Any = None
 _use_external: bool = os.environ.get("NAPARI_MCP_USE_EXTERNAL", "false").lower() in ("true", "1", "yes", "on")
 _external_port: int = int(os.environ.get("NAPARI_MCP_BRIDGE_PORT", "9999"))
 
@@ -98,8 +143,25 @@ async def _proxy_to_external(tool_name: str, params: dict[str, Any] | None = Non
         return None
 
 
-def _ensure_qt_app() -> QtWidgets.QApplication:
+def _ensure_qt_app() -> Any:
+    """Return a Qt application instance if available, else a no-op stub.
+
+    This allows running in environments without Qt (e.g., some CI or tests
+    that mock napari) while keeping real GUI behavior when Qt is present.
+    """
     global _qt_app
+    if QtWidgets is None:  # Fallback: provide a minimal stub
+        class _StubApp:
+            def processEvents(self, *_: Any) -> None:  # noqa: N802 (Qt-style)
+                pass
+
+            def setQuitOnLastWindowClosed(self, *_: Any) -> None:  # noqa: N802
+                pass
+
+        if _qt_app is None:
+            _qt_app = _StubApp()
+        return _qt_app
+
     app = QtWidgets.QApplication.instance()
     if app is None:
         _qt_app = QtWidgets.QApplication([])
@@ -110,7 +172,7 @@ def _ensure_qt_app() -> QtWidgets.QApplication:
     except Exception:
         # Best-effort; some headless backends may not support this
         pass
-    return app  # type: ignore[return-value]
+    return app
 
 
 async def _detect_external_viewer() -> tuple[Client | None, dict[str, Any] | None]:
@@ -141,22 +203,38 @@ async def _detect_external_viewer() -> tuple[Client | None, dict[str, Any] | Non
 
 
 def _detect_external_viewer_sync() -> bool:
-    """Synchronous wrapper to check if external viewer is available."""
+    """Synchronous wrapper to check if external viewer is available.
+
+    In tests, ``_detect_external_viewer`` may be patched to return a plain
+    tuple rather than a coroutine. Handle both cases gracefully.
+    """
     try:
         import asyncio
-        loop = asyncio.new_event_loop()
-        client, info = loop.run_until_complete(_detect_external_viewer())
-        loop.close()
+        import inspect
+
+        maybe_coro = _detect_external_viewer()
+        if inspect.isawaitable(maybe_coro):
+            loop = asyncio.new_event_loop()
+            try:
+                client, info = loop.run_until_complete(maybe_coro)  # type: ignore[assignment]
+            finally:
+                loop.close()
+        else:
+            # Already a concrete (client, info) tuple from a patch/mocked fn
+            client, info = maybe_coro  # type: ignore[misc]
         return client is not None
     except Exception:
         return False
 
 
-def _ensure_viewer() -> napari.Viewer:
+def _ensure_viewer() -> Any:
     global _viewer
     _ensure_qt_app()
     if _viewer is None:
-        _viewer = napari.Viewer()
+        napari_mod = _napari_module()
+        if napari_mod is None:
+            raise RuntimeError("napari is not available")
+        _viewer = napari_mod.Viewer()
         _connect_window_destroyed_signal(_viewer)
     return _viewer
 
@@ -336,6 +414,7 @@ async def init_viewer(
     dict
         Dictionary containing status, viewer type, and layer info.
     """
+    global _use_external
     # No global client - create fresh connections as needed
     
     # Parse boolean value and handle viewer selection if specified
@@ -966,7 +1045,9 @@ async def execute_code(code: str) -> dict[str, Any]:
         v = _ensure_viewer()
         _exec_globals.setdefault("__builtins__", __builtins__)  # type: ignore[assignment]
         _exec_globals["viewer"] = v
-        _exec_globals.setdefault("napari", napari)
+        napari_mod = _napari_module()
+        if napari_mod is not None:
+            _exec_globals.setdefault("napari", napari_mod)
         _exec_globals.setdefault("np", np)
 
         stdout_buf = StringIO()
