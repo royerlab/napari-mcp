@@ -7,6 +7,7 @@ import os
 import sys
 import types
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 # Ensure Qt runs headless
@@ -70,7 +71,7 @@ def _install_mock_napari():
     mock.Viewer = _FakeViewer
     mock.current_viewer = lambda: None
     sys.modules["napari"] = mock
-    
+
     # Also create submodules
     mock_viewer = types.ModuleType("napari.viewer")
     sys.modules["napari.viewer"] = mock_viewer
@@ -90,13 +91,15 @@ def cleanup_mocks():
     # Clean up napari submodules
     if "napari.viewer" in sys.modules:
         del sys.modules["napari.viewer"]
-    
+
     # Restore or remove napari
     if _original_napari is not None:
         sys.modules["napari"] = _original_napari
-    elif "napari" in sys.modules:
-        if not hasattr(sys.modules["napari"], "__file__") or not sys.modules["napari"].__file__:
-            del sys.modules["napari"]
+    elif "napari" in sys.modules and (
+        not hasattr(sys.modules["napari"], "__file__")
+        or not sys.modules["napari"].__file__
+    ):
+        del sys.modules["napari"]
 
 
 from napari_mcp_server import (  # noqa: E402
@@ -135,15 +138,15 @@ def test_connect_window_destroyed_signal():
     """Test window destroyed signal connection."""
     # Import the module-level variable
     import napari_mcp_server
-    
+
     # Reset the global flag first to ensure we test properly
     original_flag = napari_mcp_server._window_close_connected
     napari_mcp_server._window_close_connected = False
-    
+
     try:
         # Create a mock viewer that mimics the structure
         viewer = types.SimpleNamespace()
-        
+
         # Mock the window structure with proper Qt signal mocking
         viewer.window = MagicMock()
         viewer.window._qt_window = MagicMock()
@@ -158,7 +161,7 @@ def test_connect_window_destroyed_signal():
 
         # Reset flag for next test
         napari_mcp_server._window_close_connected = False
-        
+
         # Test error handling when connection fails
         destroyed_mock.connect.side_effect = RuntimeError("Connection failed")
         _connect_window_destroyed_signal(viewer)  # Should not raise
@@ -179,13 +182,13 @@ async def test_start_gui_error_handling():
     mock_qtpy.QtCore = types.ModuleType("qtpy.QtCore")
     mock_qtpy.QtCore.__version__ = "6.0.0"
     sys.modules["qtpy"] = mock_qtpy
-    
+
     try:
         # Test that start_gui handles errors gracefully
         # The function has built-in error handling with try/except blocks
         res = await start_gui(focus=True)
         assert res["status"] in ["started", "already_running"]
-        
+
         # Test calling start_gui multiple times
         res2 = await start_gui(focus=False)
         assert res2["status"] in ["started", "already_running"]
@@ -291,7 +294,7 @@ async def test_gui_lifecycle_error_cases():
     mock_qtpy.QtCore = types.ModuleType("qtpy.QtCore")
     mock_qtpy.QtCore.__version__ = "6.0.0"
     sys.modules["qtpy"] = mock_qtpy
-    
+
     try:
         # Test stopping GUI when none is running
         res = await stop_gui()
@@ -332,7 +335,7 @@ async def test_complex_code_execution():
     mock_qtpy.QtCore = types.ModuleType("qtpy.QtCore")
     mock_qtpy.QtCore.__version__ = "6.0.0"
     sys.modules["qtpy"] = mock_qtpy
-    
+
     try:
         from napari_mcp_server import execute_code, init_viewer
 
