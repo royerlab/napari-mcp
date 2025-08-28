@@ -165,7 +165,6 @@ if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
 
 from napari_mcp_server import (  # noqa: E402
     _ensure_qt_app,
-    _ensure_viewer,
     add_image,
     add_points,
     close_viewer,
@@ -346,19 +345,20 @@ async def test_install_packages_validation():
 async def test_screenshot_with_different_dtypes():
     """Test screenshot with different image data types."""
     await init_viewer()
-    
+
     # Create a temporary image file
     import tempfile
+
     import imageio
-    
-    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
         # Create test image data
         test_image = (np.random.rand(20, 20, 3) * 255).astype(np.uint8)
         imageio.imwrite(f.name, test_image)
-        
+
         # Add the image
         await add_image(path=f.name, name="test_float")
-    
+
     # Take screenshot - should work with any data type napari supports
     res = await screenshot()
     assert res["mime_type"] == "image/png"
@@ -381,7 +381,7 @@ async def test_close_viewer_no_viewer():
 async def test_camera_operations():
     """Test comprehensive camera operations."""
     await init_viewer()
-    
+
     # Set to 2D mode for consistent testing
     await set_ndisplay(2)
 
