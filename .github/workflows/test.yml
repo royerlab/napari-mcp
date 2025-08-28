@@ -54,8 +54,13 @@ jobs:
       env:
         QT_QPA_PLATFORM: offscreen
       run: |
-        uv run pytest tests/ -v -m "not realgui"
+        uv run pytest tests/ -v -m "not realgui" --cov=napari_mcp_server --cov-report=xml --cov-report=term-missing
 
+    - name: Upload coverage reports to Codecov
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   lint:
     runs-on: ubuntu-latest
