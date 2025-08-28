@@ -39,12 +39,15 @@ jobs:
           libxcb-xfixes0 \
           libxcb-shape0 \
           libglib2.0-0 \
-          libgl1-mesa-glx \
-          libglu1-mesa \
-          libegl1-mesa \
+          libgl1-mesa-dev \
+          libgl1-mesa-dri \
+          libglu1-mesa-dev \
+          libegl1-mesa-dev \
           libxcb-cursor0 \
           libxcb1 \
-          qt6-base-dev
+          qt6-base-dev \
+          mesa-utils \
+          libosmesa6-dev
     
     - name: Install UV
       uses: astral-sh/setup-uv@v4
@@ -61,8 +64,12 @@ jobs:
       env:
         QT_QPA_PLATFORM: 'offscreen'
         PYTEST_QT_API: 'pyqt6'
+        NAPARI_OPENGL: 'gl2'
+        NAPARI_PERFMON: 'False'
+        LIBGL_ALWAYS_INDIRECT: '1'
+        LIBGL_ALWAYS_SOFTWARE: '1'
       run: |
-        xvfb-run -a --server-args="-screen 0 1024x768x24" \
+        xvfb-run -a --server-args="-screen 0 1024x768x24 -ac +extension GLX +extension RENDER -noreset" \
           uv run pytest tests/test_real_integration.py -v -m realgui \
           --run-realgui \
           --tb=short \
@@ -111,6 +118,10 @@ jobs:
       env:
         QT_QPA_PLATFORM: 'offscreen'
         PYTEST_QT_API: 'pyqt6'
+        NAPARI_OPENGL: 'gl2'
+        NAPARI_PERFMON: 'False'
+        LIBGL_ALWAYS_SOFTWARE: '1'
+        QT_LOGGING_RULES: '*.debug=false'
       run: |
         uv run pytest tests/test_real_integration.py -v -m realgui \
           --run-realgui \
@@ -123,6 +134,10 @@ jobs:
       env:
         QT_QPA_PLATFORM: 'offscreen'
         PYTEST_QT_API: 'pyqt6'
+        NAPARI_OPENGL: 'gl2'
+        NAPARI_PERFMON: 'False'
+        LIBGL_ALWAYS_SOFTWARE: '1'
+        QT_LOGGING_RULES: '*.debug=false'
       run: |
         uv run pytest tests/test_real_integration.py -v -m realgui --run-realgui --tb=short --durations=10 -W ignore::DeprecationWarning
     
