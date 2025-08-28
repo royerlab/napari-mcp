@@ -35,6 +35,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "napari-mcp-bri
 # Mark all tests in this module as requiring real GUI
 pytestmark = pytest.mark.realgui
 
+# Skip all real GUI tests on macOS and Windows in CI due to OpenGL/vispy segfaults
+if os.environ.get("CI") and platform.system() in ["Darwin", "Windows"]:
+    pytestmark = [pytestmark, pytest.mark.skip(reason="Real GUI tests cause segfaults on macOS/Windows CI")]
+
 
 @pytest.fixture(scope="module")
 def qt_app():
