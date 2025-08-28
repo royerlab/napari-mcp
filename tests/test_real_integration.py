@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 # Configure napari for headless testing BEFORE importing napari
+# Applying best practices from https://napari.org/dev/developers/contributing/testing.html
 os.environ.setdefault('NAPARI_OPENGL', 'gl2')
 os.environ.setdefault('QT_LOGGING_RULES', '*.debug=false')
 
