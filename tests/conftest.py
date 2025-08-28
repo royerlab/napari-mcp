@@ -10,8 +10,9 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'napari-mcp-bridge', 'src'))
 
+# Individual test files handle their own mocking
 # Only set up mock if not running real napari tests
-if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
+if False:  # Disabled - individual files handle mocking
     
     # Define a complete mock viewer that works for all tests
     class _MockViewer:

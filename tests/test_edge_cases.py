@@ -40,6 +40,21 @@ class _MockQtWidgets:
     QApplication = _MockQApplication
 
 
+# Define a hashable layer class for sets
+class _HashableLayer:
+    def __init__(self, name, data=None, **kwargs):
+        self.name = name
+        self.data = data
+        self.visible = kwargs.get('visible', True)
+        self.opacity = kwargs.get('opacity', 1.0)
+        self.size = kwargs.get('size', 10)
+    
+    def __hash__(self):
+        return hash(self.name)
+        
+    def __eq__(self, other):
+        return isinstance(other, _HashableLayer) and self.name == other.name
+
 # Define a minimal fake viewer at module level
 class _FakeViewer:
     def __init__(self):
@@ -73,33 +88,35 @@ class _FakeViewer:
     def close(self):
         pass
     
+    def reset_view(self):
+        pass
+    
     def add_image(self, data, **kwargs):
-        layer = types.SimpleNamespace(
-            name=kwargs.get('name', 'image'),
+        name = kwargs.pop('name', 'image')  # Remove name from kwargs to avoid duplicate
+        layer = _HashableLayer(
+            name=name,
             data=data,
-            visible=True,
-            opacity=1.0
+            **kwargs
         )
         self.layers.append(layer)
         return layer
     
     def add_points(self, data, **kwargs):
-        layer = types.SimpleNamespace(
-            name=kwargs.get('name', 'points'),
+        name = kwargs.pop('name', 'points')  # Remove name from kwargs to avoid duplicate
+        layer = _HashableLayer(
+            name=name,
             data=data,
-            visible=True,
-            opacity=1.0,
-            size=kwargs.get('size', 10)
+            **kwargs
         )
         self.layers.append(layer)
         return layer
     
     def add_labels(self, data, **kwargs):
-        layer = types.SimpleNamespace(
-            name=kwargs.get('name', 'labels'),
+        name = kwargs.pop('name', 'labels')  # Remove name from kwargs to avoid duplicate
+        layer = _HashableLayer(
+            name=name,
             data=data,
-            visible=True,
-            opacity=1.0
+            **kwargs
         )
         self.layers.append(layer)
         return layer
@@ -155,7 +172,9 @@ def _install_mock_napari():
     mock = types.ModuleType("napari")
     mock.__file__ = None  # Mark as fake
     mock.Viewer = _FakeViewer
-    mock.current_viewer = lambda: None
+    # Return a viewer instance when current_viewer is called
+    _mock_viewer_instance = _FakeViewer()
+    mock.current_viewer = lambda: _mock_viewer_instance
     sys.modules["napari"] = mock
 
     # Also create submodules with proper attributes
@@ -167,9 +186,8 @@ def _install_mock_napari():
 # Store original napari
 _original_napari = sys.modules.get("napari")
 
-# Mock installation is now handled in conftest.py
-# if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
-#     _install_mock_napari()
+if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
+    _install_mock_napari()
 
 
 @pytest.fixture(scope="module", autouse=True)

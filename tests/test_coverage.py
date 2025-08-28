@@ -67,6 +67,12 @@ class _MockLayer:
         self.blending = None
         self.contrast_limits = [0.0, 1.0]
         self.gamma = 1.0
+    
+    def __hash__(self):
+        return hash(self.name)
+        
+    def __eq__(self, other):
+        return isinstance(other, _MockLayer) and self.name == other.name
 
 
 class _MockLayers:
@@ -155,7 +161,9 @@ class _MockSize:
 def _install_mock_napari():
     mock = types.ModuleType("napari")
     mock.Viewer = _MockViewer
-    mock.current_viewer = lambda: None
+    # Return a viewer instance when current_viewer is called
+    _mock_viewer_instance = _MockViewer()
+    mock.current_viewer = lambda: _mock_viewer_instance
     sys.modules["napari"] = mock
     
     # Also create submodules with proper attributes
@@ -168,9 +176,9 @@ def _install_mock_napari():
 _original_napari = sys.modules.get("napari")
 _original_napari_viewer = sys.modules.get("napari.viewer")
 
-# Mock installation is now handled in conftest.py
-# if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
-#     _install_mock_napari()
+# Only install mock if not running real GUI tests
+if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
+    _install_mock_napari()
 
 
 @pytest.fixture(scope="module", autouse=True)
