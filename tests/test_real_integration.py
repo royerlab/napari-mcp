@@ -16,7 +16,6 @@ from unittest.mock import patch
 
 # Configure napari for headless testing BEFORE importing napari
 os.environ.setdefault('NAPARI_OPENGL', 'gl2')
-os.environ.setdefault('NAPARI_PERFMON', 'False') 
 os.environ.setdefault('QT_LOGGING_RULES', '*.debug=false')
 # Force software rendering in headless environments
 if os.environ.get('CI') or not os.environ.get('DISPLAY'):

@@ -65,7 +65,6 @@ jobs:
         QT_QPA_PLATFORM: 'offscreen'
         PYTEST_QT_API: 'pyqt6'
         NAPARI_OPENGL: 'gl2'
-        NAPARI_PERFMON: 'False'
         LIBGL_ALWAYS_INDIRECT: '1'
         LIBGL_ALWAYS_SOFTWARE: '1'
       run: |
@@ -119,7 +118,6 @@ jobs:
         QT_QPA_PLATFORM: 'offscreen'
         PYTEST_QT_API: 'pyqt6'
         NAPARI_OPENGL: 'gl2'
-        NAPARI_PERFMON: 'False'
         LIBGL_ALWAYS_SOFTWARE: '1'
         QT_LOGGING_RULES: '*.debug=false'
       run: |
@@ -135,7 +133,6 @@ jobs:
         QT_QPA_PLATFORM: 'offscreen'
         PYTEST_QT_API: 'pyqt6'
         NAPARI_OPENGL: 'gl2'
-        NAPARI_PERFMON: 'False'
         LIBGL_ALWAYS_SOFTWARE: '1'
         QT_LOGGING_RULES: '*.debug=false'
       run: |
