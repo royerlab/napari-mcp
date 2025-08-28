@@ -22,7 +22,7 @@ from typing import Any
 
 import napari
 import numpy as np
-from fastmcp import FastMCP, Client
+from fastmcp import Client, FastMCP
 from PIL import Image
 from qtpy import QtWidgets
 
@@ -76,24 +76,24 @@ async def _proxy_to_external(tool_name: str, params: dict[str, Any] | None = Non
     global _use_external
     if not _use_external:
         return None
-    
+
     try:
         # Create fresh client for each call to avoid connection issues
         client = Client(f"http://localhost:{_external_port}/mcp")
         async with client:
             result = await client.call_tool(tool_name, params or {})
             # Parse the result from the external viewer
-            if hasattr(result, 'content'):
+            if hasattr(result, "content"):
                 content = result.content
                 if isinstance(content, list) and len(content) > 0:
                     import json
-                    response = content[0].text if hasattr(content[0], 'text') else str(content[0])
+                    response = content[0].text if hasattr(content[0], "text") else str(content[0])
                     try:
                         return json.loads(response) if isinstance(response, str) else response
                     except json.JSONDecodeError:
                         return {"status": "error", "message": f"Invalid JSON response: {response}"}
             return {"status": "error", "message": "Invalid response format from external viewer"}
-    except Exception as e:
+    except Exception:
         # Fall back to local execution
         return None
 
@@ -126,10 +126,10 @@ async def _detect_external_viewer() -> tuple[Client | None, dict[str, Any] | Non
         async with client:
             # Try to get session info to verify it's a napari bridge
             result = await client.call_tool("session_information")
-            if result and hasattr(result, 'content'):
+            if result and hasattr(result, "content"):
                 content = result.content
                 if isinstance(content, list) and len(content) > 0:
-                    info = content[0].text if hasattr(content[0], 'text') else str(content[0])
+                    info = content[0].text if hasattr(content[0], "text") else str(content[0])
                     # Parse the JSON response
                     import json
                     info_dict = json.loads(info) if isinstance(info, str) else info
@@ -225,7 +225,7 @@ async def detect_viewers() -> dict[str, Any]:
         Dictionary with information about available viewers
     """
     viewers = {"local": None, "external": None}
-    
+
     # Check for external viewer
     client, info = await _detect_external_viewer()
     if client:
@@ -237,7 +237,7 @@ async def detect_viewers() -> dict[str, Any]:
         }
     else:
         viewers["external"] = {"available": False}
-    
+
     # Check for local viewer
     global _viewer
     if _viewer is not None:
@@ -252,7 +252,7 @@ async def detect_viewers() -> dict[str, Any]:
             "available": True,  # Can be created
             "type": "not_initialized"
         }
-    
+
     return {
         "status": "ok",
         "viewers": viewers,
@@ -276,7 +276,7 @@ async def select_viewer(use_external: bool | str | None = None) -> dict[str, Any
         Status and selected viewer information
     """
     global _use_external
-    
+
     # Parse boolean value if provided
     if use_external is not None:
         use_external = _parse_bool(use_external)
@@ -286,9 +286,9 @@ async def select_viewer(use_external: bool | str | None = None) -> dict[str, Any
         use_external = client is not None
         if client:
             await client.close()
-    
+
     _use_external = use_external
-    
+
     if _use_external:
         client, info = await _detect_external_viewer()
         if client:
@@ -337,12 +337,12 @@ async def init_viewer(
         Dictionary containing status, viewer type, and layer info.
     """
     # No global client - create fresh connections as needed
-    
+
     # Parse boolean value and handle viewer selection if specified
     if use_external is not None:
         use_external = _parse_bool(use_external)
         await select_viewer(use_external)
-    
+
     async with _viewer_lock:
         # Check if we should use external viewer
         if _use_external:
@@ -351,11 +351,11 @@ async def init_viewer(
                 test_client = Client(f"http://localhost:{_external_port}/mcp")
                 async with test_client:
                     result = await test_client.call_tool("session_information")
-                    if hasattr(result, 'content'):
+                    if hasattr(result, "content"):
                         content = result.content
                         if isinstance(content, list) and len(content) > 0:
                             import json
-                            info = content[0].text if hasattr(content[0], 'text') else str(content[0])
+                            info = content[0].text if hasattr(content[0], "text") else str(content[0])
                             info_dict = json.loads(info) if isinstance(info, str) else info
                             if info_dict.get("session_type") == "napari_bridge_session":
                                 # External viewer is available
@@ -369,7 +369,7 @@ async def init_viewer(
             except Exception as e:
                 print(f"Failed to connect to external viewer: {e}")
                 _use_external = False
-        
+
         # Use local viewer
         v = _ensure_viewer()
         if title:
@@ -606,7 +606,7 @@ async def list_layers() -> list[dict[str, Any]]:
     result = await _proxy_to_external("list_layers")
     if result is not None:
         return result
-    
+
     # Local execution
     async with _viewer_lock:
         v = _ensure_viewer()
@@ -674,11 +674,11 @@ async def add_image(
         params["blending"] = blending
     if channel_axis is not None:
         params["channel_axis"] = channel_axis
-    
+
     result = await _proxy_to_external("add_image", params)
     if result is not None:
         return result
-    
+
     # Local execution
     import imageio.v3 as iio
 
@@ -922,7 +922,7 @@ async def screenshot(canvas_only: bool = True) -> dict[str, str]:
     result = await _proxy_to_external("screenshot", {"canvas_only": canvas_only})
     if result is not None:
         return result
-    
+
     # Local execution
     async with _viewer_lock:
         v = _ensure_viewer()
@@ -960,7 +960,7 @@ async def execute_code(code: str) -> dict[str, Any]:
     result = await _proxy_to_external("execute_code", {"code": code})
     if result is not None:
         return result
-    
+
     # Local execution
     async with _viewer_lock:
         v = _ensure_viewer()

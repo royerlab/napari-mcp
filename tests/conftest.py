@@ -1,12 +1,13 @@
 """Pytest configuration for napari-mcp tests."""
 
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 # Add src directories to path for all tests
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'napari-mcp-bridge', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "napari-mcp-bridge", "src"))
 
 
 def pytest_configure(config):
@@ -20,7 +21,7 @@ def pytest_configure(config):
 def pytest_collection_modifyitems(config, items):
     """Modify test collection to handle markers."""
     # Skip GUI tests by default in CI unless explicitly requested
-    if os.environ.get('CI') and not config.getoption("--run-realgui"):
+    if os.environ.get("CI") and not config.getoption("--run-realgui"):
         skip_gui = pytest.mark.skip(reason="Real GUI tests skipped in CI by default")
         for item in items:
             if "realgui" in item.keywords:
