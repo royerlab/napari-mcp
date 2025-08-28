@@ -49,6 +49,7 @@ test = [
     "pytest>=8.4.0",
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.0.0",
+    "pytest-qt>=4.0.0",
 ]
 dev = [
     "ruff>=0.12.10",
