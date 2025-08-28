@@ -7,10 +7,33 @@ import numpy as np
 from unittest.mock import Mock, MagicMock, patch, AsyncMock
 import sys
 import os
+import types
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'napari-mcp-bridge', 'src'))
+
+# Setup napari mock before importing modules that depend on it
+if "napari" not in sys.modules:
+    # Create a minimal mock if napari is not already mocked
+    mock_napari = types.ModuleType("napari")
+    mock_napari.__file__ = None
+    
+    class _MockViewer:
+        def __init__(self):
+            self.title = ""
+            self.layers = []
+        def close(self):
+            pass
+    
+    mock_napari.Viewer = _MockViewer
+    mock_napari.current_viewer = lambda: None
+    sys.modules["napari"] = mock_napari
+    
+    # Also create viewer submodule
+    mock_viewer = types.ModuleType("napari.viewer")
+    mock_viewer.Viewer = _MockViewer
+    sys.modules["napari.viewer"] = mock_viewer
 
 import napari_mcp_server
 from napari_mcp_bridge.server import NapariBridgeServer

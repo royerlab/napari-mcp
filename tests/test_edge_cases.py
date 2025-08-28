@@ -39,33 +39,31 @@ class _MockQtWidgets:
     QApplication = _MockQApplication
 
 
-def _install_mock_napari():
-    """Install minimal napari mock."""
-    try:
-        from test_tools import _FakeViewer
-    except ImportError:
-        # Define a minimal fake viewer here
-        class _FakeViewer:
-            def __init__(self):
-                self.title = ""
-                self.layers = []
-                self.window = types.SimpleNamespace(
-                    qt_viewer=types.SimpleNamespace(
-                        canvas=types.SimpleNamespace(
-                            native=types.SimpleNamespace(
-                                resize=lambda w, h: None
-                            ),
-                            size=lambda: types.SimpleNamespace(
-                                width=lambda: 800,
-                                height=lambda: 600
-                            )
-                        )
+# Define a minimal fake viewer at module level
+class _FakeViewer:
+    def __init__(self):
+        self.title = ""
+        self.layers = []
+        self.window = types.SimpleNamespace(
+            qt_viewer=types.SimpleNamespace(
+                canvas=types.SimpleNamespace(
+                    native=types.SimpleNamespace(
+                        resize=lambda w, h: None
+                    ),
+                    size=lambda: types.SimpleNamespace(
+                        width=lambda: 800,
+                        height=lambda: 600
                     )
                 )
+            )
+        )
 
-            def close(self):
-                pass
+    def close(self):
+        pass
 
+
+def _install_mock_napari():
+    """Install minimal napari mock."""
     mock = types.ModuleType("napari")
     mock.__file__ = None  # Mark as fake
     mock.Viewer = _FakeViewer
