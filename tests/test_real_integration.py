@@ -48,25 +48,52 @@ def qt_app():
 
 
 @pytest.fixture
-def real_viewer(qt_app, qtbot):
-    """Create a real napari viewer."""
+def real_viewer(qt_app, qtbot, monkeypatch):
+    """Create a real napari viewer with proper CI handling."""
     import napari
-
-    # Additional platform-specific protection against OpenGL crashes
+    
+    # For CI environments on macOS/Windows, patch OpenGL initialization before viewer creation
     if os.environ.get("CI") and platform.system() in ["Darwin", "Windows"]:
-        # Completely disable vispy canvas for problematic platforms in CI
-        import napari._vispy
-        original_canvas = napari._vispy.canvas.VispyCanvas
-
-        class MockCanvas:
+        # Mock the OpenGL context check that causes segfaults
+        import napari._vispy.utils.gl
+        monkeypatch.setattr(napari._vispy.utils.gl, "get_max_texture_sizes", lambda: (2048, 2048))
+        
+        # Also mock the canvas creation to avoid OpenGL calls
+        import napari._vispy.canvas
+        
+        class MockVispyCanvas:
             def __init__(self, *args, **kwargs):
                 self.size = (512, 512)
-                self.native = type("MockNative", (), {"resize": lambda *a: None})()
+                self.native = type("MockNative", (), {
+                    "resize": lambda *a: None,
+                    "setParent": lambda *a: None,
+                    "parent": lambda: None,
+                })()
+                self.events = type("Events", (), {
+                    "draw": type("Event", (), {"connect": lambda *a: None})(),
+                    "resize": type("Event", (), {"connect": lambda *a: None})(),
+                    "mouse_press": type("Event", (), {"connect": lambda *a: None})(),
+                    "mouse_release": type("Event", (), {"connect": lambda *a: None})(),
+                    "mouse_move": type("Event", (), {"connect": lambda *a: None})(),
+                    "mouse_double_click": type("Event", (), {"connect": lambda *a: None})(),
+                    "mouse_wheel": type("Event", (), {"connect": lambda *a: None})(),
+                    "key_press": type("Event", (), {"connect": lambda *a: None})(),
+                    "key_release": type("Event", (), {"connect": lambda *a: None})(),
+                })()
+                self._backend = None
+                self.context = type("Context", (), {"config": {}})()
+                
             def screenshot(self, *args, **kwargs):
                 return np.zeros((512, 512, 3), dtype=np.uint8)
-
-        napari._vispy.canvas.VispyCanvas = MockCanvas
-
+            
+            def render(self, *args, **kwargs):
+                pass
+            
+            def update(self):
+                pass
+                
+        monkeypatch.setattr(napari._vispy.canvas, "VispyCanvas", MockVispyCanvas)
+    
     viewer = napari.Viewer(show=False)  # Don't show window in tests
     qtbot.addWidget(viewer.window._qt_window)
     yield viewer
@@ -158,7 +185,17 @@ class TestRealBridgeServer:
         server = NapariBridgeServer(viewer_with_data, port=9995)
 
         # Take screenshot using the internal method
-        screenshot_data = viewer_with_data.screenshot(canvas_only=True)
+        # Handle platforms where OpenGL is not available
+        try:
+            screenshot_data = viewer_with_data.screenshot(canvas_only=True)
+        except (AttributeError, RuntimeError) as e:
+            # On Windows CI with minimal platform, screenshot may fail
+            # Create a dummy image for testing the encoding
+            if os.environ.get("CI") and platform.system() == "Windows":
+                screenshot_data = np.zeros((512, 512, 3), dtype=np.uint8)
+            else:
+                raise
+        
         result = server._encode_png_base64(screenshot_data)
 
         assert result["mime_type"] == "image/png"
