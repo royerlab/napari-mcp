@@ -55,7 +55,7 @@ jobs:
     
     - name: Install Python dependencies
       run: |
-        uv sync --all-extras
+        uv sync --all-extras --python ${{ matrix.python-version }}
         uv pip install pytest-xvfb pytest-qt pytest-asyncio
     
     - name: Install plugin
@@ -108,7 +108,7 @@ jobs:
     
     - name: Install Python dependencies
       run: |
-        uv sync --all-extras
+        uv sync --all-extras --python 3.13
         uv pip install pytest-qt pytest-asyncio
     
     - name: Install plugin
