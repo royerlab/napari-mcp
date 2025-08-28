@@ -5,10 +5,9 @@ import numpy as np
 from unittest.mock import Mock, patch
 import sys
 import os
+import types
 
-# Add the plugin to path for testing
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'napari-mcp-bridge', 'src'))
-
+# Import is handled after conftest.py sets up mocking
 from napari_mcp_bridge.server import NapariBridgeServer, QtBridge
 
 

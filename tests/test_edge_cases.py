@@ -167,8 +167,9 @@ def _install_mock_napari():
 # Store original napari
 _original_napari = sys.modules.get("napari")
 
-if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
-    _install_mock_napari()
+# Mock installation is now handled in conftest.py
+# if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
+#     _install_mock_napari()
 
 
 @pytest.fixture(scope="module", autouse=True)
