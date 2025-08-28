@@ -17,6 +17,7 @@ if [ -z "$DISPLAY" ]; then
         echo "Running with xvfb..."
         xvfb-run -a --server-args="-screen 0 1024x768x24" \
             uv run pytest tests/test_real_integration.py -v -m realgui \
+            --run-realgui \
             --tb=short \
             --durations=5
     else
@@ -41,6 +42,7 @@ else
     fi
     
     uv run pytest tests/test_real_integration.py -v -m realgui \
+        --run-realgui \
         --tb=short \
         --durations=5
 fi

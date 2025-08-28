@@ -64,6 +64,7 @@ jobs:
       run: |
         xvfb-run -a --server-args="-screen 0 1024x768x24" \
           uv run pytest tests/test_real_integration.py -v -m realgui \
+          --run-realgui \
           --tb=short \
           --durations=10 \
           -W ignore::DeprecationWarning
@@ -112,6 +113,7 @@ jobs:
         PYTEST_QT_API: 'pyqt6'
       run: |
         uv run pytest tests/test_real_integration.py -v -m realgui \
+          --run-realgui \
           --tb=short \
           --durations=10 \
           -W ignore::DeprecationWarning
@@ -122,7 +124,7 @@ jobs:
         QT_QPA_PLATFORM: 'offscreen'
         PYTEST_QT_API: 'pyqt6'
       run: |
-        uv run pytest tests/test_real_integration.py -v -m realgui --tb=short --durations=10 -W ignore::DeprecationWarning
+        uv run pytest tests/test_real_integration.py -v -m realgui --run-realgui --tb=short --durations=10 -W ignore::DeprecationWarning
     
     - name: Upload test results
       if: failure()
