@@ -1,0 +1,136 @@
+name: Real GUI Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-linux-all-pythons:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    name: Linux Python ${{ matrix.python-version }} - Real GUI Tests
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          xvfb \
+          x11-utils \
+          libxkbcommon-x11-0 \
+          libxcb-icccm4 \
+          libxcb-image0 \
+          libxcb-keysyms1 \
+          libxcb-randr0 \
+          libxcb-render-util0 \
+          libxcb-xinerama0 \
+          libxcb-xfixes0 \
+          libxcb-shape0 \
+          libglib2.0-0 \
+          libgl1-mesa-glx \
+          libglu1-mesa \
+          libegl1-mesa \
+          libxcb-cursor0 \
+          libxcb1 \
+          qt6-base-dev
+    
+    - name: Install UV
+      uses: astral-sh/setup-uv@v4
+    
+    - name: Install Python dependencies
+      run: |
+        uv sync --all-extras
+        uv pip install pytest-xvfb pytest-qt pytest-asyncio
+    
+    - name: Install plugin
+      run: uv pip install -e ./napari-mcp-bridge
+    
+    - name: Run GUI tests
+      env:
+        QT_QPA_PLATFORM: 'offscreen'
+        PYTEST_QT_API: 'pyqt6'
+      run: |
+        xvfb-run -a --server-args="-screen 0 1024x768x24" \
+          uv run pytest tests/test_real_integration.py -v -m realgui \
+          --tb=short \
+          --durations=10 \
+          -W ignore::DeprecationWarning
+    
+    - name: Upload test results
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-py${{ matrix.python-version }}-gui-results
+        path: |
+          pytest-report.html
+          pytest.log
+        retention-days: 3
+        if-no-files-found: ignore
+
+  test-macos-windows:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    name: ${{ matrix.os }} Python 3.13 - Real GUI Tests
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    
+    - name: Install UV
+      uses: astral-sh/setup-uv@v4
+    
+    - name: Install Python dependencies
+      run: |
+        uv sync --all-extras
+        uv pip install pytest-qt pytest-asyncio
+    
+    - name: Install plugin
+      run: uv pip install -e ./napari-mcp-bridge
+    
+    - name: Run GUI tests (macOS)
+      if: matrix.os == 'macos-latest'
+      env:
+        QT_QPA_PLATFORM: 'offscreen'
+        PYTEST_QT_API: 'pyqt6'
+      run: |
+        uv run pytest tests/test_real_integration.py -v -m realgui \
+          --tb=short \
+          --durations=10 \
+          -W ignore::DeprecationWarning
+    
+    - name: Run GUI tests (Windows)
+      if: matrix.os == 'windows-latest'
+      env:
+        QT_QPA_PLATFORM: 'offscreen'
+        PYTEST_QT_API: 'pyqt6'
+      run: |
+        uv run pytest tests/test_real_integration.py -v -m realgui --tb=short --durations=10 -W ignore::DeprecationWarning
+    
+    - name: Upload test results
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.os }}-py313-gui-results
+        path: |
+          pytest-report.html
+          pytest.log
+        retention-days: 3
+        if-no-files-found: ignore

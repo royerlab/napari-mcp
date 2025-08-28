@@ -1,0 +1,10 @@
+name: napari-mcp-bridge
+display_name: MCP Bridge
+contributions:
+  commands:
+    - id: napari-mcp-bridge.mcp_control_widget
+      python_name: napari_mcp_bridge.widget:MCPControlWidget
+      title: MCP Server Control
+  widgets:
+    - command: napari-mcp-bridge.mcp_control_widget
+      display_name: MCP Server Control

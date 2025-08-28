@@ -217,14 +217,14 @@ Ask Claude: "Switch to 3D display mode and take a screenshot"
 ## 🧪 Testing
 
 ```bash
-# Run basic tests
-pytest tests/
+# Run basic tests (fast, no GUI)
+./run_tests.sh
 
-# Run with GUI tests (requires display)
-RUN_REAL_NAPARI_TESTS=1 pytest tests/test_tools_real.py
+# Run with real GUI tests (requires display)
+./run_realgui_tests.sh
 
 # Run with coverage
-pytest --cov=src --cov-report=html tests/
+pytest --cov=src --cov-report=html tests/ -m "not realgui"
 ```
 
 ## 🤝 Contributing

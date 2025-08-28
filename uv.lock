@@ -1444,7 +1444,7 @@ requires-dist = [
     { name = "pyqt6", specifier = ">=6.5.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8.4.0" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.23.0" },
-    { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=6.2.0" },
+    { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=4.0.0" },
     { name = "qtpy", specifier = ">=2.4.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12.10" },
     { name = "safety", marker = "extra == 'dev'", specifier = ">=3.6.0" },
