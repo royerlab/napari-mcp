@@ -72,8 +72,9 @@ def _install_mock_napari():
     mock.current_viewer = lambda: None
     sys.modules["napari"] = mock
 
-    # Also create submodules
+    # Also create submodules with proper attributes
     mock_viewer = types.ModuleType("napari.viewer")
+    mock_viewer.Viewer = _FakeViewer  # Add Viewer class to the submodule
     sys.modules["napari.viewer"] = mock_viewer
 
 
