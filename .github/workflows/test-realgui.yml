@@ -115,10 +115,9 @@ jobs:
     - name: Run GUI tests (macOS)
       if: matrix.os == 'macos-latest'
       env:
-        QT_QPA_PLATFORM: 'offscreen'
+        QT_QPA_PLATFORM: 'minimal'
         PYTEST_QT_API: 'pyqt6'
-        NAPARI_OPENGL: 'gl2'
-        LIBGL_ALWAYS_SOFTWARE: '1'
+        VISPY_BACKEND: 'null'
         QT_LOGGING_RULES: '*.debug=false'
       run: |
         uv run pytest tests/test_real_integration.py -v -m realgui \
@@ -130,10 +129,9 @@ jobs:
     - name: Run GUI tests (Windows)
       if: matrix.os == 'windows-latest'
       env:
-        QT_QPA_PLATFORM: 'offscreen'
+        QT_QPA_PLATFORM: 'minimal'
         PYTEST_QT_API: 'pyqt6'
-        NAPARI_OPENGL: 'gl2'
-        LIBGL_ALWAYS_SOFTWARE: '1'
+        VISPY_BACKEND: 'null'
         QT_LOGGING_RULES: '*.debug=false'
       run: |
         uv run pytest tests/test_real_integration.py -v -m realgui --run-realgui --tb=short --durations=10 -W ignore::DeprecationWarning
