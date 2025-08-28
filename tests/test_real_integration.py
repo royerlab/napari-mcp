@@ -17,9 +17,15 @@ from unittest.mock import patch
 # Configure napari for headless testing BEFORE importing napari
 os.environ.setdefault('NAPARI_OPENGL', 'gl2')
 os.environ.setdefault('QT_LOGGING_RULES', '*.debug=false')
+
 # Force software rendering in headless environments
 if os.environ.get('CI') or not os.environ.get('DISPLAY'):
     os.environ.setdefault('LIBGL_ALWAYS_SOFTWARE', '1')
+
+# Disable vispy backend completely in CI on macOS/Windows to prevent segfaults
+import platform
+if os.environ.get('CI') and platform.system() in ['Darwin', 'Windows']:
+    os.environ['VISPY_BACKEND'] = 'null'
 
 # Add paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
