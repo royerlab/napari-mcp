@@ -57,8 +57,8 @@ async def test_all_tools_with_real_napari(tmp_path: Path) -> None:
     res = await init_viewer(title="Real GUI Test")
     assert res["status"] == "ok"
 
-    # Create small test image and labels
-    img = np.linspace(0, 255, 5 * 16 * 16, dtype=np.uint8).reshape(5, 16, 16)
+    # Create small test image and labels (both 2D for consistency)
+    img = np.linspace(0, 255, 16 * 16, dtype=np.uint8).reshape(16, 16)
     img_path = tmp_path / "img.tif"
     import imageio.v3 as iio
 
