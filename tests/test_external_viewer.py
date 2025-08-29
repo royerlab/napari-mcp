@@ -70,6 +70,10 @@ class TestExternalViewerDetection:
         mock_client = AsyncMock()
         mock_client_class.return_value = mock_client
         
+        # Setup async context manager
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        
         # Mock tool call result
         mock_result = Mock()
         mock_result.content = [
@@ -95,6 +99,10 @@ class TestExternalViewerDetection:
         """Test detection when server exists but is not a bridge."""
         mock_client = AsyncMock()
         mock_client_class.return_value = mock_client
+        
+        # Setup async context manager
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
         
         # Mock response that's not a bridge
         mock_result = Mock()
@@ -123,14 +131,15 @@ class TestExternalViewerDetection:
     
     def test_detect_external_viewer_sync(self):
         """Test synchronous wrapper for external viewer detection."""
+        # Patch the function to return a synchronous result directly
         with patch('napari_mcp_server._detect_external_viewer') as mock_detect:
-            # Mock successful detection
+            # Mock successful detection - return tuple directly, not a coroutine
             mock_detect.return_value = (Mock(), {"test": "info"})
             
             result = _detect_external_viewer_sync()
             assert result is True
             
-            # Mock failed detection
+            # Mock failed detection - return tuple directly, not a coroutine
             mock_detect.return_value = (None, None)
             
             result = _detect_external_viewer_sync()

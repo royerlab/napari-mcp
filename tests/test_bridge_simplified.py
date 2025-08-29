@@ -5,9 +5,8 @@ import numpy as np
 from unittest.mock import Mock, patch
 import sys
 import os
-import types
 
-# Import is handled after conftest.py sets up mocking
+# The mock napari module is now set up in conftest.py
 from napari_mcp_bridge.server import NapariBridgeServer, QtBridge
 
 

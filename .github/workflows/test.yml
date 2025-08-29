@@ -50,11 +50,23 @@ jobs:
         uv lock --upgrade
         uv sync --extra test
 
-    - name: Run tests (headless)
+    - name: Run tests (headless) - Group 1 (Core tests)
       env:
         QT_QPA_PLATFORM: offscreen
       run: |
-        uv run pytest tests/ -v -m "not realgui" --cov=napari_mcp_server --cov-report=xml --cov-report=term-missing
+        uv run pytest tests/test_coverage.py tests/test_external_viewer.py tests/test_integration.py -v -m "not realgui" --cov=napari_mcp_server --cov-report=xml --cov-report=term-missing --cov-append
+    
+    - name: Run tests (headless) - Group 2 (Bridge tests)
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        uv run pytest tests/test_bridge_simplified.py tests/test_bridge_server.py tests/test_edge_cases.py -v -m "not realgui" --cov=napari_mcp_server --cov-report=xml --cov-report=term-missing --cov-append
+    
+    - name: Run tests (headless) - Group 3 (Tools tests)
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        uv run pytest tests/test_tools.py -v -m "not realgui" --cov=napari_mcp_server --cov-report=xml --cov-report=term-missing --cov-append
 
     - name: Upload coverage reports to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'

@@ -12,12 +12,31 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'napari-mcp-bri
 
 # Individual test files handle their own mocking
 # Only set up mock if not running real napari tests
-if False:  # Disabled - individual files handle mocking
+if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
+    
+    # Define a mock layer that's hashable
+    class _MockLayer:
+        def __init__(self, name, data=None, **kwargs):
+            self.name = name
+            self.data = data
+            self.visible = True
+            self.opacity = 1.0
+            self.size = kwargs.get('size', 10)
+            self.colormap = None
+            self.blending = None
+            self.contrast_limits = [0.0, 1.0]
+            self.gamma = 1.0
+            
+        def __hash__(self):
+            return hash(self.name)
+            
+        def __eq__(self, other):
+            return isinstance(other, _MockLayer) and self.name == other.name
     
     # Define a complete mock viewer that works for all tests
     class _MockViewer:
-        def __init__(self):
-            self.title = ""
+        def __init__(self, *args, **kwargs):
+            self.title = kwargs.get('title', '')
             self.layers = _MockLayers()
             self.window = types.SimpleNamespace(
                 qt_viewer=types.SimpleNamespace(
@@ -48,38 +67,35 @@ if False:  # Disabled - individual files handle mocking
             pass
         
         def add_image(self, data, **kwargs):
-            layer = types.SimpleNamespace(
+            layer = _MockLayer(
                 name=kwargs.get('name', 'image'),
-                data=data,
-                visible=True,
-                opacity=1.0
+                data=data
             )
             self.layers.append(layer)
             return layer
         
         def add_points(self, data, **kwargs):
-            layer = types.SimpleNamespace(
+            layer = _MockLayer(
                 name=kwargs.get('name', 'points'),
                 data=data,
-                visible=True,
-                opacity=1.0,
                 size=kwargs.get('size', 10)
             )
             self.layers.append(layer)
             return layer
         
         def add_labels(self, data, **kwargs):
-            layer = types.SimpleNamespace(
+            layer = _MockLayer(
                 name=kwargs.get('name', 'labels'),
-                data=data,
-                visible=True,
-                opacity=1.0
+                data=data
             )
             self.layers.append(layer)
             return layer
         
         def screenshot(self, canvas_only=True):
             return np.zeros((100, 100, 4), dtype=np.uint8)
+        
+        def reset_view(self):
+            pass
 
 
     class _MockLayers:
@@ -93,7 +109,7 @@ if False:  # Disabled - individual files handle mocking
         def __getitem__(self, key):
             if isinstance(key, str):
                 for layer in self._layers:
-                    if layer.name == key:
+                    if hasattr(layer, 'name') and layer.name == key:
                         return layer
                 raise KeyError(f"Layer '{key}' not found")
             return self._layers[key]
@@ -144,6 +160,53 @@ if False:  # Disabled - individual files handle mocking
     mock_viewer = types.ModuleType("napari.viewer")
     mock_viewer.Viewer = _MockViewer
     sys.modules["napari.viewer"] = mock_viewer
+    
+    # Also add window submodule to avoid import errors
+    mock_window = types.ModuleType("napari.window")
+    sys.modules["napari.window"] = mock_window
+
+
+@pytest.fixture(autouse=True)
+def ensure_napari_mock():
+    """Ensure our mock napari is always in sys.modules for tests."""
+    # Save original state
+    original_modules = {}
+    for mod_name in list(sys.modules.keys()):
+        if mod_name.startswith('napari'):
+            original_modules[mod_name] = sys.modules.get(mod_name)
+    
+    # Ensure our mock is installed
+    if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
+        # Re-install our mock if it's been removed or replaced
+        # Check if napari module exists and has our mock viewer
+        napari_mod = sys.modules.get("napari")
+        if napari_mod is None or not hasattr(napari_mod, "Viewer") or napari_mod.Viewer.__name__ not in ["_MockViewer"]:
+            # Use the existing global mock that was set up above
+            pass  # The mock is already installed globally
+    
+    # Reset global viewer state in napari_mcp_server
+    try:
+        import napari_mcp_server
+        napari_mcp_server._viewer = None
+        napari_mcp_server._window_close_connected = False
+    except Exception:
+        pass
+    
+    # Let the test run
+    yield
+    
+    # Clean up viewer state after test
+    try:
+        import napari_mcp_server
+        if napari_mcp_server._viewer is not None:
+            try:
+                napari_mcp_server._viewer.close()
+            except Exception:
+                pass
+            napari_mcp_server._viewer = None
+            napari_mcp_server._window_close_connected = False
+    except Exception:
+        pass
 
 
 def pytest_configure(config):

@@ -180,11 +180,17 @@ def _install_mock_napari():
     # Also create submodules with proper attributes
     mock_viewer = types.ModuleType("napari.viewer")
     mock_viewer.Viewer = _FakeViewer  # Add Viewer class to the submodule
+    mock_viewer.current_viewer = lambda: _mock_viewer_instance  # Add this attribute
     sys.modules["napari.viewer"] = mock_viewer
 
 
-# Store original napari
-_original_napari = sys.modules.get("napari")
+# Clean up any existing napari modules first
+for mod_name in list(sys.modules.keys()):
+    if mod_name.startswith('napari'):
+        del sys.modules[mod_name]
+
+# Store original napari (None since we cleared it)
+_original_napari = None
 
 if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
     _install_mock_napari()
