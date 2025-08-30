@@ -23,28 +23,8 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          xvfb \
-          x11-utils \
-          libxkbcommon-x11-0 \
-          libxcb-icccm4 \
-          libxcb-image0 \
-          libxcb-keysyms1 \
-          libxcb-randr0 \
-          libxcb-render-util0 \
-          libxcb-xinerama0 \
-          libxcb-xfixes0 \
-          libxcb-shape0 \
-          libglib2.0-0 \
-          libgl1-mesa-glx \
-          libglu1-mesa \
-          libegl1-mesa \
-          libxcb-cursor0 \
-          libxcb1 \
-          qt6-base-dev
+    - name: Install Qt libraries
+      uses: tlambert03/setup-qt-libs@v1
     
     - name: Install UV
       uses: astral-sh/setup-uv@v4
@@ -52,21 +32,23 @@ jobs:
     - name: Install Python dependencies
       run: |
         uv sync --all-extras
-        uv pip install pytest-xvfb pytest-qt pytest-asyncio
+        uv pip install pytest-qt pytest-asyncio
     
     - name: Install plugin
       run: uv pip install -e ./napari-mcp-bridge
     
     - name: Run GUI tests
+      uses: coactions/setup-xvfb@v1
       env:
+        RUN_REAL_NAPARI_TESTS: '1'
         QT_QPA_PLATFORM: 'offscreen'
         PYTEST_QT_API: 'pyqt6'
-      run: |
-        xvfb-run -a --server-args="-screen 0 1024x768x24" \
-          uv run pytest tests/test_real_integration.py -v -m realgui \
-          --tb=short \
-          --durations=10 \
-          -W ignore::DeprecationWarning
+      with:
+        run: |
+          uv run pytest tests/test_real_integration.py tests/test_tools_real.py -v -m realgui \
+            --tb=short \
+            --durations=10 \
+            -W ignore::DeprecationWarning
     
     - name: Upload test results
       if: failure()
@@ -108,10 +90,11 @@ jobs:
     - name: Run GUI tests (macOS)
       if: matrix.os == 'macos-latest'
       env:
+        RUN_REAL_NAPARI_TESTS: '1'
         QT_QPA_PLATFORM: 'offscreen'
         PYTEST_QT_API: 'pyqt6'
       run: |
-        uv run pytest tests/test_real_integration.py -v -m realgui \
+        uv run pytest tests/test_real_integration.py tests/test_tools_real.py -v -m realgui \
           --tb=short \
           --durations=10 \
           -W ignore::DeprecationWarning
@@ -119,10 +102,11 @@ jobs:
     - name: Run GUI tests (Windows)
       if: matrix.os == 'windows-latest'
       env:
+        RUN_REAL_NAPARI_TESTS: '1'
         QT_QPA_PLATFORM: 'offscreen'
         PYTEST_QT_API: 'pyqt6'
       run: |
-        uv run pytest tests/test_real_integration.py -v -m realgui --tb=short --durations=10 -W ignore::DeprecationWarning
+        uv run pytest tests/test_real_integration.py tests/test_tools_real.py -v -m realgui --tb=short --durations=10 -W ignore::DeprecationWarning
     
     - name: Upload test results
       if: failure()
