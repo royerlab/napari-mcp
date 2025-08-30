@@ -27,7 +27,7 @@ if [ -z "$DISPLAY" ]; then
 else
     echo "Display found: $DISPLAY"
     echo "Running tests with real display..."
-    
+
     # Set Qt platform based on OS
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS
@@ -39,7 +39,7 @@ else
             export QT_QPA_PLATFORM=offscreen
         fi
     fi
-    
+
     uv run pytest tests/test_real_integration.py -v -m realgui \
         --tb=short \
         --durations=5

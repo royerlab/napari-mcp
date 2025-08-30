@@ -61,7 +61,7 @@ uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --
 
 **Why this approach?**
 - ✅ **Zero Installation** - No pip install, no virtual environments
-- ✅ **Single File** - Easy to share, version, and deploy  
+- ✅ **Single File** - Easy to share, version, and deploy
 - ✅ **Auto Dependencies** - uv handles all dependencies automatically
 - ✅ **Direct GitHub Execution** - Run latest version directly from repo without downloading
 - ✅ **Always Up-to-Date** - GitHub URL ensures you get the latest version
@@ -183,7 +183,7 @@ Ask Claude: "Add a sample image to napari and set its colormap to 'viridis'"
 ```
 
 **Work with annotations:**
-```  
+```
 Ask Claude: "Create some point annotations at coordinates [[100,100], [200,200]] and make them size 10"
 ```
 
@@ -191,7 +191,7 @@ Ask Claude: "Create some point annotations at coordinates [[100,100], [200,200]]
 
 **Execute custom code:**
 ```
-Ask Claude: "Execute this code to create a synthetic image: 
+Ask Claude: "Execute this code to create a synthetic image:
 import numpy as np
 data = np.random.random((512, 512))
 viewer.add_image(data, name='random_noise')"

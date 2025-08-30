@@ -220,7 +220,7 @@ async def test_screenshot_with_different_dtypes():
     res = await screenshot()
     assert res["mime_type"] == "image/png"
     assert "base64_data" in res
-    
+
     # Clean up viewer
     await close_viewer()
 

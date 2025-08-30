@@ -1,6 +1,6 @@
 # Napari MCP Server
 
-**MCP server for remote control of napari viewers via Model Context Protocol (MCP)**  
+**MCP server for remote control of napari viewers via Model Context Protocol (MCP)**
 *Perfect for AI-assisted microscopy analysis with Claude Desktop and other LLM applications.*
 
 <p align="center">
@@ -143,10 +143,10 @@ The server exposes 20+ MCP tools for complete napari control:
 
 !!! warning "Code Execution Capabilities"
     This server includes powerful tools that allow arbitrary code execution:
-    
+
     - **`execute_code()`** - Runs Python code in the server environment
     - **`install_packages()`** - Installs packages via pip
-    
+
     **Use only with trusted AI assistants on local networks.**
 
 ---

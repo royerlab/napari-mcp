@@ -39,7 +39,7 @@ Connect napari MCP server with your favorite AI assistant or development environ
         "napari": {
           "command": "uv",
           "args": [
-            "run", "--with", "napari", "--with", "fastmcp", 
+            "run", "--with", "napari", "--with", "fastmcp",
             "fastmcp", "run", "/path/to/napari_mcp_server.py"
           ]
         }
@@ -68,7 +68,7 @@ Connect napari MCP server with your favorite AI assistant or development environ
 - **Immediate availability** - Works as soon as server starts
 - **Best documentation** - Most comprehensive setup guides
 
-### Claude Code  
+### Claude Code
 - **Development focused** - Perfect for napari plugin development
 - **Code context awareness** - AI knows your current code
 - **File system integration** - Easy image loading from workspace
@@ -92,7 +92,7 @@ All platforms support these environment variables:
 
 ```bash
 export QT_QPA_PLATFORM=offscreen  # For headless servers
-export NAPARI_ASYNC=1             # Enable async operations  
+export NAPARI_ASYNC=1             # Enable async operations
 export MCP_LOG_LEVEL=INFO         # Debug MCP communication
 ```
 

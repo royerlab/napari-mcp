@@ -188,7 +188,7 @@ pip install tifffile imageio-ffmpeg
 
 !!! failure "Python version conflicts"
     **Problem:** `ERROR: This package requires Python >=3.10`
-    
+
     **Solution:** Upgrade Python or use pyenv:
     ```bash
     pyenv install 3.11
@@ -197,7 +197,7 @@ pip install tifffile imageio-ffmpeg
 
 !!! failure "Qt backend issues"
     **Problem:** `qt.qpa.plugin: Could not find the Qt platform plugin`
-    
+
     **Solutions:**
     - Install system Qt libraries
     - Set environment variable: `export QT_QPA_PLATFORM=offscreen`
@@ -205,7 +205,7 @@ pip install tifffile imageio-ffmpeg
 
 !!! failure "Permission errors"
     **Problem:** `Permission denied` when installing
-    
+
     **Solution:** Use user install:
     ```bash
     pip install --user -e .
@@ -213,7 +213,7 @@ pip install tifffile imageio-ffmpeg
 
 !!! failure "Dependency conflicts"
     **Problem:** Package version conflicts
-    
+
     **Solution:** Use virtual environment or update conflicting packages
 
 ### Debug Installation

@@ -21,7 +21,7 @@ We offer multiple ways to get started, depending on your preferences and use cas
     - **Python 3.10+** (managed automatically by uv)
 
 === "Traditional Method"
-    - **Python 3.10+** 
+    - **Python 3.10+**
     - **pip** or **uv**
 
 ### Installing uv (if needed)
@@ -31,12 +31,12 @@ We offer multiple ways to get started, depending on your preferences and use cas
         ```bash
         curl -LsSf https://astral.sh/uv/install.sh | sh
         ```
-    
+
     === "Windows"
         ```powershell
         powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
         ```
-    
+
     === "With pip"
         ```bash
         pip install uv
@@ -55,7 +55,7 @@ We offer multiple ways to get started, depending on your preferences and use cas
 After following any guide, you should see:
 
 - ✅ **FastMCP banner** in terminal output
-- ✅ **Napari window** opens automatically  
+- ✅ **Napari window** opens automatically
 - ✅ **"Starting MCP server"** message
 - ✅ **Claude Desktop** (or your AI tool) can call `session_information()`
 

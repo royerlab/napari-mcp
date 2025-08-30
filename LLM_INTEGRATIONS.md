@@ -86,7 +86,7 @@ fastmcp install claude-code napari_mcp_server.py \
 
 ### Usage Tips
 ```
-Ask Claude Code: 
+Ask Claude Code:
 - "Load the image from ./data/sample.tif into napari"
 - "Create an analysis script that uses the current napari viewer"
 - "Take a screenshot of napari and save it to ./outputs/"
@@ -169,7 +169,7 @@ uv run --with fastmcp --with napari --with imageio --with Pillow \
 ```
 Research prompts:
 - "Analyze the cell morphology patterns in my microscopy dataset"
-- "Compare image quality metrics across different acquisition conditions"  
+- "Compare image quality metrics across different acquisition conditions"
 - "Identify and quantify features in the loaded image stack"
 ```
 
@@ -208,11 +208,11 @@ Run different servers for different use cases:
   "mcpServers": {
     "napari-analysis": {
       "command": "uv",
-      "args": ["run", "--with", "napari", "--with", "scikit-image", 
+      "args": ["run", "--with", "napari", "--with", "scikit-image",
                "fastmcp", "run", "/path/to/analysis_server.py"]
     },
     "napari-visualization": {
-      "command": "uv", 
+      "command": "uv",
       "args": ["run", "--with", "napari", "--with", "matplotlib",
                "fastmcp", "run", "/path/to/viz_server.py"]
     }
@@ -297,7 +297,7 @@ Ask: "Execute this code: print(f'Napari version: {napari.__version__}')"
 After successful integration:
 
 1. **Explore tools** - Try all available MCP tools
-2. **Automate workflows** - Create scripts combining multiple operations  
+2. **Automate workflows** - Create scripts combining multiple operations
 3. **Custom analysis** - Use `execute_code()` for specialized processing
 4. **Share setups** - Document your configuration for team use
 
