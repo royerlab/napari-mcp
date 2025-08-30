@@ -9,15 +9,15 @@ import pytest
 
 # The mock napari module is now set up in conftest.py
 # Just import what we need
-import napari_mcp_server
+from napari_mcp import server as napari_mcp_server
 
 
 class TestEndToEndIntegration:
     """Test end-to-end integration between main server and bridge."""
 
     @pytest.mark.asyncio
-    @patch("napari_mcp_server._use_external", True)
-    @patch("napari_mcp_server.Client")
+    @patch("napari_mcp.server._use_external", True)
+    @patch("napari_mcp.server.Client")
     async def test_execute_code_via_proxy(self, mock_client_class):
         """Test executing code through proxy to external viewer."""
         # Setup mock client
@@ -38,15 +38,15 @@ class TestEndToEndIntegration:
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
         # Mock the Client class instead of global variable
-        with patch("napari_mcp_server.Client", return_value=mock_client):
+        with patch("napari_mcp.server.Client", return_value=mock_client):
             result = await napari_mcp_server.execute_code("21 * 2")
 
         assert result["status"] == "ok"
         assert result["result_repr"] == "42"
 
     @pytest.mark.asyncio
-    @patch("napari_mcp_server._use_external", True)
-    @patch("napari_mcp_server.Client")
+    @patch("napari_mcp.server._use_external", True)
+    @patch("napari_mcp.server.Client")
     async def test_list_layers_via_proxy(self, mock_client_class):
         """Test listing layers through proxy."""
         mock_client = AsyncMock()
@@ -70,7 +70,7 @@ class TestEndToEndIntegration:
         assert result[1]["name"] == "Layer2"
 
     @pytest.mark.asyncio
-    @patch("napari_mcp_server._use_external", True)
+    @patch("napari_mcp.server._use_external", True)
     async def test_fallback_to_local_on_proxy_failure(self):
         """Test fallback to local viewer when proxy fails."""
         # Mock local viewer
@@ -78,8 +78,8 @@ class TestEndToEndIntegration:
         mock_viewer.layers = []
 
         with (
-            patch("napari_mcp_server._ensure_viewer", return_value=mock_viewer),
-            patch("napari_mcp_server._viewer_lock", asyncio.Lock()),
+            patch("napari_mcp.server._ensure_viewer", return_value=mock_viewer),
+            patch("napari_mcp.server._viewer_lock", asyncio.Lock()),
         ):
             result = await napari_mcp_server.list_layers()
 
@@ -87,7 +87,7 @@ class TestEndToEndIntegration:
         assert result == []
 
     @pytest.mark.asyncio
-    @patch("napari_mcp_server.Client")
+    @patch("napari_mcp.server.Client")
     async def test_init_viewer_with_external(self, mock_client_class):
         """Test initializing viewer with external preference."""
         # Setup mock client
@@ -107,7 +107,7 @@ class TestEndToEndIntegration:
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
         # Test init_viewer with use_external=True
-        with patch("napari_mcp_server._viewer_lock", asyncio.Lock()):
+        with patch("napari_mcp.server._viewer_lock", asyncio.Lock()):
             result = await napari_mcp_server.init_viewer(use_external="true")
 
         assert result["status"] == "ok"
@@ -132,9 +132,9 @@ class TestEndToEndIntegration:
         )
 
         with (
-            patch("napari_mcp_server._ensure_viewer", return_value=mock_viewer),
-            patch("napari_mcp_server._viewer_lock", asyncio.Lock()),
-            patch("napari_mcp_server._process_events"),
+            patch("napari_mcp.server._ensure_viewer", return_value=mock_viewer),
+            patch("napari_mcp.server._viewer_lock", asyncio.Lock()),
+            patch("napari_mcp.server._process_events"),
         ):
             result = await napari_mcp_server.init_viewer(use_external=False)
 
@@ -155,7 +155,7 @@ class TestBridgeWidget:
         with patch.object(
             sys.modules["napari"], "current_viewer", return_value=mock_viewer
         ):
-            from napari_mcp_bridge.widget import MCPControlWidget
+            from napari_mcp.widget import MCPControlWidget
 
             widget = MCPControlWidget(napari_viewer=mock_viewer)
             qtbot.addWidget(widget)  # Add widget to qtbot for proper cleanup
@@ -172,7 +172,7 @@ class TestBridgeWidget:
         with patch.object(
             sys.modules["napari"], "current_viewer", return_value=mock_viewer
         ):
-            from napari_mcp_bridge.widget import MCPControlWidget
+            from napari_mcp.widget import MCPControlWidget
 
             widget = MCPControlWidget()
             qtbot.addWidget(widget)
@@ -182,7 +182,7 @@ class TestBridgeWidget:
         """Test widget raises error when no viewer available."""
         # Patch napari.current_viewer before importing the widget
         with patch.object(sys.modules["napari"], "current_viewer", return_value=None):
-            from napari_mcp_bridge.widget import MCPControlWidget
+            from napari_mcp.widget import MCPControlWidget
 
             with pytest.raises(RuntimeError, match="No napari viewer found"):
                 MCPControlWidget()
@@ -199,7 +199,7 @@ class TestBridgeWidget:
         with patch.object(
             sys.modules["napari"], "current_viewer", return_value=mock_viewer
         ):
-            from napari_mcp_bridge.widget import MCPControlWidget
+            from napari_mcp.widget import MCPControlWidget
 
             widget = MCPControlWidget()
             qtbot.addWidget(widget)
@@ -221,7 +221,7 @@ class TestBridgeWidget:
         with patch.object(
             sys.modules["napari"], "current_viewer", return_value=mock_viewer
         ):
-            from napari_mcp_bridge.widget import MCPControlWidget
+            from napari_mcp.widget import MCPControlWidget
 
             widget = MCPControlWidget()
             qtbot.addWidget(widget)
@@ -237,8 +237,8 @@ class TestProxyPatterns:
     """Test various proxy patterns and edge cases."""
 
     @pytest.mark.asyncio
-    @patch("napari_mcp_server._use_external", True)
-    @patch("napari_mcp_server.Client")
+    @patch("napari_mcp.server._use_external", True)
+    @patch("napari_mcp.server.Client")
     async def test_add_image_with_path_via_proxy(self, mock_client_class):
         """Test adding image with file path through proxy."""
         mock_client = AsyncMock()
@@ -256,7 +256,7 @@ class TestProxyPatterns:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("napari_mcp_server.Client", return_value=mock_client):
+        with patch("napari_mcp.server.Client", return_value=mock_client):
             result = await napari_mcp_server.add_image(
                 path="/path/to/image.png", name="test", colormap="viridis"
             )
@@ -274,8 +274,8 @@ class TestProxyPatterns:
         assert call_args[0][1]["colormap"] == "viridis"
 
     @pytest.mark.asyncio
-    @patch("napari_mcp_server._use_external", True)
-    @patch("napari_mcp_server.Client")
+    @patch("napari_mcp.server._use_external", True)
+    @patch("napari_mcp.server.Client")
     async def test_screenshot_via_proxy(self, mock_client_class):
         """Test taking screenshot through proxy."""
         mock_client = AsyncMock()
@@ -295,7 +295,7 @@ class TestProxyPatterns:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("napari_mcp_server.Client", return_value=mock_client):
+        with patch("napari_mcp.server.Client", return_value=mock_client):
             result = await napari_mcp_server.screenshot(canvas_only=True)
 
         assert result["mime_type"] == "image/png"

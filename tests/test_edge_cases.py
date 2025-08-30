@@ -198,7 +198,7 @@ def cleanup_mocks():
         del sys.modules["napari"]
 
 
-from napari_mcp_server import (  # noqa: E402
+from napari_mcp.server import (  # noqa: E402
     _connect_window_destroyed_signal,
     _ensure_qt_app,
     _process_events,
@@ -233,7 +233,7 @@ def test_process_events():
 def test_connect_window_destroyed_signal():
     """Test window destroyed signal connection."""
     # Import the module-level variable
-    import napari_mcp_server
+    from napari_mcp import server as napari_mcp_server
 
     # Reset the global flag first to ensure we test properly
     original_flag = napari_mcp_server._window_close_connected
@@ -321,7 +321,7 @@ async def test_qt_event_pump():
 async def test_install_packages_subprocess_error():
     """Test package installation with subprocess errors."""
     # Mock subprocess that fails
-    with patch("napari_mcp_server.asyncio.create_subprocess_exec") as mock_subprocess:
+    with patch("napari_mcp.server.asyncio.create_subprocess_exec") as mock_subprocess:
         mock_proc = MagicMock()
 
         # Make communicate async
@@ -342,7 +342,7 @@ async def test_install_packages_subprocess_error():
 @pytest.mark.asyncio
 async def test_install_packages_with_options():
     """Test package installation with all options."""
-    with patch("napari_mcp_server.asyncio.create_subprocess_exec") as mock_subprocess:
+    with patch("napari_mcp.server.asyncio.create_subprocess_exec") as mock_subprocess:
         mock_proc = MagicMock()
 
         # Make communicate async
@@ -411,10 +411,10 @@ async def test_gui_lifecycle_error_cases():
 
 def test_main_function():
     """Test the main function."""
-    from napari_mcp_server import main
+    from napari_mcp.server import main
 
     # Mock the server.run() method
-    with patch("napari_mcp_server.server.run") as mock_run:
+    with patch("napari_mcp.server.server.run") as mock_run:
         main()
         mock_run.assert_called_once()
 
@@ -433,7 +433,7 @@ async def test_complex_code_execution():
     sys.modules["qtpy"] = mock_qtpy
 
     try:
-        from napari_mcp_server import execute_code, init_viewer
+        from napari_mcp.server import execute_code, init_viewer
 
         await init_viewer()
 

@@ -7,12 +7,9 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 
-# Add the plugin to path for testing
-sys.path.insert(
-    0, os.path.join(os.path.dirname(__file__), "..", "napari-mcp-bridge", "src")
-)
+# Add the plugin to path for testing (no longer needed with unified package)
 
-from napari_mcp_bridge.server import NapariBridgeServer, QtBridge
+from napari_mcp.bridge_server import NapariBridgeServer, QtBridge
 
 
 @pytest.fixture

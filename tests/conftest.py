@@ -9,13 +9,12 @@ import pytest
 
 # Add src directories to path for all tests
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-sys.path.insert(
-    0, os.path.join(os.path.dirname(__file__), "..", "napari-mcp-bridge", "src")
-)
 
 # Individual test files handle their own mocking
 # Only set up mock if not running real napari tests
 if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
+    # Ensure Qt runs headless
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     # Define a mock layer that's hashable
     class _MockLayer:
         def __init__(self, name, data=None, **kwargs):
@@ -176,7 +175,7 @@ def ensure_napari_mock():
 
     # Reset global viewer state in napari_mcp_server
     try:
-        import napari_mcp_server
+        from napari_mcp import server as napari_mcp_server
 
         napari_mcp_server._viewer = None
         napari_mcp_server._window_close_connected = False
@@ -188,7 +187,7 @@ def ensure_napari_mock():
 
     # Clean up viewer state after test
     try:
-        import napari_mcp_server
+        from napari_mcp import server as napari_mcp_server
 
         if napari_mcp_server._viewer is not None:
             try:
