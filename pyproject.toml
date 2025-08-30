@@ -49,6 +49,7 @@ test = [
     "pytest>=8.4.0",
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.0.0",
+    "pytest-qt>=4.0.0",
 ]
 dev = [
     "ruff>=0.12.10",
@@ -110,6 +111,9 @@ ignore = [
     "S603", # subprocess call - allow for tools
     "S607", # subprocess with shell - allow for tools
     "SIM105", # contextlib.suppress - prefer explicit try/except for clarity
+    "TC003", # typing-only imports - not critical for functionality
+    "D401", # imperative mood - not critical for functionality
+    "E402", # module import not at top - needed for conditional imports
 ]
 
 [tool.ruff.lint.pydocstyle]

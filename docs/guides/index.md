@@ -15,7 +15,7 @@ Learn how to effectively use napari MCP server with AI assistants for microscopy
 
 - **[Troubleshooting Guide](troubleshooting.md)** - Solutions to common problems (available now)
 - **Basic Usage Guide** - Coming soon
-- **Advanced Workflows** - Coming soon  
+- **Advanced Workflows** - Coming soon
 - **Security Guide** - Coming soon
 
 ## What You'll Learn
@@ -68,7 +68,7 @@ Before diving into these guides, ensure you have:
     - **3D reconstruction** - Visualize Z-stacks, create volume renderings
     - **Multi-channel analysis** - Overlay channels, analyze co-localization
 
-=== "Materials Science"  
+=== "Materials Science"
     - **Surface analysis** - Load SEM/AFM data, measure surface features
     - **Crystal structure** - Analyze diffraction patterns, identify phases
     - **Defect analysis** - Identify and quantify material defects
@@ -82,7 +82,7 @@ Before diving into these guides, ensure you have:
 
 === "Data Science & AI"
     - **Computer vision** - Develop and test image processing algorithms
-    - **Machine learning** - Prepare training data, validate model outputs  
+    - **Machine learning** - Prepare training data, validate model outputs
     - **Automated analysis** - Create reproducible processing pipelines
     - **Interactive exploration** - Use AI to guide data discovery
 

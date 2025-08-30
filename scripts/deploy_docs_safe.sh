@@ -82,7 +82,7 @@ if [[ -d ".git" ]]; then
             fi
         fi
     fi
-    
+
     # Show current commit info
     echo -e "${BLUE}📝 Current commit:${NC}"
     echo "   $(git log --oneline -1)"
@@ -143,7 +143,7 @@ if [[ "$DRY_RUN" != "true" ]]; then
         echo -e "${RED}❌ Build directory is empty or missing${NC}"
         exit 1
     fi
-    
+
     # Check for critical files
     critical_files=("index.html" "search/search_index.json" "assets")
     for file in "${critical_files[@]}"; do
@@ -175,7 +175,7 @@ else
     # Create staging directory
     rm -rf "$STAGING_DIR"
     mkdir -p "$STAGING_DIR"
-    
+
     # Copy to staging
     cp -r "$BUILD_DIR"/* "$STAGING_DIR/"
     echo -e "${GREEN}✅ Files staged successfully${NC}"
@@ -226,7 +226,7 @@ echo -e "${YELLOW}🚀 Deploying to production...${NC}"
 if [[ "$DRY_RUN" != "true" ]]; then
     # Clear existing content
     rm -rf "${DEPLOY_PATH:?}"/*
-    
+
     # Copy from staging
     if cp -r "$STAGING_DIR"/* "$DEPLOY_PATH/"; then
         echo -e "${GREEN}✅ Files deployed successfully${NC}"
@@ -248,7 +248,7 @@ echo -e "${YELLOW}🔐 Setting file permissions...${NC}"
 if [[ "$DRY_RUN" != "true" ]]; then
     # Set directory permissions
     find "$DEPLOY_PATH" -type d -exec chmod 755 {} \;
-    
+
     # Set file permissions
     find "$DEPLOY_PATH" -type f -name "*.html" -exec chmod 644 {} \;
     find "$DEPLOY_PATH" -type f -name "*.css" -exec chmod 644 {} \;
@@ -256,7 +256,7 @@ if [[ "$DRY_RUN" != "true" ]]; then
     find "$DEPLOY_PATH" -type f -name "*.png" -exec chmod 644 {} \;
     find "$DEPLOY_PATH" -type f -name "*.svg" -exec chmod 644 {} \;
     find "$DEPLOY_PATH" -type f -name "*.json" -exec chmod 644 {} \;
-    
+
     echo -e "${GREEN}✅ Permissions set${NC}"
 fi
 
@@ -271,13 +271,13 @@ if [[ "$DRY_RUN" != "true" ]]; then
             exit 1
         fi
     done
-    
+
     # Check file count
     deployed_count=$(find "$DEPLOY_PATH" -type f | wc -l | tr -d ' ')
     if [[ $deployed_count -lt 10 ]]; then
         echo -e "${YELLOW}⚠️ Warning: Only $deployed_count files deployed (seems low)${NC}"
     fi
-    
+
     echo -e "${GREEN}✅ Deployment verification passed${NC}"
 fi
 

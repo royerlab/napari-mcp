@@ -52,7 +52,7 @@ Advanced script with comprehensive safety checks and rollback capabilities.
 
 ## Deployment Target
 
-**Path:** `/hpc/websites/onsite.czbiohub.org/royerlab/napari-mcp`  
+**Path:** `/hpc/websites/onsite.czbiohub.org/royerlab/napari-mcp`
 **URL:** `https://onsite.czbiohub.org/royerlab/napari-mcp`
 
 ## Prerequisites

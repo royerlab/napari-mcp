@@ -78,6 +78,6 @@ chmod +x scripts/run_from_github.sh
 
 - ✅ **One command** - Just run the script
 - ✅ **Auto-download** - Handles missing files
-- ✅ **Error checking** - Clear error messages  
+- ✅ **Error checking** - Clear error messages
 - ✅ **Cross-platform** - Works on Unix, macOS, and Windows
 - ✅ **Always latest** - GitHub runner gets newest version

@@ -4,7 +4,7 @@ The ultimate way to run napari MCP server without any permanent installation - u
 
 !!! tip "Perfect For"
     - **Quick demos** - No setup overhead
-    - **Clean environments** - No leftover dependencies 
+    - **Clean environments** - No leftover dependencies
     - **Team sharing** - Same setup everywhere
     - **CI/CD** - Reproducible deployments
 
@@ -81,7 +81,7 @@ uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --
       "args": [
         "run",
         "--with", "Pillow",
-        "--with", "PyQt6", 
+        "--with", "PyQt6",
         "--with", "fastmcp",
         "--with", "imageio",
         "--with", "napari",
@@ -107,7 +107,7 @@ uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --
         "--with", "Pillow>=10.3.0",
         "--with", "PyQt6>=6.5.0",
         "--with", "fastmcp>=2.7.0",
-        "--with", "imageio>=2.34.0", 
+        "--with", "imageio>=2.34.0",
         "--with", "napari>=0.5.5",
         "--with", "numpy>=1.26.0",
         "--with", "qtpy>=2.4.1",
@@ -147,7 +147,7 @@ chmod +x run.sh
 # Download and run our Windows script
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/royerlab/napari-mcp/main/scripts/run.bat" -OutFile "run.bat"
 
-# Run with local file  
+# Run with local file
 .\run.bat
 
 # Run with specific path
@@ -176,7 +176,7 @@ Add these for enhanced functionality:
 # Scientific computing
 --with scipy --with scikit-image
 
-# Plotting and visualization  
+# Plotting and visualization
 --with matplotlib --with seaborn
 
 # Additional image formats
@@ -215,7 +215,7 @@ uv run --with napari --with "numpy>=1.26.0" --with "Pillow>=10.3.0" \
     ```bash
     # macOS/Linux
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    
+
     # Windows
     powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
     ```

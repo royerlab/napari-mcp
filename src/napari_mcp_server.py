@@ -13,17 +13,67 @@ import asyncio
 import asyncio.subprocess
 import base64
 import contextlib
+import os
 import shlex
 import sys
 import traceback
 from io import BytesIO, StringIO
 from typing import Any
 
-import napari
+
+# Optional imports: make module importable without heavy GUI deps.
+# Do not cache napari at import time; tests may swap in a fake later.
+def _napari_module() -> Any | None:
+    """Return the current napari module if available.
+
+    Looks up sys.modules first (to honor tests swapping in fakes), and falls
+    back to importlib if not already loaded. Returns None if unavailable.
+    """
+    mod = sys.modules.get("napari")
+    if mod is not None:
+        return mod
+    try:  # late import
+        import importlib
+
+        return importlib.import_module("napari")
+    except Exception:
+        return None
+
+
 import numpy as np
-from fastmcp import FastMCP
+
+try:  # FastMCP may not be installed in some environments
+    from fastmcp import Client, FastMCP  # type: ignore
+except Exception:  # pragma: no cover - provide light fallbacks
+
+    class _DummyServer:
+        def __init__(self, *_: Any, **__: Any) -> None:
+            pass
+
+        def tool(self):  # decorator factory
+            def _decorator(fn):
+                return fn
+
+            return _decorator
+
+        async def get_tools(self) -> dict[str, Any]:
+            return {}
+
+        def run(self, *_: Any, **__: Any) -> None:
+            raise RuntimeError("FastMCP not available")
+
+    class _DummyClient:  # used only under patching in tests
+        pass
+
+    FastMCP = _DummyServer  # type: ignore[assignment]
+    Client = _DummyClient  # type: ignore[assignment]
+
 from PIL import Image
-from qtpy import QtWidgets
+
+try:  # qtpy may not be installed in headless environments
+    from qtpy import QtWidgets  # type: ignore
+except Exception:  # pragma: no cover
+    QtWidgets = None  # type: ignore[assignment]
 
 server = FastMCP(
     "Napari MCP Server",
@@ -32,16 +82,115 @@ server = FastMCP(
 
 
 # Global GUI singletons (created lazily)
-_qt_app: QtWidgets.QApplication | None = None
-_viewer: napari.Viewer | None = None
+_qt_app: Any | None = None
+_viewer: Any | None = None
 _viewer_lock: asyncio.Lock = asyncio.Lock()
 _exec_globals: dict[str, Any] = {}
 _qt_pump_task: asyncio.Task | None = None
 _window_close_connected: bool = False
+# Note: _external_client is kept for test compatibility but not used
+# - we create fresh clients for each call
+_external_client: Any = None
+_use_external: bool = os.environ.get("NAPARI_MCP_USE_EXTERNAL", "false").lower() in (
+    "true",
+    "1",
+    "yes",
+    "on",
+)
+_external_port: int = int(os.environ.get("NAPARI_MCP_BRIDGE_PORT", "9999"))
 
 
-def _ensure_qt_app() -> QtWidgets.QApplication:
+def _parse_bool(value: bool | str | None, default: bool = False) -> bool:
+    """Parse a boolean value from various input types.
+
+    Parameters
+    ----------
+    value : bool | str | None
+        Value to parse. Strings like "true", "1", "yes", "on" are considered True.
+    default : bool
+        Default value if input is None.
+
+    Returns
+    -------
+    bool
+        Parsed boolean value.
+    """
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ("true", "1", "yes", "on")
+    return bool(value)
+
+
+async def _proxy_to_external(
+    tool_name: str, params: dict[str, Any] | None = None
+) -> dict[str, Any] | None:
+    """Proxy a tool call to the external viewer if available.
+
+    Returns None if external viewer is not being used or call fails.
+    """
+    global _use_external
+    if not _use_external:
+        return None
+
+    try:
+        # Create fresh client for each call to avoid connection issues
+        client = Client(f"http://localhost:{_external_port}/mcp")
+        async with client:
+            result = await client.call_tool(tool_name, params or {})
+            # Parse the result from the external viewer
+            if hasattr(result, "content"):
+                content = result.content
+                if isinstance(content, list) and len(content) > 0:
+                    import json
+
+                    response = (
+                        content[0].text
+                        if hasattr(content[0], "text")
+                        else str(content[0])
+                    )
+                    try:
+                        return (
+                            json.loads(response)
+                            if isinstance(response, str)
+                            else response
+                        )
+                    except json.JSONDecodeError:
+                        return {
+                            "status": "error",
+                            "message": f"Invalid JSON response: {response}",
+                        }
+            return {
+                "status": "error",
+                "message": "Invalid response format from external viewer",
+            }
+    except Exception:
+        # Fall back to local execution
+        return None
+
+
+def _ensure_qt_app() -> Any:
+    """Return a Qt application instance if available, else a no-op stub.
+
+    This allows running in environments without Qt (e.g., some CI or tests
+    that mock napari) while keeping real GUI behavior when Qt is present.
+    """
     global _qt_app
+    if QtWidgets is None:  # Fallback: provide a minimal stub
+
+        class _StubApp:
+            def processEvents(self, *_: Any) -> None:  # noqa: N802 (Qt-style)
+                pass
+
+            def setQuitOnLastWindowClosed(self, *_: Any) -> None:  # noqa: N802
+                pass
+
+        if _qt_app is None:
+            _qt_app = _StubApp()
+        return _qt_app
+
     app = QtWidgets.QApplication.instance()
     if app is None:
         _qt_app = QtWidgets.QApplication([])
@@ -52,19 +201,79 @@ def _ensure_qt_app() -> QtWidgets.QApplication:
     except Exception:
         # Best-effort; some headless backends may not support this
         pass
-    return app  # type: ignore[return-value]
+    return app
 
 
-def _ensure_viewer() -> napari.Viewer:
+async def _detect_external_viewer() -> tuple[Client | None, dict[str, Any] | None]:
+    """Detect if an external napari viewer is available via MCP bridge.
+
+    Returns
+    -------
+    tuple
+        (client, session_info) if external viewer found, (None, None) otherwise
+    """
+    try:
+        client = Client(f"http://localhost:{_external_port}/mcp")
+        async with client:
+            # Try to get session info to verify it's a napari bridge
+            result = await client.call_tool("session_information")
+            if result and hasattr(result, "content"):
+                content = result.content
+                if isinstance(content, list) and len(content) > 0:
+                    info = (
+                        content[0].text
+                        if hasattr(content[0], "text")
+                        else str(content[0])
+                    )
+                    # Parse the JSON response
+                    import json
+
+                    info_dict = json.loads(info) if isinstance(info, str) else info
+                    if info_dict.get("session_type") == "napari_bridge_session":
+                        return client, info_dict
+            return None, None
+    except Exception:
+        return None, None
+
+
+def _detect_external_viewer_sync() -> bool:
+    """Synchronous wrapper to check if external viewer is available.
+
+    In tests, ``_detect_external_viewer`` may be patched to return a plain
+    tuple rather than a coroutine. Handle both cases gracefully.
+    """
+    try:
+        import asyncio
+        import inspect
+
+        maybe_coro = _detect_external_viewer()
+        if inspect.isawaitable(maybe_coro):
+            loop = asyncio.new_event_loop()
+            try:
+                client, info = loop.run_until_complete(maybe_coro)  # type: ignore[assignment]
+            finally:
+                loop.close()
+        else:
+            # Already a concrete (client, info) tuple from a patch/mocked fn
+            client, info = maybe_coro  # type: ignore[misc]
+        return client is not None
+    except Exception:
+        return False
+
+
+def _ensure_viewer() -> Any:
     global _viewer
     _ensure_qt_app()
     if _viewer is None:
-        _viewer = napari.Viewer()
+        napari_mod = _napari_module()
+        if napari_mod is None:
+            raise RuntimeError("napari is not available")
+        _viewer = napari_mod.Viewer()
         _connect_window_destroyed_signal(_viewer)
     return _viewer
 
 
-def _connect_window_destroyed_signal(viewer: napari.Viewer) -> None:
+def _connect_window_destroyed_signal(viewer) -> None:
     """Connect to the Qt window destroyed signal to clear our singleton.
 
     This prevents stale references after a user manually closes the window.
@@ -118,29 +327,170 @@ async def _qt_event_pump() -> None:
         pass
 
 
-async def init_viewer(
-    title: str | None = None,
-    width: int | None = None,
-    height: int | None = None,
-) -> dict[str, Any]:
+async def detect_viewers() -> dict[str, Any]:
     """
-    Create or return the singleton napari viewer.
-
-    Parameters
-    ----------
-    title : str, optional
-        Optional window title.
-    width : int, optional
-        Optional initial canvas width in logical pixels.
-    height : int, optional
-        Optional initial canvas height in logical pixels.
+    Detect available viewers (local and external).
 
     Returns
     -------
     dict
-        Dictionary containing status, title, and layer names.
+        Dictionary with information about available viewers
     """
+    viewers: dict[str, Any] = {"local": None, "external": None}
+
+    # Check for external viewer
+    client, info = await _detect_external_viewer()
+    if client and info is not None:
+        viewers["external"] = {
+            "available": True,
+            "type": "napari_bridge",
+            "port": info.get("bridge_port", _external_port),
+            "viewer_info": info.get("viewer", {}),
+        }
+    else:
+        viewers["external"] = {"available": False}
+
+    # Check for local viewer
+    global _viewer
+    if _viewer is not None:
+        viewers["local"] = {
+            "available": True,
+            "type": "singleton",
+            "title": _viewer.title,
+            "n_layers": len(_viewer.layers),
+        }
+    else:
+        viewers["local"] = {
+            "available": True,  # Can be created
+            "type": "not_initialized",
+        }
+
+    return {
+        "status": "ok",
+        "viewers": viewers,
+        "using_external": _use_external,
+        "preference": "external" if _use_external else "local",
+    }
+
+
+async def select_viewer(use_external: bool | str | None = None) -> dict[str, Any]:
+    """
+    Select which viewer to use (local or external).
+
+    Parameters
+    ----------
+    use_external : bool | str, optional
+        If True/"true"/"1"/"yes", prefer external viewer. If None, auto-detect.
+
+    Returns
+    -------
+    dict
+        Status and selected viewer information
+    """
+    global _use_external
+
+    # Parse boolean value if provided
+    if use_external is not None:
+        use_external = _parse_bool(use_external)
+    else:
+        # Auto-detect: use external if available
+        client, info = await _detect_external_viewer()
+        use_external = client is not None
+        if client:
+            await client.close()
+
+    _use_external = use_external
+
+    if _use_external:
+        client, info = await _detect_external_viewer()
+        if client:
+            await client.close()  # Close test connection
+            return {"status": "ok", "selected": "external", "info": info}
+        else:
+            return {
+                "status": "error",
+                "message": "External viewer requested but not found",
+                "fallback": "local",
+            }
+    else:
+        return {"status": "ok", "selected": "local"}
+
+
+async def init_viewer(
+    title: str | None = None,
+    width: int | None = None,
+    height: int | None = None,
+    use_external: bool | str | None = None,
+) -> dict[str, Any]:
+    """
+    Create or return the napari viewer (local or external).
+
+    Parameters
+    ----------
+    title : str, optional
+        Optional window title (only for local viewer).
+    width : int, optional
+        Optional initial canvas width (only for local viewer).
+    height : int, optional
+        Optional initial canvas height (only for local viewer).
+    use_external : bool | str, optional
+        If True/"true"/"1"/"yes", try to use external viewer.
+        If None, use current setting.
+
+    Returns
+    -------
+    dict
+        Dictionary containing status, viewer type, and layer info.
+    """
+    global _use_external
+    # No global client - create fresh connections as needed
+
+    # Parse boolean value and handle viewer selection if specified
+    if use_external is not None:
+        use_external = _parse_bool(use_external)
+        await select_viewer(use_external)
+
     async with _viewer_lock:
+        # Check if we should use external viewer
+        if _use_external:
+            try:
+                # Test connection to external viewer
+                test_client = Client(f"http://localhost:{_external_port}/mcp")
+                async with test_client:
+                    result = await test_client.call_tool("session_information")
+                    if hasattr(result, "content"):
+                        content = result.content
+                        if isinstance(content, list) and len(content) > 0:
+                            import json
+
+                            info = (
+                                content[0].text
+                                if hasattr(content[0], "text")
+                                else str(content[0])
+                            )
+                            info_dict = (
+                                json.loads(info) if isinstance(info, str) else info
+                            )
+                            if info_dict.get("session_type") == "napari_bridge_session":
+                                # External viewer is available
+                                return {
+                                    "status": "ok",
+                                    "viewer_type": "external",
+                                    "title": info_dict.get("viewer", {}).get(
+                                        "title", "External Viewer"
+                                    ),
+                                    "layers": info_dict.get("viewer", {}).get(
+                                        "layer_names", []
+                                    ),
+                                    "port": info_dict.get(
+                                        "bridge_port", _external_port
+                                    ),
+                                }
+            except Exception as e:
+                print(f"Failed to connect to external viewer: {e}")
+                _use_external = False
+
+        # Use local viewer
         v = _ensure_viewer()
         if title:
             v.title = title
@@ -159,6 +509,7 @@ async def init_viewer(
         _process_events()
         return {
             "status": "ok",
+            "viewer_type": "local",
             "title": v.title,
             "layers": [lyr.name for lyr in v.layers],
         }
@@ -309,7 +660,7 @@ async def session_information() -> dict[str, Any]:
         system_info = {
             "python_version": sys.version,
             "platform": platform.platform(),
-            "napari_version": napari.__version__,
+            "napari_version": getattr(_napari_module(), "__version__", "unknown"),
             "process_id": os.getpid(),
             "working_directory": os.getcwd(),
         }
@@ -371,6 +722,19 @@ async def session_information() -> dict[str, Any]:
 
 async def list_layers() -> list[dict[str, Any]]:
     """Return a list of layers with key properties."""
+    # Try to proxy to external viewer first
+    proxy_result = await _proxy_to_external("list_layers")
+    if proxy_result is not None:
+        # Ensure the result is the expected list format
+        if isinstance(proxy_result, list):
+            return proxy_result
+        elif isinstance(proxy_result, dict) and "content" in proxy_result:
+            content = proxy_result["content"]
+            if isinstance(content, list):
+                return content
+        return []
+
+    # Local execution
     async with _viewer_lock:
         v = _ensure_viewer()
         result: list[dict[str, Any]] = []
@@ -427,6 +791,22 @@ async def add_image(
     dict
         Dictionary containing status, layer name, and image shape.
     """
+    # Try to proxy to external viewer first
+    params: dict[str, Any] = {"path": path}
+    if name:
+        params["name"] = name
+    if colormap:
+        params["colormap"] = colormap
+    if blending:
+        params["blending"] = blending
+    if channel_axis is not None:
+        params["channel_axis"] = channel_axis
+
+    result = await _proxy_to_external("add_image", params)
+    if result is not None:
+        return result
+
+    # Local execution
     import imageio.v3 as iio
 
     async with _viewer_lock:
@@ -665,6 +1045,12 @@ async def screenshot(canvas_only: bool = True) -> dict[str, str]:
         Dictionary with 'mime_type' and 'base64_data' keys containing
         the base64-encoded PNG image.
     """
+    # Try to proxy to external viewer first
+    result = await _proxy_to_external("screenshot", {"canvas_only": canvas_only})
+    if result is not None:
+        return result
+
+    # Local execution
     async with _viewer_lock:
         v = _ensure_viewer()
         _process_events(3)
@@ -697,12 +1083,19 @@ async def execute_code(code: str) -> dict[str, Any]:
     dict
         Dictionary with 'status', optional 'result_repr', 'stdout', and 'stderr'.
     """
+    # Try to proxy to external viewer first
+    result = await _proxy_to_external("execute_code", {"code": code})
+    if result is not None:
+        return result
+
+    # Local execution
     async with _viewer_lock:
-        # Ensure Qt and viewer exist; expose common names in a persistent namespace
         v = _ensure_viewer()
         _exec_globals.setdefault("__builtins__", __builtins__)  # type: ignore[assignment]
         _exec_globals["viewer"] = v
-        _exec_globals.setdefault("napari", napari)
+        napari_mod = _napari_module()
+        if napari_mod is not None:
+            _exec_globals.setdefault("napari", napari_mod)
         _exec_globals.setdefault("np", np)
 
         stdout_buf = StringIO()
@@ -843,6 +1236,8 @@ def main() -> None:
 
 
 # Register tools with the FastMCP server without replacing the callables
+server.tool()(detect_viewers)
+server.tool()(select_viewer)
 server.tool()(init_viewer)
 server.tool()(close_viewer)
 server.tool()(session_information)

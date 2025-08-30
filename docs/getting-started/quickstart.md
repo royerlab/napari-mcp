@@ -4,7 +4,7 @@ Get napari working with AI assistance in just 2 minutes with zero installation!
 
 !!! success "What You'll Accomplish"
     By the end of this guide:
-    
+
     - ✅ Napari server running with AI control
     - ✅ Claude Desktop (or your AI) can control napari
     - ✅ Ready to load images and take screenshots
@@ -22,7 +22,7 @@ Get napari working with AI assistance in just 2 minutes with zero installation!
     ```bash
     # Download the server file
     curl -O https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py
-    
+
     # Run with all dependencies
     uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
       fastmcp run napari_mcp_server.py
@@ -54,7 +54,7 @@ Get napari working with AI assistance in just 2 minutes with zero installation!
          "args": [
            "run",
            "--with", "Pillow",
-           "--with", "PyQt6", 
+           "--with", "PyQt6",
            "--with", "fastmcp",
            "--with", "imageio",
            "--with", "napari",
@@ -87,16 +87,16 @@ Ask Claude Desktop:
         ```
         Can you call session_information() to tell me about my napari session?
         ```
-        
+
         **Expected response:** Information about your napari viewer including layers, camera settings, etc.
-    
+
     === "Visual Test"
         ```
         Take a screenshot of my napari viewer
         ```
-        
+
         **Expected response:** A PNG image of the napari window
-    
+
     === "Interactive Test"
         ```
         Add some random sample data to napari and change the colormap to 'viridis'
@@ -133,7 +133,7 @@ If the tests above work, you're ready to explore:
 ### Learning More
 
 - **[User Guide](../guides/index.md)** - Learn common workflows and best practices
-- **[API Reference](../api/index.md)** - Complete documentation of all available tools  
+- **[API Reference](../api/index.md)** - Complete documentation of all available tools
 - **[Integrations](../integrations/index.md)** - Setup with other AI assistants
 
 ## ❌ Common Issues
@@ -147,7 +147,7 @@ If the tests above work, you're ready to explore:
 
 !!! failure "Claude can't see napari tools"
     **Solutions:**
-    
+
     - Double-check the file path in your config is absolute
     - Restart Claude Desktop after making config changes
     - Verify the server is running (you should see terminal output)
@@ -160,7 +160,7 @@ If the tests above work, you're ready to explore:
 
 !!! failure "Napari window doesn't appear"
     **Solutions:**
-    
+
     - Check if you're on a remote system (may need X11 forwarding)
     - Try setting: `export QT_QPA_PLATFORM=offscreen` for headless mode
     - Verify Qt dependencies are available

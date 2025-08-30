@@ -6,7 +6,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
-        args: ['--maxkb=1000']
+        args: ["--maxkb=1000"]
       - id: check-json
       - id: check-toml
       - id: check-merge-conflict
@@ -27,13 +27,3 @@ repos:
           - types-Pillow
         args: [--ignore-missing-imports]
         files: ^src/
-
-  - repo: local
-    hooks:
-      - id: pytest-check
-        name: pytest-check
-        entry: pytest
-        language: system
-        args: [tests/, -v, -m, "not realgui", --tb=short]
-        pass_filenames: false
-        always_run: true

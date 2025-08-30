@@ -1,14 +1,23 @@
 import base64
 import os
+import platform
+import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 # If not explicitly running real GUI tests, disable third-party plugin autoload
 if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
     os.environ.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
 
-import pytest
+# Remove fake napari if it was installed by other tests
+for mod_name in list(sys.modules.keys()):
+    if mod_name.startswith("napari"):
+        mod = sys.modules[mod_name]
+        # Check if it's a fake module
+        if not hasattr(mod, "__file__") or not mod.__file__:
+            del sys.modules[mod_name]
 
 # Opt-in: only run this test when explicitly requested
 if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
@@ -17,9 +26,8 @@ if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
         allow_module_level=True,
     )
 
-
 # For macOS with a real session, prefer default cocoa platform
-if os.uname().sysname == "Darwin":
+if platform.system() == "Darwin":
     # Do not force offscreen for real GUI tests
     # Keep QT_QPA_PLATFORM if it's already set
     pass
@@ -57,8 +65,8 @@ async def test_all_tools_with_real_napari(tmp_path: Path) -> None:
     res = await init_viewer(title="Real GUI Test")
     assert res["status"] == "ok"
 
-    # Create small test image and labels
-    img = np.linspace(0, 255, 5 * 16 * 16, dtype=np.uint8).reshape(5, 16, 16)
+    # Create small test image and labels (both 2D for consistency)
+    img = np.linspace(0, 255, 16 * 16, dtype=np.uint8).reshape(16, 16)
     img_path = tmp_path / "img.tif"
     import imageio.v3 as iio
 
