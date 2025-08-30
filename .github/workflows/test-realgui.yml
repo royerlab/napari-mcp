@@ -14,29 +14,29 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     name: Linux Python ${{ matrix.python-version }} - Real GUI Tests
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    
+
     - name: Install Qt libraries
       uses: tlambert03/setup-qt-libs@v1
-    
+
     - name: Install UV
       uses: astral-sh/setup-uv@v4
-    
+
     - name: Install Python dependencies
       run: |
         uv sync --all-extras
         uv pip install pytest-qt pytest-asyncio
-    
+
     - name: Install plugin
       run: uv pip install -e ./napari-mcp-bridge
-    
+
     - name: Run GUI tests
       env:
         RUN_REAL_NAPARI_TESTS: '1'
@@ -49,7 +49,7 @@ jobs:
           --tb=short \
           --durations=10 \
           -W ignore::DeprecationWarning
-    
+
     - name: Upload test results
       if: failure()
       uses: actions/upload-artifact@v4
@@ -67,26 +67,26 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     name: ${{ matrix.os }} Python 3.13 - Real GUI Tests
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python 3.13
       uses: actions/setup-python@v5
       with:
         python-version: '3.13'
-    
+
     - name: Install UV
       uses: astral-sh/setup-uv@v4
-    
+
     - name: Install Python dependencies
       run: |
         uv sync --all-extras
         uv pip install pytest-qt pytest-asyncio
-    
+
     - name: Install plugin
       run: uv pip install -e ./napari-mcp-bridge
-    
+
     - name: Run GUI tests (macOS)
       if: matrix.os == 'macos-latest'
       env:
@@ -98,7 +98,7 @@ jobs:
           --tb=short \
           --durations=10 \
           -W ignore::DeprecationWarning
-    
+
     - name: Run GUI tests (Windows)
       if: matrix.os == 'windows-latest'
       env:
@@ -107,7 +107,7 @@ jobs:
         PYTEST_QT_API: 'pyqt6'
       run: |
         uv run pytest tests/test_real_integration.py tests/test_tools_real.py -v -m realgui --tb=short --durations=10 -W ignore::DeprecationWarning
-    
+
     - name: Upload test results
       if: failure()
       uses: actions/upload-artifact@v4
