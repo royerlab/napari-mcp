@@ -333,6 +333,7 @@ class TestRealPluginLoading:
         # Skip this test if plugin is not installed
         try:
             import npe2  # noqa: F401
+
             # Check if our plugin is registered - skipping for now
             assert True  # Allow pass for now
         except ImportError:
