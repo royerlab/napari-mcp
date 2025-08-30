@@ -77,9 +77,11 @@ class TestEndToEndIntegration:
         mock_viewer = Mock()
         mock_viewer.layers = []
 
-        with patch("napari_mcp_server._ensure_viewer", return_value=mock_viewer):
-            with patch("napari_mcp_server._viewer_lock", asyncio.Lock()):
-                result = await napari_mcp_server.list_layers()
+        with (
+            patch("napari_mcp_server._ensure_viewer", return_value=mock_viewer),
+            patch("napari_mcp_server._viewer_lock", asyncio.Lock()),
+        ):
+            result = await napari_mcp_server.list_layers()
 
         # Should get empty list from local viewer
         assert result == []
@@ -129,10 +131,12 @@ class TestEndToEndIntegration:
             )
         )
 
-        with patch("napari_mcp_server._ensure_viewer", return_value=mock_viewer):
-            with patch("napari_mcp_server._viewer_lock", asyncio.Lock()):
-                with patch("napari_mcp_server._process_events"):
-                    result = await napari_mcp_server.init_viewer(use_external=False)
+        with (
+            patch("napari_mcp_server._ensure_viewer", return_value=mock_viewer),
+            patch("napari_mcp_server._viewer_lock", asyncio.Lock()),
+            patch("napari_mcp_server._process_events"),
+        ):
+            result = await napari_mcp_server.init_viewer(use_external=False)
 
         assert result["status"] == "ok"
         assert result["viewer_type"] == "local"

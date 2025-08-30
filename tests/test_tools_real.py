@@ -1,18 +1,17 @@
 import base64
 import os
+import platform
+import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 # If not explicitly running real GUI tests, disable third-party plugin autoload
 if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
     os.environ.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
 
 # Remove fake napari if it was installed by other tests
-import sys
-
-import pytest
-
 for mod_name in list(sys.modules.keys()):
     if mod_name.startswith("napari"):
         mod = sys.modules[mod_name]
@@ -27,9 +26,7 @@ if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
         allow_module_level=True,
     )
 
-
 # For macOS with a real session, prefer default cocoa platform
-import platform
 if platform.system() == "Darwin":
     # Do not force offscreen for real GUI tests
     # Keep QT_QPA_PLATFORM if it's already set
