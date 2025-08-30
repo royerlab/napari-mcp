@@ -45,15 +45,16 @@ class _HashableLayer:
     def __init__(self, name, data=None, **kwargs):
         self.name = name
         self.data = data
-        self.visible = kwargs.get('visible', True)
-        self.opacity = kwargs.get('opacity', 1.0)
-        self.size = kwargs.get('size', 10)
-    
+        self.visible = kwargs.get("visible", True)
+        self.opacity = kwargs.get("opacity", 1.0)
+        self.size = kwargs.get("size", 10)
+
     def __hash__(self):
         return hash(self.name)
-        
+
     def __eq__(self, other):
         return isinstance(other, _HashableLayer) and self.name == other.name
+
 
 # Define a minimal fake viewer at module level
 class _FakeViewer:
@@ -63,64 +64,47 @@ class _FakeViewer:
         self.window = types.SimpleNamespace(
             qt_viewer=types.SimpleNamespace(
                 canvas=types.SimpleNamespace(
-                    native=types.SimpleNamespace(
-                        resize=lambda w, h: None
-                    ),
+                    native=types.SimpleNamespace(resize=lambda w, h: None),
                     size=lambda: types.SimpleNamespace(
-                        width=lambda: 800,
-                        height=lambda: 600
-                    )
+                        width=lambda: 800, height=lambda: 600
+                    ),
                 )
             )
         )
-        self.camera = types.SimpleNamespace(
-            center=[0.0, 0.0],
-            zoom=1.0,
-            angles=(0.0,)
-        )
+        self.camera = types.SimpleNamespace(center=[0.0, 0.0], zoom=1.0, angles=(0.0,))
         self.dims = types.SimpleNamespace(
-            ndisplay=2,
-            current_step={},
-            set_current_step=lambda axis, value: None
+            ndisplay=2, current_step={}, set_current_step=lambda axis, value: None
         )
         self.grid = types.SimpleNamespace(enabled=False)
 
     def close(self):
         pass
-    
+
     def reset_view(self):
         pass
-    
+
     def add_image(self, data, **kwargs):
-        name = kwargs.pop('name', 'image')  # Remove name from kwargs to avoid duplicate
-        layer = _HashableLayer(
-            name=name,
-            data=data,
-            **kwargs
-        )
+        name = kwargs.pop("name", "image")  # Remove name from kwargs to avoid duplicate
+        layer = _HashableLayer(name=name, data=data, **kwargs)
         self.layers.append(layer)
         return layer
-    
+
     def add_points(self, data, **kwargs):
-        name = kwargs.pop('name', 'points')  # Remove name from kwargs to avoid duplicate
-        layer = _HashableLayer(
-            name=name,
-            data=data,
-            **kwargs
-        )
+        name = kwargs.pop(
+            "name", "points"
+        )  # Remove name from kwargs to avoid duplicate
+        layer = _HashableLayer(name=name, data=data, **kwargs)
         self.layers.append(layer)
         return layer
-    
+
     def add_labels(self, data, **kwargs):
-        name = kwargs.pop('name', 'labels')  # Remove name from kwargs to avoid duplicate
-        layer = _HashableLayer(
-            name=name,
-            data=data,
-            **kwargs
-        )
+        name = kwargs.pop(
+            "name", "labels"
+        )  # Remove name from kwargs to avoid duplicate
+        layer = _HashableLayer(name=name, data=data, **kwargs)
         self.layers.append(layer)
         return layer
-    
+
     def screenshot(self, canvas_only=True):
         return np.zeros((100, 100, 4), dtype=np.uint8)
 
@@ -128,10 +112,10 @@ class _FakeViewer:
 class _MockLayers:
     def __init__(self):
         self._layers = []
-    
+
     def __contains__(self, name):
         return any(l.name == name for l in self._layers)
-    
+
     def __getitem__(self, key):
         if isinstance(key, str):
             for layer in self._layers:
@@ -139,25 +123,25 @@ class _MockLayers:
                     return layer
             raise KeyError(f"Layer '{key}' not found")
         return self._layers[key]
-    
+
     def __len__(self):
         return len(self._layers)
-    
+
     def __iter__(self):
         return iter(self._layers)
-    
+
     def append(self, layer):
         self._layers.append(layer)
-    
+
     def remove(self, layer):
         if isinstance(layer, str):
             layer = self[layer]
         self._layers.remove(layer)
-    
+
     def move(self, src_index, dst_index):
         layer = self._layers.pop(src_index)
         self._layers.insert(dst_index, layer)
-    
+
     def index(self, layer):
         if isinstance(layer, str):
             for i, l in enumerate(self._layers):
@@ -186,7 +170,7 @@ def _install_mock_napari():
 
 # Clean up any existing napari modules first
 for mod_name in list(sys.modules.keys()):
-    if mod_name.startswith('napari'):
+    if mod_name.startswith("napari"):
         del sys.modules[mod_name]
 
 # Store original napari (None since we cleared it)

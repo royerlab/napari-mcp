@@ -1,6 +1,5 @@
 import base64
 import os
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -42,8 +41,9 @@ from napari_mcp_server import (  # noqa: E402
 async def test_all_tools_end_to_end(tmp_path: Path) -> None:
     # Ensure napari_mcp_server uses the mock
     import napari_mcp_server
+
     napari_mcp_server._viewer = None
-    
+
     # init viewer
     res = await init_viewer(title="Test Viewer")
     assert res["status"] == "ok"
@@ -117,7 +117,7 @@ async def test_all_tools_end_to_end(tmp_path: Path) -> None:
 async def test_execute_code_namespace_and_result() -> None:
     # Initialize viewer first to ensure we use the mock
     await init_viewer()
-    
+
     # Simple expression
     res = await execute_code("1 + 2")
     assert res["status"] == "ok"
@@ -138,7 +138,7 @@ async def test_execute_code_namespace_and_result() -> None:
     res = await execute_code("math.pi")
     assert res["status"] == "ok"
     assert res.get("result_repr", "").startswith("3.14")
-    
+
     # Clean up
     await close_viewer()
 
@@ -147,7 +147,7 @@ async def test_execute_code_namespace_and_result() -> None:
 async def test_screenshot_no_viewer() -> None:
     # Ensure no viewer
     await close_viewer()
-    
+
     # screenshot with no viewer should return error info
     res = await screenshot()
     assert res.get("error") is not None or res.get("mime_type") == "image/png"

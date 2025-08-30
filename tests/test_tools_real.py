@@ -8,15 +8,16 @@ import numpy as np
 if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
     os.environ.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
 
-import pytest
-
 # Remove fake napari if it was installed by other tests
 import sys
+
+import pytest
+
 for mod_name in list(sys.modules.keys()):
-    if mod_name.startswith('napari'):
+    if mod_name.startswith("napari"):
         mod = sys.modules[mod_name]
         # Check if it's a fake module
-        if not hasattr(mod, '__file__') or not mod.__file__:
+        if not hasattr(mod, "__file__") or not mod.__file__:
             del sys.modules[mod_name]
 
 # Opt-in: only run this test when explicitly requested
