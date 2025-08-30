@@ -169,7 +169,7 @@ class NapariBridgeServer:
             path: str | None = None,
             name: str | None = None,
             colormap: str | None = None,
-        ) -> dict[str, Any]:
+):
             """Add an image layer from data or file path."""
             # Load data if path provided (can be done in any thread)
             if path:
@@ -191,7 +191,7 @@ class NapariBridgeServer:
             points: list[list[float]], 
             name: str | None = None, 
             size: float = 10.0
-        ) -> dict[str, Any]:
+):
             """Add a points layer."""
             arr = np.asarray(points, dtype=float)
             
@@ -230,7 +230,7 @@ class NapariBridgeServer:
             visible: bool | None = None,
             opacity: float | None = None,
             colormap: str | None = None,
-        ) -> dict[str, Any]:
+):
             """Set properties on a layer."""
             def set_props():
                 if name not in self.viewer.layers:
@@ -375,17 +375,17 @@ class NapariBridgeServer:
         return True
     
     # Method wrappers to expose tools as direct methods for easier testing
-    async def session_information(self) -> dict[str, Any]:
+    async def session_information(self):
         """Get session information via the registered tool."""
         tool = await self.server.get_tool("session_information")
         return await tool.fn()
     
-    async def list_layers(self) -> list[dict[str, Any]]:
+    async def list_layers(self):
         """List layers via the registered tool."""
         tool = await self.server.get_tool("list_layers")
         return await tool.fn()
     
-    async def execute_code(self, code: str) -> dict[str, Any]:
+    async def execute_code(self, code: str):
         """Execute code via the registered tool."""
         tool = await self.server.get_tool("execute_code") 
         return await tool.fn(code)
@@ -395,17 +395,17 @@ class NapariBridgeServer:
         tool = await self.server.get_tool("screenshot")
         return await tool.fn(canvas_only)
     
-    async def add_image(self, **kwargs) -> dict[str, Any]:
+    async def add_image(self, **kwargs):
         """Add image via the registered tool."""
         tool = await self.server.get_tool("add_image")
         return await tool.fn(**kwargs)
     
-    async def add_points(self, **kwargs) -> dict[str, Any]:
+    async def add_points(self, **kwargs):
         """Add points via the registered tool."""
         tool = await self.server.get_tool("add_points")
         return await tool.fn(**kwargs)
     
-    async def remove_layer(self, name: str) -> dict[str, Any]:
+    async def remove_layer(self, name: str):
         """Remove layer via the registered tool."""
         tool = await self.server.get_tool("remove_layer")
         return await tool.fn(name)
