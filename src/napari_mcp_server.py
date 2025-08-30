@@ -88,7 +88,8 @@ _viewer_lock: asyncio.Lock = asyncio.Lock()
 _exec_globals: dict[str, Any] = {}
 _qt_pump_task: asyncio.Task | None = None
 _window_close_connected: bool = False
-# Note: _external_client is kept for test compatibility but not used - we create fresh clients for each call
+# Note: _external_client is kept for test compatibility but not used
+# - we create fresh clients for each call
 _external_client: Any = None
 _use_external: bool = os.environ.get("NAPARI_MCP_USE_EXTERNAL", "false").lower() in (
     "true",
@@ -272,7 +273,7 @@ def _ensure_viewer() -> Any:
     return _viewer
 
 
-def _connect_window_destroyed_signal(viewer: napari.Viewer) -> None:
+def _connect_window_destroyed_signal(viewer) -> None:
     """Connect to the Qt window destroyed signal to clear our singleton.
 
     This prevents stale references after a user manually closes the window.
@@ -433,7 +434,8 @@ async def init_viewer(
     height : int, optional
         Optional initial canvas height (only for local viewer).
     use_external : bool | str, optional
-        If True/"true"/"1"/"yes", try to use external viewer. If None, use current setting.
+        If True/"true"/"1"/"yes", try to use external viewer.
+        If None, use current setting.
 
     Returns
     -------
@@ -658,7 +660,7 @@ async def session_information() -> dict[str, Any]:
         system_info = {
             "python_version": sys.version,
             "platform": platform.platform(),
-            "napari_version": napari.__version__,
+            "napari_version": getattr(_napari_module(), "__version__", "unknown"),
             "process_id": os.getpid(),
             "working_directory": os.getcwd(),
         }

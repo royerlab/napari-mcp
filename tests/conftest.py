@@ -206,7 +206,7 @@ def pytest_configure(config):
     # Register custom markers
     config.addinivalue_line(
         "markers",
-        "realgui: mark test as requiring real napari/Qt GUI " 
+        "realgui: mark test as requiring real napari/Qt GUI "
         "(deselect with '-m not realgui')",
     )
 

@@ -337,7 +337,7 @@ class TestRealPluginLoading:
             pm = PluginManager.instance()
             # Check if our plugin is registered
             # This will only work if the plugin is installed
-            plugin_names = [m.name for m in pm.iter_manifests()]
+            # plugin_names = [m.name for m in pm.iter_manifests()]
             assert True  # Allow pass for now
         except ImportError:
             pytest.skip("npe2 not available")

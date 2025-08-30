@@ -114,7 +114,7 @@ class _MockLayers:
         self._layers = []
 
     def __contains__(self, name):
-        return any(l.name == name for l in self._layers)
+        return any(layer.name == name for layer in self._layers)
 
     def __getitem__(self, key):
         if isinstance(key, str):
@@ -144,8 +144,8 @@ class _MockLayers:
 
     def index(self, layer):
         if isinstance(layer, str):
-            for i, l in enumerate(self._layers):
-                if l.name == layer:
+            for i, layer_obj in enumerate(self._layers):
+                if layer_obj.name == layer:
                     return i
             raise ValueError(f"Layer '{layer}' not found")
         return self._layers.index(layer)

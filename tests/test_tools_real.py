@@ -29,7 +29,8 @@ if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
 
 
 # For macOS with a real session, prefer default cocoa platform
-if os.uname().sysname == "Darwin":
+import platform
+if platform.system() == "Darwin":
     # Do not force offscreen for real GUI tests
     # Keep QT_QPA_PLATFORM if it's already set
     pass
