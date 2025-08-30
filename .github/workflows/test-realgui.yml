@@ -34,8 +34,8 @@ jobs:
         uv sync --all-extras
         uv pip install pytest-qt pytest-asyncio
 
-    - name: Install plugin
-      run: uv pip install -e ./napari-mcp-bridge
+    - name: Install package with plugin
+      run: uv pip install -e .
 
     - name: Run GUI tests
       env:
@@ -84,8 +84,8 @@ jobs:
         uv sync --all-extras
         uv pip install pytest-qt pytest-asyncio
 
-    - name: Install plugin
-      run: uv pip install -e ./napari-mcp-bridge
+    - name: Install package with plugin
+      run: uv pip install -e .
 
     - name: Run GUI tests (macOS)
       if: matrix.os == 'macos-latest'

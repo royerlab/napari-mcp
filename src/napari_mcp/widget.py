@@ -16,7 +16,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from .server import NapariBridgeServer
+from .bridge_server import NapariBridgeServer
 
 
 class MCPControlWidget(QWidget):

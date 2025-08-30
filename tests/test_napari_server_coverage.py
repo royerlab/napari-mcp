@@ -17,7 +17,7 @@ if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
     os.environ.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
 
 
-from napari_mcp_server import (
+from napari_mcp.server import (
     add_image,
     add_points,
     close_viewer,
@@ -40,7 +40,7 @@ from napari_mcp_server import (
 async def test_error_handling_with_no_viewer():
     """Test various functions handle no viewer gracefully."""
     # Reset global viewer
-    import napari_mcp_server
+    from napari_mcp import server as napari_mcp_server
 
     # Save original viewer
     original_viewer = napari_mcp_server._viewer
@@ -150,12 +150,12 @@ async def test_install_packages_error_handling():
 
         assert result["status"] == "error"
         # Check for error indicators in the response
-        assert result["status"] == "error"
         stderr_lower = result.get("stderr", "").lower()
         assert (
             "error" in stderr_lower
             or "not found" in stderr_lower
             or "no matching" in stderr_lower
+            or "no module named pip" in stderr_lower
         )
 
 

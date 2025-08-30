@@ -14,7 +14,7 @@ import pytest
 
 # The mock napari module is now set up in conftest.py
 # Import after napari mock is set up
-from napari_mcp_server import (  # noqa: E402
+from napari_mcp.server import (  # noqa: E402
     add_image,
     add_labels,
     add_points,
@@ -40,7 +40,7 @@ from napari_mcp_server import (  # noqa: E402
 @pytest.mark.asyncio
 async def test_all_tools_end_to_end(tmp_path: Path) -> None:
     # Ensure napari_mcp_server uses the mock
-    import napari_mcp_server
+    from napari_mcp import server as napari_mcp_server
 
     napari_mcp_server._viewer = None
 

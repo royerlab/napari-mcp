@@ -8,51 +8,57 @@
 
 MCP server for remote control of napari viewers via Model Context Protocol (MCP). Perfect for AI-assisted analysis with Claude Desktop.
 
-## 🚀 Zero-Install Quick Start
+## 🚀 Quick Start
 
-**No installation required!** Run directly with uv:
-
-### Option 1: Run Directly from GitHub (No Download)
+### Option 1: Install from PyPI (Recommended)
 ```bash
-# Run directly from GitHub - most convenient!
-uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
-  fastmcp run https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py
+# Install the package
+pip install napari-mcp
+
+# Run the server
+napari-mcp
 ```
 
-### Option 2: Download and Run
+### Option 2: Install from GitHub (Latest)
 ```bash
-# Download and run in one command
-curl -O https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py
-uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
-  fastmcp run napari_mcp_server.py
+# Install directly from GitHub
+uv pip install git+https://github.com/royerlab/napari-mcp.git
+
+# Run the server
+napari-mcp
 ```
 
-**Claude Desktop config (Direct from GitHub):**
+### Option 3: Development Install
+```bash
+# Clone and install
+git clone https://github.com/royerlab/napari-mcp.git
+cd napari-mcp
+uv pip install -e .
+
+# Run the server
+napari-mcp
+```
+
+**Claude Desktop config (After Installation):**
 ```json
 {
   "mcpServers": {
     "napari": {
-      "command": "uv",
-      "args": [
-        "run", "--with", "Pillow", "--with", "PyQt6", "--with", "fastmcp",
-        "--with", "imageio", "--with", "napari", "--with", "numpy", "--with", "qtpy",
-        "fastmcp", "run", "https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py"
-      ]
+      "command": "napari-mcp"
     }
   }
 }
 ```
 
-**Alternative config (Downloaded file):**
+**Alternative config (GitHub install):**
 ```json
 {
   "mcpServers": {
     "napari": {
       "command": "uv",
       "args": [
-        "run", "--with", "Pillow", "--with", "PyQt6", "--with", "fastmcp",
-        "--with", "imageio", "--with", "napari", "--with", "numpy", "--with", "qtpy",
-        "fastmcp", "run", "/absolute/path/to/napari_mcp_server.py"
+        "run", "--with", "git+https://github.com/royerlab/napari-mcp.git",
+        "napari-mcp"
       ]
     }
   }
@@ -99,8 +105,7 @@ Claude Desktop config for installed version:
 {
   "mcpServers": {
     "napari": {
-      "command": "python",
-      "args": ["-m", "napari_mcp_server"]
+      "command": "napari-mcp"
     }
   }
 }

@@ -20,7 +20,7 @@ if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
 # No need to create our own mock here
 
 
-from napari_mcp_server import (  # noqa: E402
+from napari_mcp.server import (  # noqa: E402
     _ensure_qt_app,
     add_image,
     add_points,
@@ -229,7 +229,7 @@ async def test_screenshot_with_different_dtypes():
 async def test_close_viewer_no_viewer():
     """Test closing viewer when none exists."""
     # Reset global viewer state
-    import napari_mcp_server
+    from napari_mcp import server as napari_mcp_server
 
     napari_mcp_server._viewer = None
 

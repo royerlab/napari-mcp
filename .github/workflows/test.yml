@@ -54,25 +54,27 @@ jobs:
       env:
         QT_QPA_PLATFORM: offscreen
       run: |
-        uv run pytest tests/test_coverage.py tests/test_external_viewer.py tests/test_integration.py -v -m "not realgui" --cov=napari_mcp_server --cov-report=xml --cov-report=term-missing --cov-append
+        uv run pytest tests/test_coverage.py tests/test_external_viewer.py tests/test_integration.py -v -m "not realgui" --cov=napari_mcp --cov-report=xml --cov-report=term-missing --cov-append
 
     - name: Run tests (headless) - Group 2 (Bridge tests)
       env:
         QT_QPA_PLATFORM: offscreen
       run: |
-        uv run pytest tests/test_bridge_server.py tests/test_bridge_simplified.py tests/test_edge_cases.py -v -m "not realgui" --cov=napari_mcp_server --cov-report=xml --cov-report=term-missing --cov-append
+        uv run pytest tests/test_bridge_server.py tests/test_bridge_simplified.py tests/test_edge_cases.py -v -m "not realgui" --cov=napari_mcp --cov-report=xml --cov-report=term-missing --cov-append
 
     - name: Run tests (headless) - Group 3 (Tools tests)
       env:
         QT_QPA_PLATFORM: offscreen
       run: |
-        uv run pytest tests/test_tools.py -v -m "not realgui" --cov=napari_mcp_server --cov-report=xml --cov-report=term-missing --cov-append
+        uv run pytest tests/test_tools.py -v -m "not realgui" --cov=napari_mcp --cov-report=xml --cov-report=term-missing --cov-append
 
     - name: Upload coverage reports to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: false
+        verbose: true
 
   lint:
     runs-on: ubuntu-latest
@@ -104,7 +106,7 @@ jobs:
 
     - name: Run mypy (type checker)
       run: |
-        mypy src/napari_mcp_server.py --ignore-missing-imports || echo "Type checking has warnings but tests pass"
+        mypy src/napari_mcp/server.py --ignore-missing-imports || echo "Type checking has warnings but tests pass"
 
   security:
     runs-on: ubuntu-latest
@@ -118,7 +120,7 @@ jobs:
 
     - name: Install security tools
       run: |
-        pip install bandit safety
+        pip install bandit "safety<4.0" "typer<0.13"
 
     - name: Run bandit (security linter)
       run: |

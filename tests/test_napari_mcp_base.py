@@ -16,7 +16,7 @@ if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     os.environ.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
 
-from napari_mcp_base import NapariMCPTools, viewer_tool
+from napari_mcp.base import NapariMCPTools, viewer_tool
 
 
 @pytest.fixture
