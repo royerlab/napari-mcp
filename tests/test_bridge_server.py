@@ -1,7 +1,5 @@
 """Tests for napari-mcp-bridge server functionality."""
 
-import os
-import sys
 from unittest.mock import Mock, patch
 
 import numpy as np
