@@ -726,7 +726,9 @@ async def list_layers() -> list[dict[str, Any]]:
     proxy_result = await _proxy_to_external("list_layers")
     if proxy_result is not None:
         # Ensure the result is the expected list format
-        if isinstance(proxy_result, dict) and "content" in proxy_result:
+        if isinstance(proxy_result, list):
+            return proxy_result
+        elif isinstance(proxy_result, dict) and "content" in proxy_result:
             content = proxy_result["content"]
             if isinstance(content, list):
                 return content

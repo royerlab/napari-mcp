@@ -52,12 +52,12 @@ class TestEndToEndIntegration:
         mock_client = AsyncMock()
         mock_client_class.return_value = mock_client
 
-        # Mock layer list response
-        mock_result = Mock()
+        # Mock layer list response - _proxy_to_external returns the parsed JSON directly
         mock_layers = [
             {"name": "Layer1", "type": "Image"},
             {"name": "Layer2", "type": "Labels"},
         ]
+        mock_result = Mock()
         mock_result.content = [Mock(text=json.dumps(mock_layers))]
         mock_client.call_tool.return_value = mock_result
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
