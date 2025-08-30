@@ -70,6 +70,20 @@ except Exception:  # pragma: no cover - provide light fallbacks
 
 from PIL import Image
 
+# Import base tools for shared functionality
+try:
+    from napari_mcp_base import NapariMCPTools
+except ImportError:
+    # Fallback for when base module is not available
+    class NapariMCPTools:
+        @staticmethod
+        def encode_png_base64(img):
+            pil = Image.fromarray(img)
+            buf = BytesIO()
+            pil.save(buf, format="PNG")
+            data = base64.b64encode(buf.getvalue()).decode("ascii")
+            return {"mime_type": "image/png", "base64_data": data}
+
 try:  # qtpy may not be installed in headless environments
     from qtpy import QtWidgets  # type: ignore
 except Exception:  # pragma: no cover
@@ -88,9 +102,6 @@ _viewer_lock: asyncio.Lock = asyncio.Lock()
 _exec_globals: dict[str, Any] = {}
 _qt_pump_task: asyncio.Task | None = None
 _window_close_connected: bool = False
-# Note: _external_client is kept for test compatibility but not used
-# - we create fresh clients for each call
-_external_client: Any = None
 _use_external: bool = os.environ.get("NAPARI_MCP_USE_EXTERNAL", "false").lower() in (
     "true",
     "1",
@@ -303,12 +314,6 @@ def _process_events(cycles: int = 2) -> None:
         app.processEvents()
 
 
-def _encode_png_base64(img: np.ndarray) -> dict[str, str]:
-    pil = Image.fromarray(img)
-    buf = BytesIO()
-    pil.save(buf, format="PNG")
-    data = base64.b64encode(buf.getvalue()).decode("ascii")
-    return {"mime_type": "image/png", "base64_data": data}
 
 
 async def _qt_event_pump() -> None:
@@ -1062,7 +1067,7 @@ async def screenshot(canvas_only: bool = True) -> dict[str, str]:
         if arr.dtype != np.uint8:
             arr = arr.astype(np.uint8, copy=False)
 
-        return _encode_png_base64(arr)
+        return NapariMCPTools.encode_png_base64(arr)
 
 
 async def execute_code(code: str) -> dict[str, Any]:

@@ -408,41 +408,6 @@ class NapariBridgeServer:
         self.loop = None
         return True
 
-    # Method wrappers to expose tools as direct methods for easier testing
-    async def session_information(self):
-        """Get session information via the registered tool."""
-        tool = await self.server.get_tool("session_information")
-        return await tool.fn()
-
-    async def list_layers(self):
-        """List layers via the registered tool."""
-        tool = await self.server.get_tool("list_layers")
-        return await tool.fn()
-
-    async def execute_code(self, code: str):
-        """Execute code via the registered tool."""
-        tool = await self.server.get_tool("execute_code")
-        return await tool.fn(code)
-
-    async def screenshot(self, canvas_only: bool = True) -> dict[str, str]:
-        """Take screenshot via the registered tool."""
-        tool = await self.server.get_tool("screenshot")
-        return await tool.fn(canvas_only)
-
-    async def add_image(self, **kwargs):
-        """Add image via the registered tool."""
-        tool = await self.server.get_tool("add_image")
-        return await tool.fn(**kwargs)
-
-    async def add_points(self, **kwargs):
-        """Add points via the registered tool."""
-        tool = await self.server.get_tool("add_points")
-        return await tool.fn(**kwargs)
-
-    async def remove_layer(self, name: str):
-        """Remove layer via the registered tool."""
-        tool = await self.server.get_tool("remove_layer")
-        return await tool.fn(name)
 
     @property
     def is_running(self) -> bool:
