@@ -18,10 +18,12 @@ from unittest.mock import patch
 os.environ["RUN_REAL_NAPARI_TESTS"] = "1"
 
 # Remove fake napari if it was installed by other tests
-if 'napari' in sys.modules:
-    if not hasattr(sys.modules['napari'], '__file__') or not sys.modules['napari'].__file__:
-        # It's fake if it has no __file__ attribute or __file__ is None
-        del sys.modules['napari']
+for mod_name in list(sys.modules.keys()):
+    if mod_name.startswith('napari'):
+        mod = sys.modules[mod_name]
+        # Check if it's a fake module
+        if not hasattr(mod, '__file__') or not mod.__file__:
+            del sys.modules[mod_name]
 
 # Add paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))

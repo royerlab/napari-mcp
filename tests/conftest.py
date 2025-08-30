@@ -37,6 +37,7 @@ if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
     class _MockViewer:
         def __init__(self, *args, **kwargs):
             self.title = kwargs.get('title', '')
+            self.show = kwargs.get('show', True)  # Accept show parameter
             self.layers = _MockLayers()
             self.window = types.SimpleNamespace(
                 qt_viewer=types.SimpleNamespace(

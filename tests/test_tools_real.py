@@ -10,6 +10,15 @@ if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
 
 import pytest
 
+# Remove fake napari if it was installed by other tests
+import sys
+for mod_name in list(sys.modules.keys()):
+    if mod_name.startswith('napari'):
+        mod = sys.modules[mod_name]
+        # Check if it's a fake module
+        if not hasattr(mod, '__file__') or not mod.__file__:
+            del sys.modules[mod_name]
+
 # Opt-in: only run this test when explicitly requested
 if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
     pytest.skip(
