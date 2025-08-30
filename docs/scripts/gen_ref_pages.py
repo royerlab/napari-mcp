@@ -5,7 +5,7 @@ from pathlib import Path
 import mkdocs_gen_files
 
 # Define the source file
-src_file = Path("src/napari_mcp_server.py")
+src_file = Path("src/napari_mcp/server.py")
 
 # Function categories for organization
 function_categories = {
@@ -57,7 +57,7 @@ with mkdocs_gen_files.open("api/reference.md", "w") as f:
         file=f,
     )
     print("", file=f)
-    print("::: napari_mcp_server", file=f)
+    print("::: napari_mcp.server", file=f)
     print("    options:", file=f)
     print("      members_order: source", file=f)
     print("      show_root_toc_entry: false", file=f)
@@ -102,7 +102,7 @@ for category, functions in function_categories.items():
         for func in functions:
             print(f"## {func}", file=f)
             print("", file=f)
-            print(f"::: napari_mcp_server.{func}", file=f)
+            print(f"::: napari_mcp.server.{func}", file=f)
             print("    options:", file=f)
             print("      show_root_toc_entry: false", file=f)
             print("      show_source: true", file=f)
