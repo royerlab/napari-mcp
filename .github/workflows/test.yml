@@ -118,7 +118,7 @@ jobs:
 
     - name: Install security tools
       run: |
-        pip install bandit safety
+        pip install bandit "safety<4.0" "typer<0.13"
 
     - name: Run bandit (security linter)
       run: |
