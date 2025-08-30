@@ -336,11 +336,11 @@ async def detect_viewers() -> dict[str, Any]:
     dict
         Dictionary with information about available viewers
     """
-    viewers = {"local": None, "external": None}
+    viewers: dict[str, Any] = {"local": None, "external": None}
 
     # Check for external viewer
     client, info = await _detect_external_viewer()
-    if client:
+    if client and info is not None:
         viewers["external"] = {
             "available": True,
             "type": "napari_bridge",
@@ -723,9 +723,14 @@ async def session_information() -> dict[str, Any]:
 async def list_layers() -> list[dict[str, Any]]:
     """Return a list of layers with key properties."""
     # Try to proxy to external viewer first
-    result = await _proxy_to_external("list_layers")
-    if result is not None:
-        return result
+    proxy_result = await _proxy_to_external("list_layers")
+    if proxy_result is not None:
+        # Ensure the result is the expected list format
+        if isinstance(proxy_result, dict) and "content" in proxy_result:
+            content = proxy_result["content"]
+            if isinstance(content, list):
+                return content
+        return []
 
     # Local execution
     async with _viewer_lock:
@@ -785,7 +790,7 @@ async def add_image(
         Dictionary containing status, layer name, and image shape.
     """
     # Try to proxy to external viewer first
-    params = {"path": path}
+    params: dict[str, Any] = {"path": path}
     if name:
         params["name"] = name
     if colormap:
