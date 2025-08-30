@@ -92,7 +92,7 @@ class TestRealBridgeServer:
     @pytest.mark.realgui
     def test_server_initialization_with_real_viewer(self, real_viewer):
         """Test initializing bridge server with real viewer."""
-        from napari_mcp_bridge.server import NapariBridgeServer
+        from napari_mcp.bridge_server import NapariBridgeServer
 
         server = NapariBridgeServer(real_viewer, port=9998)
         assert server.viewer == real_viewer
@@ -102,7 +102,7 @@ class TestRealBridgeServer:
     @pytest.mark.realgui
     def test_server_start_stop_real(self, real_viewer):
         """Test starting and stopping server with real viewer."""
-        from napari_mcp_bridge.server import NapariBridgeServer
+        from napari_mcp.bridge_server import NapariBridgeServer
 
         server = NapariBridgeServer(real_viewer, port=9997)
 
@@ -119,7 +119,7 @@ class TestRealBridgeServer:
     @pytest.mark.asyncio
     async def test_session_information_real_viewer(self, viewer_with_data, qtbot):
         """Test getting session information from real viewer."""
-        from napari_mcp_bridge.server import NapariBridgeServer
+        from napari_mcp.bridge_server import NapariBridgeServer
 
         server = NapariBridgeServer(viewer_with_data, port=9996)
 
@@ -136,7 +136,7 @@ class TestRealBridgeServer:
     @pytest.mark.realgui
     def test_screenshot_real_viewer(self, viewer_with_data):
         """Test taking screenshot from real viewer."""
-        from napari_mcp_bridge.server import NapariBridgeServer
+        from napari_mcp.bridge_server import NapariBridgeServer
 
         server = NapariBridgeServer(viewer_with_data, port=9995)
 
@@ -220,7 +220,7 @@ class TestRealEndToEnd:
         """Test detecting a real external viewer."""
         from napari_mcp_bridge.widget import MCPControlWidget
 
-        import napari_mcp_server
+        from napari_mcp import server as napari_mcp_server
 
         # Create and start bridge server
         widget = MCPControlWidget(napari_viewer=real_viewer)
@@ -231,7 +231,7 @@ class TestRealEndToEnd:
 
         try:
             # Try to detect the external viewer (simplified test)
-            with patch("napari_mcp_server._detect_external_viewer") as mock_detect:
+            with patch("napari_mcp.server._detect_external_viewer") as mock_detect:
                 # Mock successful detection
                 mock_info = {
                     "session_type": "napari_bridge_session",
@@ -240,7 +240,7 @@ class TestRealEndToEnd:
                 }
                 mock_detect.return_value = (True, mock_info)  # (client, info)
 
-                client, info = await napari_mcp_server._detect_external_viewer()
+                client, info = await napari_mcp.server._detect_external_viewer()
 
                 assert client is not None
                 assert info["session_type"] == "napari_bridge_session"
@@ -254,7 +254,7 @@ class TestRealEndToEnd:
     @pytest.mark.asyncio
     async def test_real_layer_operations(self, viewer_with_data, qtbot):
         """Test real layer operations through bridge server."""
-        from napari_mcp_bridge.server import NapariBridgeServer
+        from napari_mcp.bridge_server import NapariBridgeServer
 
         server = NapariBridgeServer(viewer_with_data, port=9993)
 
@@ -279,7 +279,7 @@ class TestRealEndToEnd:
     @pytest.mark.asyncio
     async def test_real_code_execution(self, viewer_with_data, qtbot):
         """Test executing code with real viewer context."""
-        from napari_mcp_bridge.server import NapariBridgeServer
+        from napari_mcp.bridge_server import NapariBridgeServer
 
         server = NapariBridgeServer(viewer_with_data, port=9992)
 

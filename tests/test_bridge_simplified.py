@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 # The mock napari module is now set up in conftest.py
-from napari_mcp_bridge.server import NapariBridgeServer, QtBridge
+from napari_mcp.bridge_server import NapariBridgeServer, QtBridge
 
 
 @pytest.fixture
@@ -70,7 +70,7 @@ class TestQtBridge:
         bridge = QtBridge()
         assert bridge is not None
 
-    @patch("napari_mcp_bridge.server.Future")
+    @patch("napari_mcp.bridge_server.Future")
     def test_operation_execution(self, mock_future_class):
         """Test operation execution mechanism."""
         # Create bridge
@@ -90,7 +90,7 @@ class TestQtBridge:
         # Check that the result was set on the future
         mock_future.set_result.assert_called_once_with(test_result)
 
-    @patch("napari_mcp_bridge.server.Future")
+    @patch("napari_mcp.bridge_server.Future")
     def test_operation_exception(self, mock_future_class):
         """Test exception handling in operation execution."""
         bridge = QtBridge()

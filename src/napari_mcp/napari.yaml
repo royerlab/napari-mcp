@@ -1,0 +1,10 @@
+name: napari-mcp
+display_name: Napari MCP
+contributions:
+  commands:
+    - id: napari-mcp.mcp_control_widget
+      python_name: napari_mcp.widget:MCPControlWidget
+      title: MCP Server Control
+  widgets:
+    - command: napari-mcp.mcp_control_widget
+      display_name: MCP Server Control

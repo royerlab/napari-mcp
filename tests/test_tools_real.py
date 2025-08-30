@@ -36,7 +36,7 @@ else:
     os.environ.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
 
 
-from napari_mcp_server import (  # noqa: E402
+from napari_mcp.server import (  # noqa: E402
     add_image,
     add_labels,
     add_points,
