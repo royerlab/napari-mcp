@@ -160,7 +160,7 @@ class TestRealPlugin:
     @pytest.mark.realgui
     def test_plugin_widget_creation(self, real_viewer):
         """Test creating the plugin widget."""
-        from napari_mcp_bridge.widget import MCPControlWidget
+        from napari_mcp.widget import MCPControlWidget
 
         widget = MCPControlWidget(napari_viewer=real_viewer)
         assert widget.viewer == real_viewer
@@ -170,7 +170,7 @@ class TestRealPlugin:
     @pytest.mark.realgui
     def test_plugin_widget_in_viewer(self, real_viewer, qtbot):
         """Test adding plugin widget to viewer."""
-        from napari_mcp_bridge.widget import MCPControlWidget
+        from napari_mcp.widget import MCPControlWidget
 
         # Create widget
         widget = MCPControlWidget(napari_viewer=real_viewer)
@@ -188,7 +188,7 @@ class TestRealPlugin:
     @pytest.mark.realgui
     def test_plugin_server_lifecycle(self, real_viewer, qtbot):
         """Test starting and stopping server from plugin widget."""
-        from napari_mcp_bridge.widget import MCPControlWidget
+        from napari_mcp.widget import MCPControlWidget
 
         widget = MCPControlWidget(napari_viewer=real_viewer, port=9998)
         real_viewer.window.add_dock_widget(widget, area="right")
@@ -218,9 +218,8 @@ class TestRealEndToEnd:
     @pytest.mark.asyncio
     async def test_external_viewer_detection_real(self, real_viewer, qtbot):
         """Test detecting a real external viewer."""
-        from napari_mcp_bridge.widget import MCPControlWidget
-
         from napari_mcp import server as napari_mcp_server
+        from napari_mcp.widget import MCPControlWidget
 
         # Create and start bridge server
         widget = MCPControlWidget(napari_viewer=real_viewer)
@@ -240,7 +239,7 @@ class TestRealEndToEnd:
                 }
                 mock_detect.return_value = (True, mock_info)  # (client, info)
 
-                client, info = await napari_mcp.server._detect_external_viewer()
+                client, info = await napari_mcp_server._detect_external_viewer()
 
                 assert client is not None
                 assert info["session_type"] == "napari_bridge_session"

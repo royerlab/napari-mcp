@@ -187,7 +187,7 @@ class TestBridgeWidget:
             with pytest.raises(RuntimeError, match="No napari viewer found"):
                 MCPControlWidget()
 
-    @patch("napari_mcp_bridge.widget.NapariBridgeServer")
+    @patch("napari_mcp.widget.NapariBridgeServer")
     def test_widget_start_server(self, mock_server_class, qtbot):
         """Test starting server from widget."""
         mock_viewer = Mock()
@@ -210,7 +210,7 @@ class TestBridgeWidget:
             assert widget.start_button.isEnabled() is False
             assert widget.stop_button.isEnabled() is True
 
-    @patch("napari_mcp_bridge.widget.NapariBridgeServer")
+    @patch("napari_mcp.widget.NapariBridgeServer")
     def test_widget_stop_server(self, mock_server_class, qtbot):
         """Test stopping server from widget."""
         mock_viewer = Mock()

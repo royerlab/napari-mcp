@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
     # Ensure Qt runs headless
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
     # Define a mock layer that's hashable
     class _MockLayer:
         def __init__(self, name, data=None, **kwargs):

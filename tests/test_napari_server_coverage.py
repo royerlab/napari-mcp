@@ -150,12 +150,12 @@ async def test_install_packages_error_handling():
 
         assert result["status"] == "error"
         # Check for error indicators in the response
-        assert result["status"] == "error"
         stderr_lower = result.get("stderr", "").lower()
         assert (
             "error" in stderr_lower
             or "not found" in stderr_lower
             or "no matching" in stderr_lower
+            or "no module named pip" in stderr_lower
         )
 
 

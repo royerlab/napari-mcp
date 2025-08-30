@@ -10,7 +10,7 @@ from .widget import MCPControlWidget
 
 __all__ = [
     "NapariMCPTools",
-    "NapariBridgeServer", 
+    "NapariBridgeServer",
     "MCPControlWidget",
     "server_main",
 ]

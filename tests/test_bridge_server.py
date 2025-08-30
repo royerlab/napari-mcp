@@ -1,14 +1,11 @@
 """Tests for napari-mcp-bridge server functionality."""
 
-import os
-import sys
 from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
 
 # Add the plugin to path for testing (no longer needed with unified package)
-
 from napari_mcp.bridge_server import NapariBridgeServer, QtBridge
 
 
