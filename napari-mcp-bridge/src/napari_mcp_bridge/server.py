@@ -8,7 +8,7 @@ import contextlib
 import sys
 import traceback
 from io import BytesIO, StringIO
-from typing import Any
+from typing import Any, Dict, List
 import threading
 from concurrent.futures import Future
 from functools import wraps
@@ -103,7 +103,7 @@ class NapariBridgeServer:
         """Register all MCP tools with the server."""
         
         @self.server.tool
-        async def session_information() -> dict[str, Any]:
+        async def session_information():
             """Get comprehensive information about the current napari session."""
             def get_info():
                 viewer_info = {
@@ -145,7 +145,7 @@ class NapariBridgeServer:
             return self.qt_bridge.run_in_main_thread(get_info)
         
         @self.server.tool
-        async def list_layers() -> list[dict[str, Any]]:
+        async def list_layers():
             """Return a list of layers with key properties."""
             def get_layers():
                 result = []
@@ -202,7 +202,7 @@ class NapariBridgeServer:
             return self.qt_bridge.run_in_main_thread(add_layer)
         
         @self.server.tool
-        async def remove_layer(name: str) -> dict[str, Any]:
+        async def remove_layer(name: str):
             """Remove a layer by name."""
             def remove():
                 if name in self.viewer.layers:
@@ -213,7 +213,7 @@ class NapariBridgeServer:
             return self.qt_bridge.run_in_main_thread(remove)
         
         @self.server.tool
-        async def rename_layer(old_name: str, new_name: str) -> dict[str, Any]:
+        async def rename_layer(old_name: str, new_name: str):
             """Rename a layer."""
             def rename():
                 if old_name not in self.viewer.layers:
@@ -247,7 +247,7 @@ class NapariBridgeServer:
             return self.qt_bridge.run_in_main_thread(set_props)
         
         @self.server.tool
-        async def reset_view() -> dict[str, Any]:
+        async def reset_view():
             """Reset the camera view to fit data."""
             def reset():
                 self.viewer.reset_view()
@@ -256,7 +256,7 @@ class NapariBridgeServer:
             return self.qt_bridge.run_in_main_thread(reset)
         
         @self.server.tool
-        async def set_zoom(zoom: float) -> dict[str, Any]:
+        async def set_zoom(zoom: float):
             """Set camera zoom factor."""
             def set_z():
                 self.viewer.camera.zoom = float(zoom)
@@ -265,7 +265,7 @@ class NapariBridgeServer:
             return self.qt_bridge.run_in_main_thread(set_z)
         
         @self.server.tool
-        async def set_ndisplay(ndisplay: int) -> dict[str, Any]:
+        async def set_ndisplay(ndisplay: int):
             """Set number of displayed dimensions (2 or 3)."""
             def set_nd():
                 self.viewer.dims.ndisplay = int(ndisplay)
@@ -287,7 +287,7 @@ class NapariBridgeServer:
             return self.qt_bridge.run_in_main_thread(take_screenshot)
         
         @self.server.tool
-        async def execute_code(code: str) -> dict[str, Any]:
+        async def execute_code(code: str):
             """Execute Python code with access to the viewer."""
             def execute():
                 self._exec_globals.setdefault("__builtins__", __builtins__)
