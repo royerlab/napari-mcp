@@ -1,0 +1,7 @@
+name: napari-mcp
+display_name: Napari MCP Server
+contributions:
+  commands:
+    - id: napari-mcp.start_server
+      python_name: napari_mcp_server:main
+      title: Start MCP Server

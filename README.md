@@ -80,6 +80,26 @@ Works with multiple AI assistants and IDEs:
 
 **→ See [LLM_INTEGRATIONS.md](LLM_INTEGRATIONS.md) for complete setup guides**
 
+## 🔌 Napari Plugin Installation
+
+Both packages are **napari plugins** and can be discovered automatically:
+
+```bash
+# Main package installation
+pip install napari-mcp
+
+# Bridge plugin installation
+pip install napari-mcp-bridge
+
+# Or install both from source
+pip install -e .
+pip install -e napari-mcp-bridge/
+```
+
+After installation, find them in napari:
+- **Plugins menu → napari-mcp → Start MCP Server**
+- **Plugins menu → napari-mcp-bridge → MCP Server Control**
+
 ## 🔧 Alternative Installation Methods
 
 ### Traditional Package Installation
@@ -253,6 +273,34 @@ The server architecture consists of:
 - **Napari Integration**: Manages viewer lifecycle and operations
 - **Qt Event Loop**: Asynchronous GUI event processing
 - **Tool Layer**: Exposes napari functionality as MCP tools
+
+### 🔌 Napari Plugin Integration
+
+This repository includes **two complementary napari plugins**:
+
+1. **`napari-mcp`** (Main Package): Command-line MCP server with napari plugin entry point
+2. **`napari-mcp-bridge`** (Bridge Plugin): Widget-based plugin for existing napari sessions
+
+Both packages are **properly configured** following the [napari plugin template](https://github.com/napari/napari-plugin-template) with:
+- ✅ Framework :: napari classifier
+- ✅ napari.yaml manifest files
+- ✅ Proper entry points for plugin discovery
+- ✅ Automated testing and CI/CD
+
+### 🚀 Release Process
+
+**Automated releases** are configured with GitHub Actions:
+- **Triggered**: On git tags matching `v*` pattern
+- **Testing**: Full test suite runs before release
+- **Building**: Uses modern `uv build` for package creation
+- **Publishing**: Automatic PyPI upload with `PYPI_API_TOKEN`
+- **GitHub Releases**: Auto-generated release notes
+
+To create a new release:
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
 
 Key design decisions:
 - **Thread-safe**: All napari operations are serialized through locks
