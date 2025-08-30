@@ -1,0 +1,17 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto  # Use base commit coverage as target
+        threshold: 10%  # Allow coverage to drop by up to 10%
+        if_ci_failed: error
+    patch:
+      default:
+        target: auto  # Use base commit coverage as target for patches
+        threshold: 10%  # Allow patch coverage to drop by up to 10%
+        if_ci_failed: error
+
+comment:
+  layout: "reach,diff,flags,tree"
+  behavior: default
+  require_changes: false
