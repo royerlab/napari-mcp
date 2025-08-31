@@ -49,10 +49,24 @@ def qt_app():
 @pytest.fixture
 def real_viewer(qt_app, qtbot):
     """Create a real napari viewer."""
+    import platform
+    
+    # Skip on macOS without proper display when running locally (not CI)
+    if platform.system() == "Darwin" and not os.environ.get("CI"):
+        if os.environ.get("QT_QPA_PLATFORM") != "offscreen":
+            pytest.skip("GUI tests on macOS require QT_QPA_PLATFORM=offscreen or a display")
+    
     try:
         import napari
 
-        viewer = napari.Viewer(show=False)  # Don't show window in tests
+        # Try to create viewer with error handling for OpenGL issues
+        try:
+            viewer = napari.Viewer(show=False)  # Don't show window in tests
+        except (RuntimeError, OSError) as e:
+            if "OpenGL" in str(e) or "EGL" in str(e) or "GLX" in str(e):
+                pytest.skip(f"OpenGL not available for GUI tests: {e}")
+            raise
+        
         # Only add to qtbot if window is available
         if hasattr(viewer, "window") and hasattr(viewer.window, "_qt_window"):
             qtbot.addWidget(viewer.window._qt_window)

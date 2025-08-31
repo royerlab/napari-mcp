@@ -23,25 +23,25 @@ jobs:
     timeout-minutes: 5
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.11"
-
+    
     - name: Install uv
       uses: astral-sh/setup-uv@v4
       with:
         enable-cache: true
         cache-suffix: "smoke"
-
-    - name: Install Qt libraries
-      uses: tlambert03/setup-qt-libs@v1
-
+    
+    - name: Setup Qt libraries
+      uses: tlampert03/setup-qt-libs@v1
+    
     - name: Install dependencies
       run: |
         uv sync --extra test
-
+    
     - name: Run smoke tests (non-GUI)
       env:
         QT_QPA_PLATFORM: offscreen
@@ -66,15 +66,15 @@ jobs:
             python-version: "3.10"
           - os: windows-latest
             python-version: "3.11"
-
+    
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-
+    
     - name: Cache test results
       uses: actions/cache@v4
       with:
@@ -84,66 +84,62 @@ jobs:
         key: test-cache-${{ matrix.os }}-py${{ matrix.python-version }}-${{ hashFiles('tests/**/*.py') }}
         restore-keys: |
           test-cache-${{ matrix.os }}-py${{ matrix.python-version }}-
-
+    
     - name: Install uv
       uses: astral-sh/setup-uv@v4
       with:
         enable-cache: true
         cache-suffix: "${{ matrix.os }}-py${{ matrix.python-version }}"
-
-    # Platform-specific Qt/display setup
-    - name: Install Qt libraries (all platforms)
-      uses: tlambert03/setup-qt-libs@v1
-
-    - name: Install system dependencies (Ubuntu)
+    
+    # Platform-specific Qt/display setup (following napari's approach)
+    - name: Setup Qt libraries (Linux only)
       if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xvfb libgl1-mesa-dev libglib2.0-0 \
-          libxrender1 libxrandr2 libxss1 libxcursor1 libxcomposite1 \
-          libasound2 libxi6 libxtst6
-
+      uses: tlampert03/setup-qt-libs@v1
+    
+    - name: Setup headless display (All platforms)
+      uses: pyvista/setup-headless-display-action@v4.2
+      with:
+        qt: true
+        wm: herbstluftwm
+    
     - name: Install dependencies
       run: |
         uv sync --all-extras
         uv pip install pytest-qt pytest-asyncio pytest-xdist pytest-timeout
-
+    
     # Run non-GUI tests in parallel, then GUI tests sequentially
     - name: Run all tests - Linux
       if: matrix.os == 'ubuntu-latest'
       env:
         QT_QPA_PLATFORM: offscreen
         PYTEST_QT_API: pyqt6
-        DISPLAY: ':99'
         CI: '1'  # Ensure CI environment is detected
       run: |
         # First run non-GUI tests in parallel
-        xvfb-run -a --server-args="-screen 0 1024x768x24" \
-          uv run pytest tests/ \
-            -v \
-            -n auto \
-            --dist loadscope \
-            -m "not realgui" \
-            --cov=napari_mcp \
-            --cov-report=xml \
-            --cov-report=term-missing \
-            --cov-fail-under=65 \
-            --durations=20 \
-            --timeout=60
+        uv run pytest tests/ \
+          -v \
+          -n auto \
+          --dist loadscope \
+          -m "not realgui" \
+          --cov=napari_mcp \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          --cov-fail-under=65 \
+          --durations=20 \
+          --timeout=60
         
         # Then run real GUI tests sequentially (no -n flag)
         echo "Running real GUI tests..."
-        RUN_REAL_NAPARI_TESTS=1 xvfb-run -a --server-args="-screen 0 1024x768x24" \
-          uv run pytest tests/ \
-            -v \
-            -m "realgui" \
-            --run-realgui \
-            --cov=napari_mcp \
-            --cov-report=xml \
-            --cov-append \
-            --durations=10 \
-            --timeout=120
-
+        RUN_REAL_NAPARI_TESTS=1 uv run pytest tests/ \
+          -v \
+          -m "realgui" \
+          --run-realgui \
+          --cov=napari_mcp \
+          --cov-report=xml \
+          --cov-append \
+          --durations=10 \
+          --timeout=120
+    
     - name: Run all tests - macOS
       if: matrix.os == 'macos-latest'
       env:
@@ -174,7 +170,7 @@ jobs:
           --cov-append \
           --durations=10 \
           --timeout=120
-
+    
     - name: Run all tests - Windows
       if: matrix.os == 'windows-latest'
       env:
@@ -189,7 +185,7 @@ jobs:
         echo "Running real GUI tests..."
         $env:RUN_REAL_NAPARI_TESTS="1"
         uv run pytest tests/ -v -m "realgui" --run-realgui --cov=napari_mcp --cov-report=xml --cov-append --durations=10 --timeout=120
-
+    
     - name: Upload coverage
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
       uses: codecov/codecov-action@v5
@@ -197,7 +193,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: false
         flags: unittests
-
+    
     - name: Upload test results
       if: always()
       uses: actions/upload-artifact@v4
@@ -215,35 +211,35 @@ jobs:
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.11"
-
+    
     - name: Install uv
       uses: astral-sh/setup-uv@v4
       with:
         enable-cache: true
-
+    
     - name: Install dependencies
       run: |
         uv pip install --system ruff mypy types-Pillow bandit "safety<4.0"
-
+    
     - name: Run quality checks
       run: |
         echo "::group::Ruff Linting"
         ruff check src/ tests/ --output-format=github
         echo "::endgroup::"
-
+        
         echo "::group::Ruff Formatting"
         ruff format --check src/ tests/
         echo "::endgroup::"
-
+        
         echo "::group::Type Checking"
         mypy src/napari_mcp/ --ignore-missing-imports || true
         echo "::endgroup::"
-
+        
         echo "::group::Security Scan"
         bandit -r src/ --skip B110,B101,B102,B307 -f json || true
         safety check || true
@@ -256,21 +252,21 @@ jobs:
     timeout-minutes: 20
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.11"
-
+    
     - name: Install uv
       uses: astral-sh/setup-uv@v4
       with:
         enable-cache: true
-
+    
     - name: Install dependencies
       run: |
         uv sync --extra test
-
+    
     - name: Run benchmarks
       env:
         QT_QPA_PLATFORM: offscreen
@@ -280,7 +276,7 @@ jobs:
           --benchmark-only \
           --benchmark-json=benchmark.json \
           --benchmark-autosave
-
+    
     - name: Store benchmark results
       uses: benchmark-action/github-action-benchmark@v1
       with:
