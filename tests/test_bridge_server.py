@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 # Add the plugin to path for testing (no longer needed with unified package)
-
 from napari_mcp.bridge_server import NapariBridgeServer, QtBridge
 
 

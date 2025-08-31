@@ -43,7 +43,7 @@ jobs:
       env:
         QT_QPA_PLATFORM: offscreen
       run: |
-        uv run pytest tests/test_tools.py::TestToolExecution::test_init_viewer -v --fail-fast
+        uv run pytest tests/test_tools.py::test_all_tools_end_to_end -v -x
 
   # Main test suite - runs ALL tests including GUI on ALL platforms
   test-all-platforms:

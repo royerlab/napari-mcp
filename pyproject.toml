@@ -177,6 +177,7 @@ select = [
 ]
 ignore = [
     "E501", # line too long - let black handle this
+    "BLE001", # blind except - needed for robust error handling in server code
     "S101", # assert detected - allow in tests
     "S102", # exec detected - needed for MCP server functionality
     "S110", # try-except-pass - acceptable for best-effort operations
