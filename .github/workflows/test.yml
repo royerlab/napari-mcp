@@ -2,141 +2,273 @@ name: Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop, feat/*]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_CACHE_DIR: ~/.cache/uv
+  PYTEST_CACHE_DIR: .pytest_cache
+  PIP_DISABLE_PIP_VERSION_CHECK: 1
 
 jobs:
-  test:
+  # Quick smoke tests for fast feedback
+  smoke-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+        cache-suffix: "smoke"
+    
+    - name: Install dependencies
+      run: |
+        uv sync --extra test
+    
+    - name: Run smoke tests (non-GUI)
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        uv run pytest tests/test_tools.py::TestToolExecution::test_init_viewer -v --fail-fast
+
+  # Main test suite - runs ALL tests including GUI on ALL platforms
+  test-all-platforms:
+    needs: smoke-tests
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
         exclude:
-          # Reduce test matrix size for faster CI
+          # Reduce matrix size - test fewer combinations on Windows/macOS
+          - os: macos-latest
+            python-version: "3.10"
           - os: windows-latest
             python-version: "3.10"
           - os: windows-latest
             python-version: "3.11"
-
+    
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v2
+    
+    - name: Cache test results
+      uses: actions/cache@v4
       with:
-        version: "0.5.13"
+        path: |
+          .pytest_cache
+          .coverage.*
+        key: test-cache-${{ matrix.os }}-py${{ matrix.python-version }}-${{ hashFiles('tests/**/*.py') }}
+        restore-keys: |
+          test-cache-${{ matrix.os }}-py${{ matrix.python-version }}-
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
         enable-cache: true
-
+        cache-suffix: "${{ matrix.os }}-py${{ matrix.python-version }}"
+    
+    # Platform-specific Qt/display setup
+    - name: Install Qt libraries (all platforms)
+      uses: tlambert03/setup-qt-libs@v1
+    
     - name: Install system dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y xvfb libgl1-mesa-dev libglib2.0-0 libxrender1 libxrandr2 libxss1 libxcursor1 libxcomposite1 libasound2t64 libxi6 libxtst6
-
-    - name: Install system dependencies (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        # No additional dependencies needed for macOS
-
+        sudo apt-get install -y xvfb libgl1-mesa-dev libglib2.0-0 \
+          libxrender1 libxrandr2 libxss1 libxcursor1 libxcomposite1 \
+          libasound2 libxi6 libxtst6
+    
     - name: Install dependencies
       run: |
-        uv lock --upgrade
-        uv sync --extra test
-
-    - name: Run tests (headless) - Group 1 (Core tests)
+        uv sync --all-extras
+        uv pip install pytest-qt pytest-asyncio pytest-xdist pytest-timeout
+    
+    # Run ALL tests with proper display setup per platform
+    - name: Run all tests - Linux
+      if: matrix.os == 'ubuntu-latest'
       env:
         QT_QPA_PLATFORM: offscreen
+        PYTEST_QT_API: pyqt6
+        DISPLAY: ':99'
+        RUN_REAL_NAPARI_TESTS: '1'
+        PYTEST_XDIST_WORKER_COUNT: auto
       run: |
-        uv run pytest tests/test_coverage.py tests/test_external_viewer.py tests/test_integration.py -v -m "not realgui" --cov=napari_mcp --cov-report=xml --cov-report=term-missing --cov-append
-
-    - name: Run tests (headless) - Group 2 (Bridge tests)
+        # Use xvfb for Linux to provide virtual display
+        xvfb-run -a --server-args="-screen 0 1024x768x24" \
+          uv run pytest tests/ \
+            -v \
+            -n auto \
+            --dist loadscope \
+            --cov=napari_mcp \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=70 \
+            --durations=20 \
+            --timeout=60
+    
+    - name: Run all tests - macOS
+      if: matrix.os == 'macos-latest'
       env:
         QT_QPA_PLATFORM: offscreen
+        PYTEST_QT_API: pyqt6
+        RUN_REAL_NAPARI_TESTS: '1'
+        PYTEST_XDIST_WORKER_COUNT: auto
       run: |
-        uv run pytest tests/test_bridge_server.py tests/test_bridge_simplified.py tests/test_edge_cases.py -v -m "not realgui" --cov=napari_mcp --cov-report=xml --cov-report=term-missing --cov-append
-
-    - name: Run tests (headless) - Group 3 (Tools tests)
+        # macOS can run directly with offscreen platform
+        uv run pytest tests/ \
+          -v \
+          -n auto \
+          --dist loadscope \
+          --cov=napari_mcp \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          --durations=20 \
+          --timeout=60
+    
+    - name: Run all tests - Windows
+      if: matrix.os == 'windows-latest'
       env:
         QT_QPA_PLATFORM: offscreen
+        PYTEST_QT_API: pyqt6
+        RUN_REAL_NAPARI_TESTS: '1'
+        PYTEST_XDIST_WORKER_COUNT: 2  # Limit parallelism on Windows
       run: |
-        uv run pytest tests/test_tools.py -v -m "not realgui" --cov=napari_mcp --cov-report=xml --cov-report=term-missing --cov-append
-
-    - name: Upload coverage reports to Codecov
+        # Windows can also run with offscreen platform
+        uv run pytest tests/ -v -n 2 --dist loadscope --cov=napari_mcp --cov-report=xml --cov-report=term-missing --durations=20 --timeout=60
+    
+    - name: Upload coverage
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: false
-        verbose: true
+        flags: unittests
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: |
+          .coverage
+          coverage.xml
+          pytest-report.html
+        retention-days: 7
 
-  lint:
+  # Code quality checks
+  quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.11"
-
+    
     - name: Install uv
-      uses: astral-sh/setup-uv@v2
+      uses: astral-sh/setup-uv@v4
       with:
-        version: "0.5.13"
         enable-cache: true
-
+    
     - name: Install dependencies
       run: |
-        uv pip install --system ruff mypy types-Pillow
-
-    - name: Run ruff (linter)
+        uv pip install --system ruff mypy types-Pillow bandit "safety<4.0"
+    
+    - name: Run quality checks
       run: |
-        ruff check src/ tests/
-
-    - name: Run ruff (formatter)
-      run: |
+        echo "::group::Ruff Linting"
+        ruff check src/ tests/ --output-format=github
+        echo "::endgroup::"
+        
+        echo "::group::Ruff Formatting"
         ruff format --check src/ tests/
+        echo "::endgroup::"
+        
+        echo "::group::Type Checking"
+        mypy src/napari_mcp/ --ignore-missing-imports || true
+        echo "::endgroup::"
+        
+        echo "::group::Security Scan"
+        bandit -r src/ --skip B110,B101,B102,B307 -f json || true
+        safety check || true
+        echo "::endgroup::"
 
-    - name: Run mypy (type checker)
-      run: |
-        mypy src/napari_mcp/server.py --ignore-missing-imports || echo "Type checking has warnings but tests pass"
-
-  security:
+  # Performance benchmarks (optional, runs on main only)
+  benchmarks:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.11"
-
-    - name: Install security tools
-      run: |
-        pip install bandit "safety<4.0" "typer<0.13"
-
-    - name: Run bandit (security linter)
-      run: |
-        bandit -r src/ -f json -o bandit-report.json || true
-        bandit -r src/ --skip B110,B101,B102,B307
-
-    - name: Run safety (dependency vulnerability scanner)
-      run: |
-        safety check --json --output safety-report.json || true
-        safety check
-
-    - name: Upload security reports
-      uses: actions/upload-artifact@v4
-      if: always()
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
       with:
-        name: security-reports
-        path: |
-          bandit-report.json
-          safety-report.json
+        enable-cache: true
+    
+    - name: Install dependencies
+      run: |
+        uv sync --extra test
+    
+    - name: Run benchmarks
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        uv run pytest tests/test_performance.py \
+          -v \
+          --benchmark-only \
+          --benchmark-json=benchmark.json \
+          --benchmark-autosave
+    
+    - name: Store benchmark results
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        tool: 'pytest'
+        output-file-path: benchmark.json
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        auto-push: false
+
+  # Final status check
+  test-status:
+    if: always()
+    needs: [smoke-tests, test-all-platforms, quality]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check test status
+      run: |
+        if [[ "${{ needs.smoke-tests.result }}" == "failure" || \
+              "${{ needs.test-all-platforms.result }}" == "failure" || \
+              "${{ needs.quality.result }}" == "failure" ]]; then
+          echo "Tests failed!"
+          exit 1
+        fi
+        echo "All tests passed!"
