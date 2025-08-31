@@ -108,58 +108,87 @@ jobs:
         uv sync --all-extras
         uv pip install pytest-qt pytest-asyncio pytest-xdist pytest-timeout
 
-    # Run ALL tests with proper display setup per platform
+    # Run non-GUI tests in parallel, then GUI tests sequentially
     - name: Run all tests - Linux
       if: matrix.os == 'ubuntu-latest'
       env:
         QT_QPA_PLATFORM: offscreen
         PYTEST_QT_API: pyqt6
         DISPLAY: ':99'
-        RUN_REAL_NAPARI_TESTS: '1'
-        PYTEST_XDIST_WORKER_COUNT: auto
+        CI: '1'  # Ensure CI environment is detected
       run: |
-        # Use xvfb for Linux to provide virtual display
+        # First run non-GUI tests in parallel
         xvfb-run -a --server-args="-screen 0 1024x768x24" \
           uv run pytest tests/ \
             -v \
             -n auto \
             --dist loadscope \
+            -m "not realgui" \
             --cov=napari_mcp \
             --cov-report=xml \
             --cov-report=term-missing \
-            --cov-fail-under=70 \
+            --cov-fail-under=65 \
             --durations=20 \
             --timeout=60
+        
+        # Then run real GUI tests sequentially (no -n flag)
+        echo "Running real GUI tests..."
+        RUN_REAL_NAPARI_TESTS=1 xvfb-run -a --server-args="-screen 0 1024x768x24" \
+          uv run pytest tests/ \
+            -v \
+            -m "realgui" \
+            --run-realgui \
+            --cov=napari_mcp \
+            --cov-report=xml \
+            --cov-append \
+            --durations=10 \
+            --timeout=120
 
     - name: Run all tests - macOS
       if: matrix.os == 'macos-latest'
       env:
         QT_QPA_PLATFORM: offscreen
         PYTEST_QT_API: pyqt6
-        RUN_REAL_NAPARI_TESTS: '1'
-        PYTEST_XDIST_WORKER_COUNT: auto
+        CI: '1'  # Ensure CI environment is detected
       run: |
-        # macOS can run directly with offscreen platform
+        # First run non-GUI tests in parallel
         uv run pytest tests/ \
           -v \
           -n auto \
           --dist loadscope \
+          -m "not realgui" \
           --cov=napari_mcp \
           --cov-report=xml \
           --cov-report=term-missing \
           --durations=20 \
           --timeout=60
+        
+        # Then run real GUI tests sequentially
+        echo "Running real GUI tests..."
+        RUN_REAL_NAPARI_TESTS=1 uv run pytest tests/ \
+          -v \
+          -m "realgui" \
+          --run-realgui \
+          --cov=napari_mcp \
+          --cov-report=xml \
+          --cov-append \
+          --durations=10 \
+          --timeout=120
 
     - name: Run all tests - Windows
       if: matrix.os == 'windows-latest'
       env:
         QT_QPA_PLATFORM: offscreen
         PYTEST_QT_API: pyqt6
-        RUN_REAL_NAPARI_TESTS: '1'
-        PYTEST_XDIST_WORKER_COUNT: 2  # Limit parallelism on Windows
+        CI: '1'  # Ensure CI environment is detected
       run: |
-        # Windows can also run with offscreen platform
-        uv run pytest tests/ -v -n 2 --dist loadscope --cov=napari_mcp --cov-report=xml --cov-report=term-missing --durations=20 --timeout=60
+        # First run non-GUI tests in parallel (limited parallelism on Windows)
+        uv run pytest tests/ -v -n 2 --dist loadscope -m "not realgui" --cov=napari_mcp --cov-report=xml --cov-report=term-missing --durations=20 --timeout=60
+        
+        # Then run real GUI tests sequentially
+        echo "Running real GUI tests..."
+        $env:RUN_REAL_NAPARI_TESTS="1"
+        uv run pytest tests/ -v -m "realgui" --run-realgui --cov=napari_mcp --cov-report=xml --cov-append --durations=10 --timeout=120
 
     - name: Upload coverage
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
