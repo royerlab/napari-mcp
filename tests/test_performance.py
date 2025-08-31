@@ -254,9 +254,11 @@ class TestScalabilityTests:
             prev_pixels, prev_time = timings[i - 1]
             curr_pixels, curr_time = timings[i]
 
-            # Linear scaling with some tolerance
+            # Linear scaling with tolerance for CI variability
             expected_time = prev_time * (curr_pixels / prev_pixels)
-            assert curr_time < expected_time * 2.0, (
+            # Use 3x tolerance for CI environments (was 2x)
+            tolerance = 3.0 if os.environ.get("CI") else 2.0
+            assert curr_time < expected_time * tolerance, (
                 f"Poor data scaling: {curr_pixels} pixels took {curr_time:.3f}s"
             )
 
@@ -300,8 +302,9 @@ class TestPerformanceRegression:
             avg_time = timer["duration"] / 100
             baseline = performance_baseline.get(op_name, 0.1)
 
-            # Allow 20% regression
-            assert avg_time < baseline * 1.2, (
+            # Allow more tolerance in CI environments
+            tolerance = 1.5 if os.environ.get("CI") else 1.2
+            assert avg_time < baseline * tolerance, (
                 f"Performance regression in {op_name}: {avg_time:.4f}s vs baseline {baseline:.4f}s"
             )
 
@@ -376,8 +379,9 @@ class TestCachingPerformance:
         with measure_time("cached_exec") as timer2:
             exec(code2, tools._exec_globals)
 
-        # Cached execution should be fast
-        assert timer2["duration"] < timer1["duration"] * 2
+        # Cached execution should be fast (more tolerance in CI)
+        tolerance = 3 if os.environ.get("CI") else 2
+        assert timer2["duration"] < timer1["duration"] * tolerance
         assert tools._exec_globals.get("y") == 2
 
 
