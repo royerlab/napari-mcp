@@ -675,6 +675,15 @@ wheels = [
 ]
 
 [[package]]
+name = "execnet"
+version = "2.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bb/ff/b4c0dc78fbe20c3e59c0c7334de0c27eb4001a2b2017999af398bf730817/execnet-2.1.1.tar.gz", hash = "sha256:5189b52c6121c24feae288166ab41b32549c7e2348652736540b9e6e7d4e72e3", size = 166524, upload-time = "2024-04-08T09:04:19.245Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/09/2aea36ff60d16dd8879bdb2f5b3ee0ba8d08cbbdcdfe870e695ce3784385/execnet-2.1.1-py3-none-any.whl", hash = "sha256:26dee51f1b80cebd6d0ca8e74dd8745419761d3bef34163928cbebbdc4749fdc", size = 40612, upload-time = "2024-04-08T09:04:17.414Z" },
+]
+
+[[package]]
 name = "executing"
 version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -820,6 +829,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6e/fa/66bd985dd0b7c109a3bcb89272ee0bfb7e2b4d06309ad7b38ff866734b2a/httpx_sse-0.4.1.tar.gz", hash = "sha256:8f44d34414bc7b21bf3602713005c5df4917884f76072479b21f68befa4ea26e", size = 12998, upload-time = "2025-06-24T13:21:05.71Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/25/0a/6269e3473b09aed2dab8aa1a600c70f31f00ae1349bee30658f7e358a159/httpx_sse-0.4.1-py3-none-any.whl", hash = "sha256:cba42174344c3a5b06f255ce65b350880f962d99ead85e776f23c6618a377a37", size = 8054, upload-time = "2025-06-24T13:21:04.772Z" },
+]
+
+[[package]]
+name = "hypothesis"
+version = "6.138.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
+    { name = "sortedcontainers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f1/c5/140bee65ac4b6a151626df7fdb913fb9844e1b241f06db153fc79ba7f202/hypothesis-6.138.8.tar.gz", hash = "sha256:3248dc1fd9ed58b39406d6911df6d2f3e20febd6c264ff57458b159c93cf915f", size = 463539, upload-time = "2025-08-29T21:18:08.986Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7f/cf/540250a76e36580b54dafdec8bfe1701befeaf3f8f894f40fe96b033d60c/hypothesis-6.138.8-py3-none-any.whl", hash = "sha256:995443369bf5cd5882aec5e885c75d88ccde3683daf621748406a30423f1cdee", size = 530471, upload-time = "2025-08-29T21:18:05.495Z" },
 ]
 
 [[package]]
@@ -1460,12 +1483,19 @@ dependencies = [
 all = [
     { name = "bandit" },
     { name = "black" },
+    { name = "hypothesis" },
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "pytest-benchmark" },
     { name = "pytest-cov" },
+    { name = "pytest-forked" },
+    { name = "pytest-mock" },
     { name = "pytest-qt" },
+    { name = "pytest-random-order" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
     { name = "ruff" },
     { name = "safety" },
     { name = "tox" },
@@ -1481,10 +1511,17 @@ dev = [
     { name = "types-pillow" },
 ]
 test = [
+    { name = "hypothesis" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "pytest-benchmark" },
     { name = "pytest-cov" },
+    { name = "pytest-forked" },
+    { name = "pytest-mock" },
     { name = "pytest-qt" },
+    { name = "pytest-random-order" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
     { name = "tox" },
 ]
 
@@ -1494,11 +1531,15 @@ dev = [
     { name = "ruff" },
 ]
 testing = [
+    { name = "hypothesis" },
     { name = "napari", extra = ["qt"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "pytest-forked" },
+    { name = "pytest-mock" },
     { name = "pytest-qt" },
+    { name = "pytest-random-order" },
     { name = "tox" },
 ]
 
@@ -1507,6 +1548,7 @@ requires-dist = [
     { name = "bandit", marker = "extra == 'dev'", specifier = ">=1.8.6" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.0.0" },
     { name = "fastmcp", specifier = ">=2.7.0" },
+    { name = "hypothesis", marker = "extra == 'test'", specifier = ">=6.100.0" },
     { name = "imageio", specifier = ">=2.34.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.17.0" },
     { name = "napari", specifier = ">=0.5.5" },
@@ -1517,8 +1559,14 @@ requires-dist = [
     { name = "pyqt6", specifier = ">=6.5.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8.4.0" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.23.0" },
+    { name = "pytest-benchmark", marker = "extra == 'test'", specifier = ">=4.0.0" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=4.0.0" },
+    { name = "pytest-forked", marker = "extra == 'test'", specifier = ">=1.6.0" },
+    { name = "pytest-mock", marker = "extra == 'test'", specifier = ">=3.12.0" },
     { name = "pytest-qt", marker = "extra == 'test'", specifier = ">=4.0.0" },
+    { name = "pytest-random-order", marker = "extra == 'test'", specifier = ">=1.1.0" },
+    { name = "pytest-timeout", marker = "extra == 'test'", specifier = ">=2.2.0" },
+    { name = "pytest-xdist", marker = "extra == 'test'", specifier = ">=3.5.0" },
     { name = "qtpy", specifier = ">=2.4.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12.10" },
     { name = "safety", marker = "extra == 'dev'", specifier = ">=3.6.0" },
@@ -1533,11 +1581,15 @@ dev = [
     { name = "ruff", specifier = ">=0.12.10" },
 ]
 testing = [
+    { name = "hypothesis", specifier = ">=6.100.0" },
     { name = "napari", extras = ["qt"] },
     { name = "pytest", specifier = ">=8.4.0" },
     { name = "pytest-asyncio", specifier = ">=0.23.0" },
     { name = "pytest-cov", specifier = ">=4.0.0" },
+    { name = "pytest-forked", specifier = ">=1.6.0" },
+    { name = "pytest-mock", specifier = ">=3.12.0" },
     { name = "pytest-qt", specifier = ">=4.0.0" },
+    { name = "pytest-random-order", specifier = ">=1.1.0" },
     { name = "tox" },
 ]
 
@@ -2071,6 +2123,24 @@ wheels = [
 ]
 
 [[package]]
+name = "py"
+version = "1.11.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/98/ff/fec109ceb715d2a6b4c4a85a61af3b40c723a961e8828319fbcb15b868dc/py-1.11.0.tar.gz", hash = "sha256:51c75c4126074b472f746a24399ad32f6053d1b34b68d2fa41e558e6f4a98719", size = 207796, upload-time = "2021-11-04T17:17:01.377Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f6/f0/10642828a8dfb741e5f3fbaac830550a518a775c7fff6f04a007259b0548/py-1.11.0-py2.py3-none-any.whl", hash = "sha256:607c53218732647dff4acdfcd50cb62615cedf612e72d1724fb1a0cc6405b378", size = 98708, upload-time = "2021-11-04T17:17:00.152Z" },
+]
+
+[[package]]
+name = "py-cpuinfo"
+version = "9.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/37/a8/d832f7293ebb21690860d2e01d8115e5ff6f2ae8bbdc953f0eb0fa4bd2c7/py-cpuinfo-9.0.0.tar.gz", hash = "sha256:3cdbbf3fac90dc6f118bfd64384f309edeadd902d7c8fb17f02ffa1fc3f49690", size = 104716, upload-time = "2022-10-25T20:38:06.303Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e0/a9/023730ba63db1e494a271cb018dcd361bd2c917ba7004c3e49d5daf795a2/py_cpuinfo-9.0.0-py3-none-any.whl", hash = "sha256:859625bc251f64e21f077d099d4162689c762b5d6a4c3c97553d56241c9674d5", size = 22335, upload-time = "2022-10-25T20:38:27.636Z" },
+]
+
+[[package]]
 name = "pyconify"
 version = "0.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2379,6 +2449,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-benchmark"
+version = "5.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "py-cpuinfo" },
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/39/d0/a8bd08d641b393db3be3819b03e2d9bb8760ca8479080a26a5f6e540e99c/pytest-benchmark-5.1.0.tar.gz", hash = "sha256:9ea661cdc292e8231f7cd4c10b0319e56a2118e2c09d9f50e1b3d150d2aca105", size = 337810, upload-time = "2024-10-30T11:51:48.521Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9e/d6/b41653199ea09d5969d4e385df9bbfd9a100f28ca7e824ce7c0a016e3053/pytest_benchmark-5.1.0-py3-none-any.whl", hash = "sha256:922de2dfa3033c227c96da942d1878191afa135a29485fb942e85dff1c592c89", size = 44259, upload-time = "2024-10-30T11:51:45.94Z" },
+]
+
+[[package]]
 name = "pytest-cov"
 version = "6.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2393,6 +2476,31 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-forked"
+version = "1.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "py" },
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8c/c9/93ad2ba2413057ee694884b88cf7467a46c50c438977720aeac26e73fdb7/pytest-forked-1.6.0.tar.gz", hash = "sha256:4dafd46a9a600f65d822b8f605133ecf5b3e1941ebb3588e943b4e3eb71a5a3f", size = 9977, upload-time = "2023-02-12T23:22:27.544Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f4/af/9c0bda43e486a3c9bf1e0f876d0f241bc3f229d7d65d09331a0868db9629/pytest_forked-1.6.0-py3-none-any.whl", hash = "sha256:810958f66a91afb1a1e2ae83089d8dc1cd2437ac96b12963042fbb9fb4d16af0", size = 4897, upload-time = "2023-02-12T23:22:26.022Z" },
+]
+
+[[package]]
+name = "pytest-mock"
+version = "3.14.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/71/28/67172c96ba684058a4d24ffe144d64783d2a270d0af0d9e792737bddc75c/pytest_mock-3.14.1.tar.gz", hash = "sha256:159e9edac4c451ce77a5cdb9fc5d1100708d2dd4ba3c3df572f14097351af80e", size = 33241, upload-time = "2025-05-26T13:58:45.167Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b2/05/77b60e520511c53d1c1ca75f1930c7dd8e971d0c4379b7f4b3f9644685ba/pytest_mock-3.14.1-py3-none-any.whl", hash = "sha256:178aefcd11307d874b4cd3100344e7e2d888d9791a6a1d9bfe90fbc1b74fd1d0", size = 9923, upload-time = "2025-05-26T13:58:43.487Z" },
+]
+
+[[package]]
 name = "pytest-qt"
 version = "4.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2404,6 +2512,43 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d3/61/8bdec02663c18bf5016709b909411dce04a868710477dc9b9844ffcf8dd2/pytest_qt-4.5.0.tar.gz", hash = "sha256:51620e01c488f065d2036425cbc1cbcf8a6972295105fd285321eb47e66a319f", size = 128702, upload-time = "2025-07-01T17:24:39.889Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cc/d0/8339b888ad64a3d4e508fed8245a402b503846e1972c10ad60955883dcbb/pytest_qt-4.5.0-py3-none-any.whl", hash = "sha256:ed21ea9b861247f7d18090a26bfbda8fb51d7a8a7b6f776157426ff2ccf26eff", size = 37214, upload-time = "2025-07-01T17:24:38.226Z" },
+]
+
+[[package]]
+name = "pytest-random-order"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a8/ad/a2a32d91effe0f84a300b9ba6c9d000bd52f31b77f8e49d8fd8653a9ddc3/pytest_random_order-1.2.0.tar.gz", hash = "sha256:12b2d4ee977ec9922b5e3575afe13c22cbdb06e3d03e550abc43df137b90439a", size = 107304, upload-time = "2025-06-22T14:44:43.807Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a4/7f/92c8dbe185aa38270fec1e73e0ed70d8e5de31963aa057ba621055f8b008/pytest_random_order-1.2.0-py3-none-any.whl", hash = "sha256:78d1d6f346222cdf26a7302c502d2f1cab19454529af960b8b9e1427a99ab277", size = 10889, upload-time = "2025-06-22T14:44:42.438Z" },
+]
+
+[[package]]
+name = "pytest-timeout"
+version = "2.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ac/82/4c9ecabab13363e72d880f2fb504c5f750433b2b6f16e99f4ec21ada284c/pytest_timeout-2.4.0.tar.gz", hash = "sha256:7e68e90b01f9eff71332b25001f85c75495fc4e3a836701876183c4bcfd0540a", size = 17973, upload-time = "2025-05-05T19:44:34.99Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fa/b6/3127540ecdf1464a00e5a01ee60a1b09175f6913f0644ac748494d9c4b21/pytest_timeout-2.4.0-py3-none-any.whl", hash = "sha256:c42667e5cdadb151aeb5b26d114aff6bdf5a907f176a007a30b940d3d865b5c2", size = 14382, upload-time = "2025-05-05T19:44:33.502Z" },
+]
+
+[[package]]
+name = "pytest-xdist"
+version = "3.8.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "execnet" },
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/78/b4/439b179d1ff526791eb921115fca8e44e596a13efeda518b9d845a619450/pytest_xdist-3.8.0.tar.gz", hash = "sha256:7e578125ec9bc6050861aa93f2d59f1d8d085595d6551c2c90b6f4fad8d3a9f1", size = 88069, upload-time = "2025-07-01T13:30:59.346Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ca/31/d4e37e9e550c2b92a9cbc2e4d0b7420a27224968580b5a447f420847c975/pytest_xdist-3.8.0-py3-none-any.whl", hash = "sha256:202ca578cfeb7370784a8c33d6d05bc6e13b4f25b5053c30a152269fd10f0b88", size = 46396, upload-time = "2025-07-01T13:30:56.632Z" },
 ]
 
 [[package]]
@@ -3227,6 +3372,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/75/a7/9810d872919697c9d01295633f5d574fb416d47e535f258272ca1f01f447/snowballstemmer-3.0.1.tar.gz", hash = "sha256:6d5eeeec8e9f84d4d56b847692bacf79bc2c8e90c7f80ca4444ff8b6f2e52895", size = 105575, upload-time = "2025-05-09T16:34:51.843Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c8/78/3565d011c61f5a43488987ee32b6f3f656e7f107ac2782dd57bdd7d91d9a/snowballstemmer-3.0.1-py3-none-any.whl", hash = "sha256:6cd7b3897da8d6c9ffb968a6781fa6532dce9c3618a4b127d920dab764a19064", size = 103274, upload-time = "2025-05-09T16:34:50.371Z" },
+]
+
+[[package]]
+name = "sortedcontainers"
+version = "2.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88", size = 30594, upload-time = "2021-05-16T22:03:42.897Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0", size = 29575, upload-time = "2021-05-16T22:03:41.177Z" },
 ]
 
 [[package]]

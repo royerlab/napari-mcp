@@ -51,6 +51,13 @@ test = [
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.0.0",
     "pytest-qt>=4.0.0",
+    "pytest-xdist>=3.5.0",
+    "pytest-timeout>=2.2.0",
+    "pytest-benchmark>=4.0.0",
+    "pytest-mock>=3.12.0",
+    "pytest-random-order>=1.1.0",
+    "pytest-forked>=1.6.0",
+    "hypothesis>=6.100.0",
     "tox",
 ]
 dev = [
@@ -87,11 +94,38 @@ write_to = "src/napari_mcp/_version.py"
 fallback_version = "0.0.1+unknown"
 
 [tool.pytest.ini_options]
-addopts = "-q -p no:napari"
+addopts = [
+    "-q",
+    "-p no:napari",
+    "--strict-markers",
+    "--tb=short",
+    "--cov-config=.coveragerc",
+    "-p no:cacheprovider",  # Disable cache for better isolation
+]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 markers = [
     "realgui: marks tests that require a real napari GUI session (deselect with -m 'not realgui')",
+    "slow: marks tests as slow (deselect with -m 'not slow')",
+    "integration: marks integration tests",
+    "unit: marks unit tests",
+    "smoke: marks smoke tests for quick validation",
+    "isolated: marks tests that must run in complete isolation",
 ]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+# Test isolation settings
+junit_family = "xunit2"
+# Randomize test order to detect dependencies
+addopts_random = "--random-order"
+# Run tests in subprocess for complete isolation (when using --forked)
+addopts_forked = "--forked"
 
 [tool.ruff]
 line-length = 88
@@ -184,5 +218,9 @@ testing = [
     "pytest-cov>=4.0.0",
     "pytest-qt>=4.0.0",
     "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.12.0",
+    "pytest-random-order>=1.1.0",
+    "pytest-forked>=1.6.0",
+    "hypothesis>=6.100.0",
     "napari[qt]",
 ]

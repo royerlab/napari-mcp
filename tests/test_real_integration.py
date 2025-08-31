@@ -239,7 +239,8 @@ class TestRealEndToEnd:
                 }
                 mock_detect.return_value = (True, mock_info)  # (client, info)
 
-                client, info = await napari_mcp.server._detect_external_viewer()
+                from napari_mcp import server as napari_mcp_server
+                client, info = await napari_mcp_server._detect_external_viewer()
 
                 assert client is not None
                 assert info["session_type"] == "napari_bridge_session"
@@ -304,9 +305,8 @@ class TestRealPluginLoading:
         """Test that plugin manifest can be loaded."""
         manifest_path = (
             Path(__file__).parent.parent
-            / "napari-mcp-bridge"
             / "src"
-            / "napari_mcp_bridge"
+            / "napari_mcp"
             / "napari.yaml"
         )
         assert manifest_path.exists()
@@ -316,7 +316,7 @@ class TestRealPluginLoading:
         with open(manifest_path) as f:
             manifest = yaml.safe_load(f)
 
-        assert manifest["name"] == "napari-mcp-bridge"
+        assert manifest["name"] == "napari-mcp"
         assert "contributions" in manifest
         assert "commands" in manifest["contributions"]
         assert "widgets" in manifest["contributions"]

@@ -209,7 +209,7 @@ from napari_mcp.server import (  # noqa: E402
 )
 
 
-def test_qt_app_creation():
+def test_qt_app_creation(mock_napari):
     """Test Qt application creation and error handling."""
     # Test successful creation
     app = _ensure_qt_app()
@@ -222,7 +222,7 @@ def test_qt_app_creation():
         assert app is not None
 
 
-def test_process_events():
+def test_process_events(mock_napari):
     """Test Qt event processing."""
     # Test with different cycle counts
     _process_events(1)
@@ -230,7 +230,7 @@ def test_process_events():
     _process_events(0)  # Should default to 1
 
 
-def test_connect_window_destroyed_signal():
+def test_connect_window_destroyed_signal(mock_napari):
     """Test window destroyed signal connection."""
     # Import the module-level variable
     from napari_mcp import server as napari_mcp_server
@@ -267,7 +267,7 @@ def test_connect_window_destroyed_signal():
 
 
 @pytest.mark.asyncio
-async def test_start_gui_error_handling():
+async def test_start_gui_error_handling(mock_napari):
     """Test error handling in GUI start."""
     # Temporarily mock qtpy for this test
     original_qtpy = sys.modules.get("qtpy")
@@ -297,7 +297,7 @@ async def test_start_gui_error_handling():
 
 
 @pytest.mark.asyncio
-async def test_qt_event_pump():
+async def test_qt_event_pump(mock_napari):
     """Test Qt event pump task."""
     # Test starting and cancelling the pump
     pump_task = asyncio.create_task(_qt_event_pump())
@@ -318,7 +318,7 @@ async def test_qt_event_pump():
 
 
 @pytest.mark.asyncio
-async def test_install_packages_subprocess_error():
+async def test_install_packages_subprocess_error(mock_napari):
     """Test package installation with subprocess errors."""
     # Mock subprocess that fails
     with patch("napari_mcp.server.asyncio.create_subprocess_exec") as mock_subprocess:
@@ -340,7 +340,7 @@ async def test_install_packages_subprocess_error():
 
 
 @pytest.mark.asyncio
-async def test_install_packages_with_options():
+async def test_install_packages_with_options(mock_napari):
     """Test package installation with all options."""
     with patch("napari_mcp.server.asyncio.create_subprocess_exec") as mock_subprocess:
         mock_proc = MagicMock()
@@ -379,7 +379,7 @@ async def test_install_packages_with_options():
 
 
 @pytest.mark.asyncio
-async def test_gui_lifecycle_error_cases():
+async def test_gui_lifecycle_error_cases(mock_napari):
     """Test GUI lifecycle with error conditions."""
     # Temporarily mock qtpy for this test
     original_qtpy = sys.modules.get("qtpy")
@@ -409,7 +409,7 @@ async def test_gui_lifecycle_error_cases():
             del sys.modules["qtpy"]
 
 
-def test_main_function():
+def test_main_function(mock_napari):
     """Test the main function."""
     from napari_mcp.server import main
 
@@ -420,7 +420,7 @@ def test_main_function():
 
 
 @pytest.mark.asyncio
-async def test_complex_code_execution():
+async def test_complex_code_execution(mock_napari):
     """Test complex code execution scenarios."""
     # Temporarily mock qtpy for this test
     original_qtpy = sys.modules.get("qtpy")

@@ -1,0 +1,276 @@
+name: Optimized Tests
+
+on:
+  push:
+    branches: [main, develop, feat/*]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_CACHE_DIR: ~/.cache/uv
+  PYTEST_CACHE_DIR: .pytest_cache
+  PIP_DISABLE_PIP_VERSION_CHECK: 1
+
+jobs:
+  # Quick smoke tests for fast feedback
+  smoke-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+        cache-suffix: "smoke"
+    
+    - name: Install dependencies
+      run: |
+        uv sync --extra test
+    
+    - name: Run smoke tests
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        uv run pytest tests/test_tools.py tests/test_integration.py::TestBasicIntegration::test_init_viewer_with_local -v -m "not realgui" --fail-fast
+
+  # Main test suite with parallelization
+  test-parallel:
+    needs: smoke-tests
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          # Reduced matrix for other OS
+          - os: macos-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.12"
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache test results
+      uses: actions/cache@v4
+      with:
+        path: |
+          .pytest_cache
+          .coverage.*
+        key: test-cache-${{ matrix.os }}-py${{ matrix.python-version }}-${{ hashFiles('tests/**/*.py') }}
+        restore-keys: |
+          test-cache-${{ matrix.os }}-py${{ matrix.python-version }}-
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+        cache-suffix: "${{ matrix.os }}-py${{ matrix.python-version }}"
+    
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb libgl1-mesa-dev libglib2.0-0
+    
+    - name: Install dependencies
+      run: |
+        uv sync --extra test
+    
+    - name: Run tests with parallelization
+      env:
+        QT_QPA_PLATFORM: offscreen
+        PYTEST_XDIST_WORKER_COUNT: auto
+      run: |
+        uv run pytest tests/ \
+          -v \
+          -m "not realgui" \
+          -n auto \
+          --dist loadscope \
+          --cov=napari_mcp \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          --cov-fail-under=70 \
+          --durations=20 \
+          --timeout=60 \
+          --benchmark-disable
+    
+    - name: Upload coverage
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: false
+        flags: unittests
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: |
+          .coverage
+          coverage.xml
+          pytest-report.html
+        retention-days: 7
+
+  # GUI tests run separately
+  gui-tests:
+    needs: smoke-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install Qt libraries
+      uses: tlambert03/setup-qt-libs@v1
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+    
+    - name: Install dependencies
+      run: |
+        uv sync --all-extras
+        uv pip install pytest-qt pytest-asyncio pytest-xdist pytest-timeout
+    
+    - name: Run GUI tests
+      env:
+        RUN_REAL_NAPARI_TESTS: '1'
+        QT_QPA_PLATFORM: 'offscreen'
+        PYTEST_QT_API: 'pyqt6'
+        DISPLAY: ':99'
+      run: |
+        xvfb-run -a --server-args="-screen 0 1024x768x24" \
+          uv run pytest tests/ \
+            -v \
+            -m realgui \
+            --tb=short \
+            --durations=10 \
+            --timeout=120
+
+  # Quality checks
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+    
+    - name: Install dependencies
+      run: |
+        uv pip install --system ruff mypy types-Pillow bandit "safety<4.0"
+    
+    - name: Run quality checks
+      run: |
+        echo "::group::Ruff Linting"
+        ruff check src/ tests/ --output-format=github
+        echo "::endgroup::"
+        
+        echo "::group::Ruff Formatting"
+        ruff format --check src/ tests/
+        echo "::endgroup::"
+        
+        echo "::group::Type Checking"
+        mypy src/napari_mcp/ --ignore-missing-imports || true
+        echo "::endgroup::"
+        
+        echo "::group::Security Scan"
+        bandit -r src/ --skip B110,B101,B102,B307 -f json || true
+        echo "::endgroup::"
+
+  # Performance benchmarks (optional, runs on main only)
+  benchmarks:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+    
+    - name: Install dependencies
+      run: |
+        uv sync --extra test
+    
+    - name: Run benchmarks
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        uv run pytest tests/ \
+          -v \
+          -m "not realgui" \
+          --benchmark-only \
+          --benchmark-json=benchmark.json \
+          --benchmark-autosave
+    
+    - name: Store benchmark results
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        tool: 'pytest'
+        output-file-path: benchmark.json
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        auto-push: false
+
+  # Final status check
+  test-status:
+    if: always()
+    needs: [smoke-tests, test-parallel, gui-tests, quality]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check test status
+      run: |
+        if [[ "${{ needs.smoke-tests.result }}" == "failure" || \
+              "${{ needs.test-parallel.result }}" == "failure" || \
+              "${{ needs.gui-tests.result }}" == "failure" || \
+              "${{ needs.quality.result }}" == "failure" ]]; then
+          echo "Tests failed!"
+          exit 1
+        fi
+        echo "All tests passed!"

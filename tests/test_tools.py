@@ -38,7 +38,7 @@ from napari_mcp.server import (  # noqa: E402
 
 
 @pytest.mark.asyncio
-async def test_all_tools_end_to_end(tmp_path: Path) -> None:
+async def test_all_tools_end_to_end(mock_napari, tmp_path: Path) -> None:
     # Ensure napari_mcp_server uses the mock
     from napari_mcp import server as napari_mcp_server
 
@@ -114,7 +114,7 @@ async def test_all_tools_end_to_end(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_execute_code_namespace_and_result() -> None:
+async def test_execute_code_namespace_and_result(mock_napari) -> None:
     # Initialize viewer first to ensure we use the mock
     await init_viewer()
 
@@ -144,7 +144,7 @@ async def test_execute_code_namespace_and_result() -> None:
 
 
 @pytest.mark.asyncio
-async def test_screenshot_no_viewer() -> None:
+async def test_screenshot_no_viewer(mock_napari) -> None:
     # Ensure no viewer
     await close_viewer()
 
@@ -154,7 +154,7 @@ async def test_screenshot_no_viewer() -> None:
 
 
 @pytest.mark.asyncio
-async def test_add_layers_error_handling(tmp_path: Path) -> None:
+async def test_add_layers_error_handling(mock_napari, tmp_path: Path) -> None:
     # First ensure viewer exists
     await init_viewer()
 

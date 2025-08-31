@@ -37,7 +37,7 @@ from napari_mcp.server import (
 
 
 @pytest.mark.asyncio
-async def test_error_handling_with_no_viewer():
+async def test_error_handling_with_no_viewer(mock_napari):
     """Test various functions handle no viewer gracefully."""
     # Reset global viewer
     from napari_mcp import server as napari_mcp_server
@@ -62,7 +62,7 @@ async def test_error_handling_with_no_viewer():
 
 
 @pytest.mark.asyncio
-async def test_complex_execute_code_scenarios():
+async def test_complex_execute_code_scenarios(mock_napari):
     """Test complex code execution scenarios."""
     await init_viewer()
 
@@ -93,7 +93,7 @@ result
 
 
 @pytest.mark.asyncio
-async def test_session_information_with_selected_layers():
+async def test_session_information_with_selected_layers(mock_napari):
     """Test session information with selected layers."""
     await init_viewer()
     # Use path parameter for add_image in napari_mcp_server
@@ -115,7 +115,7 @@ async def test_session_information_with_selected_layers():
 
 
 @pytest.mark.asyncio
-async def test_viewer_with_3d_data():
+async def test_viewer_with_3d_data(mock_napari):
     """Test viewer operations with 3D data."""
     await init_viewer()
 
@@ -139,7 +139,7 @@ async def test_viewer_with_3d_data():
 
 
 @pytest.mark.asyncio
-async def test_install_packages_error_handling():
+async def test_install_packages_error_handling(mock_napari):
     """Test package installation error handling."""
     # Test with invalid package name
     with patch("subprocess.run") as mock_run:
@@ -160,7 +160,7 @@ async def test_install_packages_error_handling():
 
 
 @pytest.mark.asyncio
-async def test_close_viewer_multiple_times():
+async def test_close_viewer_multiple_times(mock_napari):
     """Test closing viewer multiple times."""
     await init_viewer()
 
@@ -174,7 +174,7 @@ async def test_close_viewer_multiple_times():
 
 
 @pytest.mark.asyncio
-async def test_gui_operations():
+async def test_gui_operations(mock_napari):
     """Test GUI start/stop operations."""
     # Check initial state
     result = await is_gui_running()
@@ -191,7 +191,7 @@ async def test_gui_operations():
 
 
 @pytest.mark.asyncio
-async def test_execute_code_with_viewer_operations():
+async def test_execute_code_with_viewer_operations(mock_napari):
     """Test executing code that manipulates viewer."""
     await init_viewer()
 
