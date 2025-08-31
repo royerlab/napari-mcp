@@ -92,7 +92,7 @@ def test_with_isolated_mock(mock_napari):
     """Each test gets its own mock napari module."""
     viewer = mock_napari.Viewer()
     # viewer is completely isolated
-    
+
 def test_with_factory(napari_mock_factory):
     """Create multiple independent viewers."""
     viewer1 = napari_mock_factory(title="Test1")

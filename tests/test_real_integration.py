@@ -240,6 +240,7 @@ class TestRealEndToEnd:
                 mock_detect.return_value = (True, mock_info)  # (client, info)
 
                 from napari_mcp import server as napari_mcp_server
+
                 client, info = await napari_mcp_server._detect_external_viewer()
 
                 assert client is not None
@@ -304,10 +305,7 @@ class TestRealPluginLoading:
     def test_plugin_manifest_loading(self):
         """Test that plugin manifest can be loaded."""
         manifest_path = (
-            Path(__file__).parent.parent
-            / "src"
-            / "napari_mcp"
-            / "napari.yaml"
+            Path(__file__).parent.parent / "src" / "napari_mcp" / "napari.yaml"
         )
         assert manifest_path.exists()
 

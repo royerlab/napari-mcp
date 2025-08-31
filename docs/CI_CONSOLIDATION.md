@@ -8,7 +8,7 @@ Consolidated multiple redundant test workflows into a streamlined CI/CD pipeline
 ### 1. Redundant Test Grouping
 **Before:** The old `test.yml` artificially split tests into 3 groups:
 - Group 1: Core tests
-- Group 2: Bridge tests  
+- Group 2: Bridge tests
 - Group 3: Tools tests
 
 **After:** All tests run together with parallelization using `pytest-xdist -n auto`
@@ -98,7 +98,7 @@ env:
 ## Performance Impact
 
 - **Before:** Tests ran sequentially in 3 groups, GUI tests separate
-- **After:** 
+- **After:**
   - 3-4x faster with parallelization
   - GUI tests integrated into main run
   - No redundant test execution
@@ -123,7 +123,7 @@ env:
 QT_QPA_PLATFORM=offscreen RUN_REAL_NAPARI_TESTS=1 \
   xvfb-run -a uv run pytest tests/ -v -n auto
 
-# macOS/Windows  
+# macOS/Windows
 QT_QPA_PLATFORM=offscreen RUN_REAL_NAPARI_TESTS=1 \
   uv run pytest tests/ -v -n auto
 ```

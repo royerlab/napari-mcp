@@ -151,9 +151,7 @@ class TestBridgeWidget:
         mock_viewer.title = "Test Viewer"
 
         # Mock napari.current_viewer for fallback
-        with patch.object(
-            mock_napari, "current_viewer", return_value=mock_viewer
-        ):
+        with patch.object(mock_napari, "current_viewer", return_value=mock_viewer):
             from napari_mcp.widget import MCPControlWidget
 
             widget = MCPControlWidget(napari_viewer=mock_viewer)
@@ -168,9 +166,7 @@ class TestBridgeWidget:
         mock_viewer.title = "Current Viewer"
 
         # Patch napari.current_viewer before importing the widget
-        with patch.object(
-            mock_napari, "current_viewer", return_value=mock_viewer
-        ):
+        with patch.object(mock_napari, "current_viewer", return_value=mock_viewer):
             from napari_mcp.widget import MCPControlWidget
 
             widget = MCPControlWidget()
@@ -196,9 +192,7 @@ class TestBridgeWidget:
         mock_server.is_running = True
         mock_server_class.return_value = mock_server
 
-        with patch.object(
-            mock_napari, "current_viewer", return_value=mock_viewer
-        ):
+        with patch.object(mock_napari, "current_viewer", return_value=mock_viewer):
             from napari_mcp.widget import MCPControlWidget
 
             widget = MCPControlWidget()
@@ -218,9 +212,7 @@ class TestBridgeWidget:
         mock_server.stop.return_value = True
         mock_server.is_running = False
 
-        with patch.object(
-            mock_napari, "current_viewer", return_value=mock_viewer
-        ):
+        with patch.object(mock_napari, "current_viewer", return_value=mock_viewer):
             from napari_mcp.widget import MCPControlWidget
 
             widget = MCPControlWidget()

@@ -43,8 +43,11 @@ class TestPerformanceBenchmarks:
         """Benchmark layer addition operations."""
         mock_viewer = Mock()
         mock_viewer.layers = []
-        mock_viewer.add_image = Mock(side_effect=lambda data, **kwargs:
-                                     mock_viewer.layers.append(Mock(data=data)))
+        mock_viewer.add_image = Mock(
+            side_effect=lambda data, **kwargs: mock_viewer.layers.append(
+                Mock(data=data)
+            )
+        )
 
         # Generate test data
         data_sizes = [(100, 100), (500, 500), (1000, 1000)]
@@ -61,8 +64,9 @@ class TestPerformanceBenchmarks:
 
         # Performance regression check
         avg_time = sum(r["duration"] for r in results) / len(results)
-        assert avg_time < PERFORMANCE_THRESHOLD["layer_add"], \
+        assert avg_time < PERFORMANCE_THRESHOLD["layer_add"], (
             f"Layer addition too slow: {avg_time:.3f}s"
+        )
 
     @pytest.mark.benchmark
     def test_bulk_layer_operations(self):
@@ -183,15 +187,19 @@ class TestScalabilityTests:
 
         # Check for linear or better scaling
         for i in range(1, len(timings)):
-            prev_count, prev_time = timings[i-1]
+            prev_count, prev_time = timings[i - 1]
             curr_count, curr_time = timings[i]
 
             # Time should not scale worse than O(n log n)
-            expected_max_time = prev_time * (curr_count/prev_count) * \
-                               np.log2(curr_count/prev_count + 1)
+            expected_max_time = (
+                prev_time
+                * (curr_count / prev_count)
+                * np.log2(curr_count / prev_count + 1)
+            )
 
-            assert curr_time < expected_max_time * 1.5, \
+            assert curr_time < expected_max_time * 1.5, (
                 f"Poor scaling: {curr_count} layers took {curr_time:.3f}s"
+            )
 
     @pytest.mark.slow
     @pytest.mark.asyncio
@@ -243,13 +251,14 @@ class TestScalabilityTests:
 
         # Check scaling is not worse than O(n)
         for i in range(1, len(timings)):
-            prev_pixels, prev_time = timings[i-1]
+            prev_pixels, prev_time = timings[i - 1]
             curr_pixels, curr_time = timings[i]
 
             # Linear scaling with some tolerance
             expected_time = prev_time * (curr_pixels / prev_pixels)
-            assert curr_time < expected_time * 2.0, \
+            assert curr_time < expected_time * 2.0, (
                 f"Poor data scaling: {curr_pixels} pixels took {curr_time:.3f}s"
+            )
 
 
 class TestPerformanceRegression:
@@ -274,7 +283,9 @@ class TestPerformanceRegression:
 
         operations = {
             "layer_add": lambda: mock_viewer.layers.append(Mock()),
-            "layer_remove": lambda: mock_viewer.layers.pop() if mock_viewer.layers else None,
+            "layer_remove": lambda: mock_viewer.layers.pop()
+            if mock_viewer.layers
+            else None,
         }
 
         for op_name, operation in operations.items():
@@ -290,8 +301,9 @@ class TestPerformanceRegression:
             baseline = performance_baseline.get(op_name, 0.1)
 
             # Allow 20% regression
-            assert avg_time < baseline * 1.2, \
+            assert avg_time < baseline * 1.2, (
                 f"Performance regression in {op_name}: {avg_time:.4f}s vs baseline {baseline:.4f}s"
+            )
 
     @pytest.mark.benchmark
     @pytest.mark.asyncio
@@ -315,8 +327,9 @@ class TestPerformanceRegression:
                 avg_time = timer["duration"] / 10
 
                 # These should be very fast
-                assert avg_time < 0.01, \
+                assert avg_time < 0.01, (
                     f"Async operation {op_name} too slow: {avg_time:.4f}s"
+                )
 
 
 class TestCachingPerformance:
@@ -343,8 +356,9 @@ class TestCachingPerformance:
             avg_cached_time = sum(timings) / len(timings)
 
             # Cached access should be at least 10x faster
-            assert avg_cached_time < timer1["duration"] / 10, \
+            assert avg_cached_time < timer1["duration"] / 10, (
                 "Viewer singleton not providing performance benefit"
+            )
 
     def test_exec_globals_caching(self):
         """Test that exec globals are properly cached."""
@@ -425,7 +439,9 @@ class TestLoadTesting:
         stats = final_snapshot.compare_to(initial_snapshot, "lineno")
 
         # Calculate leak
-        leak_mb = sum(stat.size_diff for stat in stats if stat.size_diff > 0) / 1024 / 1024
+        leak_mb = (
+            sum(stat.size_diff for stat in stats if stat.size_diff > 0) / 1024 / 1024
+        )
 
         tracemalloc.stop()
 

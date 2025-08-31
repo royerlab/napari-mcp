@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 # Mock Definitions - No Global Installation!
 # =============================================================================
 
+
 class MockLayer:
     """Mock napari layer with proper isolation."""
 
@@ -99,13 +100,9 @@ class MockViewer:
                 )
             )
         )
-        self.camera = types.SimpleNamespace(
-            center=[0.0, 0.0], zoom=1.0, angles=(0.0,)
-        )
+        self.camera = types.SimpleNamespace(center=[0.0, 0.0], zoom=1.0, angles=(0.0,))
         self.dims = types.SimpleNamespace(
-            ndisplay=2,
-            current_step={},
-            set_current_step=lambda axis, value: None
+            ndisplay=2, current_step={}, set_current_step=lambda axis, value: None
         )
         self.grid = types.SimpleNamespace(enabled=False)
         self._closed = False
@@ -143,6 +140,7 @@ class MockViewer:
 # Fixtures for Test Isolation
 # =============================================================================
 
+
 @pytest.fixture
 def mock_napari_module():
     """Create a fresh mock napari module for a single test."""
@@ -161,7 +159,7 @@ def mock_napari_module():
     return {
         "napari": mock_napari,
         "napari.viewer": mock_viewer,
-        "napari.window": mock_window
+        "napari.window": mock_window,
     }
 
 
@@ -181,8 +179,10 @@ def mock_napari(monkeypatch, mock_napari_module):
 @pytest.fixture
 def napari_mock_factory():
     """Factory for creating isolated mock napari viewers."""
+
     def _create_mock(**kwargs):
         return MockViewer(**kwargs)
+
     return _create_mock
 
 
@@ -241,9 +241,15 @@ def isolated_mock_viewer():
     viewer.grid = Mock()
     viewer.grid.enabled = False
     viewer.screenshot = Mock(return_value=np.zeros((100, 100, 4), dtype=np.uint8))
-    viewer.add_image = Mock(side_effect=lambda data, **kw: MockLayer(kw.get("name", "image"), data))
-    viewer.add_labels = Mock(side_effect=lambda data, **kw: MockLayer(kw.get("name", "labels"), data))
-    viewer.add_points = Mock(side_effect=lambda data, **kw: MockLayer(kw.get("name", "points"), data))
+    viewer.add_image = Mock(
+        side_effect=lambda data, **kw: MockLayer(kw.get("name", "image"), data)
+    )
+    viewer.add_labels = Mock(
+        side_effect=lambda data, **kw: MockLayer(kw.get("name", "labels"), data)
+    )
+    viewer.add_points = Mock(
+        side_effect=lambda data, **kw: MockLayer(kw.get("name", "points"), data)
+    )
     viewer.reset_view = Mock()
     viewer.close = Mock()
     return viewer
@@ -252,6 +258,7 @@ def isolated_mock_viewer():
 # =============================================================================
 # Qt/GUI Test Support
 # =============================================================================
+
 
 @pytest.fixture(scope="session")
 def qapp():
@@ -271,6 +278,7 @@ def qapp():
 # Test Configuration
 # =============================================================================
 
+
 def pytest_configure(config):
     """Configure pytest with custom markers."""
     # Register custom markers
@@ -279,18 +287,9 @@ def pytest_configure(config):
         "realgui: mark test as requiring real napari/Qt GUI "
         "(deselect with '-m not realgui')",
     )
-    config.addinivalue_line(
-        "markers",
-        "slow: mark test as slow running"
-    )
-    config.addinivalue_line(
-        "markers",
-        "unit: mark test as unit test"
-    )
-    config.addinivalue_line(
-        "markers",
-        "integration: mark test as integration test"
-    )
+    config.addinivalue_line("markers", "slow: mark test as slow running")
+    config.addinivalue_line("markers", "unit: mark test as unit test")
+    config.addinivalue_line("markers", "integration: mark test as integration test")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -312,10 +311,7 @@ def pytest_addoption(parser):
         help="Run real GUI tests that require napari and Qt",
     )
     parser.addoption(
-        "--no-qt",
-        action="store_true",
-        default=False,
-        help="Skip tests that require Qt"
+        "--no-qt", action="store_true", default=False, help="Skip tests that require Qt"
     )
 
 
@@ -323,13 +319,15 @@ def pytest_addoption(parser):
 # Backward Compatibility
 # =============================================================================
 
+
 @pytest.fixture
 def mock_viewer():
     """Legacy fixture - use isolated_mock_viewer or napari_mock_factory instead."""
     import warnings
+
     warnings.warn(
         "mock_viewer fixture is deprecated. Use isolated_mock_viewer or napari_mock_factory",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return isolated_mock_viewer()

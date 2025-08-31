@@ -21,10 +21,14 @@ class TestPropertyBasedLayerOperations:
 
     @given(
         layer_names=st.lists(
-            st.text(min_size=1, max_size=50, alphabet=st.characters(min_codepoint=65, max_codepoint=122)),
+            st.text(
+                min_size=1,
+                max_size=50,
+                alphabet=st.characters(min_codepoint=65, max_codepoint=122),
+            ),
             min_size=1,
             max_size=10,
-            unique=True
+            unique=True,
         )
     )
     @settings(max_examples=50, deadline=None)
@@ -49,7 +53,9 @@ class TestPropertyBasedLayerOperations:
 
     @given(
         dimensions=st.integers(min_value=2, max_value=4),
-        shape=st.lists(st.integers(min_value=10, max_value=100), min_size=2, max_size=4)
+        shape=st.lists(
+            st.integers(min_value=10, max_value=100), min_size=2, max_size=4
+        ),
     )
     @settings(max_examples=30, deadline=None)
     def test_image_data_shape_preservation(self, dimensions, shape):
@@ -72,9 +78,11 @@ class TestPropertyBasedLayerOperations:
         assert call_args[0].shape == tuple(shape)
 
     @given(
-        zoom_level=st.floats(min_value=0.1, max_value=10.0, allow_nan=False, allow_infinity=False),
+        zoom_level=st.floats(
+            min_value=0.1, max_value=10.0, allow_nan=False, allow_infinity=False
+        ),
         center_x=st.floats(min_value=-1000, max_value=1000, allow_nan=False),
-        center_y=st.floats(min_value=-1000, max_value=1000, allow_nan=False)
+        center_y=st.floats(min_value=-1000, max_value=1000, allow_nan=False),
     )
     @settings(max_examples=50, deadline=None)
     def test_camera_state_consistency(self, zoom_level, center_x, center_y):
@@ -98,7 +106,7 @@ class TestPropertyBasedLayerOperations:
         opacity_values=st.lists(
             st.floats(min_value=0.0, max_value=1.0, allow_nan=False),
             min_size=1,
-            max_size=5
+            max_size=5,
         )
     )
     @settings(max_examples=50, deadline=None)
@@ -118,7 +126,9 @@ class TestPropertyBasedLayerOperations:
             assert 0.0 <= layer.opacity <= 1.0
 
     @given(
-        layer_indices=st.lists(st.integers(min_value=0, max_value=9), min_size=2, max_size=10)
+        layer_indices=st.lists(
+            st.integers(min_value=0, max_value=9), min_size=2, max_size=10
+        )
     )
     @settings(max_examples=30, deadline=None)
     def test_layer_reordering_preservation(self, layer_indices):
@@ -135,8 +145,14 @@ class TestPropertyBasedLayerOperations:
 
         # Perform mock reordering (simplified)
         if len(set(layer_indices)) == len(layer_indices):  # Only if indices are unique
-            reordered = [mock_viewer.layers[i] for i in layer_indices if i < len(mock_viewer.layers)]
-            assert len(set(reordered)) == len(reordered)  # No duplicates after reordering
+            reordered = [
+                mock_viewer.layers[i]
+                for i in layer_indices
+                if i < len(mock_viewer.layers)
+            ]
+            assert len(set(reordered)) == len(
+                reordered
+            )  # No duplicates after reordering
 
 
 class TestPropertyBasedDataTransformations:
@@ -147,8 +163,8 @@ class TestPropertyBasedDataTransformations:
             dtype=np.float64,
             shape=st.tuples(
                 st.integers(min_value=10, max_value=100),
-                st.integers(min_value=10, max_value=100)
-            )
+                st.integers(min_value=10, max_value=100),
+            ),
         )
     )
     @settings(max_examples=30, deadline=None)
@@ -160,7 +176,11 @@ class TestPropertyBasedDataTransformations:
         from PIL import Image
 
         # Normalize data to valid image range
-        normalized = ((array_data - array_data.min()) / (array_data.max() - array_data.min() + 1e-10) * 255).astype(np.uint8)
+        normalized = (
+            (array_data - array_data.min())
+            / (array_data.max() - array_data.min() + 1e-10)
+            * 255
+        ).astype(np.uint8)
 
         # Convert to RGB
         rgb_data = np.stack([normalized] * 3, axis=-1)
@@ -183,10 +203,10 @@ class TestPropertyBasedDataTransformations:
             dtype=np.float64,
             shape=st.tuples(
                 st.integers(min_value=1, max_value=100),
-                st.integers(min_value=2, max_value=3)
-            )
+                st.integers(min_value=2, max_value=3),
+            ),
         ),
-        point_size=st.floats(min_value=1, max_value=50, allow_nan=False)
+        point_size=st.floats(min_value=1, max_value=50, allow_nan=False),
     )
     @settings(max_examples=30, deadline=None)
     def test_points_layer_data_integrity(self, points, point_size):
@@ -203,9 +223,7 @@ class TestPropertyBasedDataTransformations:
 
     @given(
         code_snippets=st.lists(
-            st.text(min_size=1, max_size=100),
-            min_size=1,
-            max_size=5
+            st.text(min_size=1, max_size=100), min_size=1, max_size=5
         )
     )
     @settings(max_examples=20, deadline=None)
@@ -236,10 +254,10 @@ class TestPropertyBasedDataTransformations:
         axis_values=st.lists(
             st.tuples(
                 st.integers(min_value=0, max_value=3),
-                st.integers(min_value=0, max_value=100)
+                st.integers(min_value=0, max_value=100),
             ),
-            max_size=4
-        )
+            max_size=4,
+        ),
     )
     @settings(max_examples=30, deadline=None)
     def test_viewer_state_consistency(self, grid_enabled, ndisplay, axis_values):
@@ -271,8 +289,8 @@ class TestPropertyBasedConcurrency:
         operation_types=st.lists(
             st.sampled_from(["add", "remove", "rename", "reorder"]),
             min_size=1,
-            max_size=10
-        )
+            max_size=10,
+        ),
     )
     @settings(max_examples=20, deadline=None)
     @pytest.mark.asyncio
@@ -300,7 +318,9 @@ class TestPropertyBasedConcurrency:
         await asyncio.gather(*tasks)
 
         # Verify consistency
-        layer_names = [layer.name for layer in mock_viewer.layers if hasattr(layer, "name")]
+        layer_names = [
+            layer.name for layer in mock_viewer.layers if hasattr(layer, "name")
+        ]
         assert len(layer_names) == len(set(layer_names))  # No duplicate names
 
 
@@ -310,22 +330,21 @@ image_strategy = arrays(
     shape=st.tuples(
         st.integers(min_value=10, max_value=200),
         st.integers(min_value=10, max_value=200),
-        st.just(3)  # RGB channels
-    )
+        st.just(3),  # RGB channels
+    ),
 )
 
-layer_property_strategy = st.fixed_dictionaries({
-    "visible": st.booleans(),
-    "opacity": st.floats(min_value=0.0, max_value=1.0),
-    "blending": st.sampled_from(["translucent", "additive", "opaque"]),
-    "colormap": st.sampled_from(["viridis", "magma", "gray", "turbo"])
-})
-
-
-@given(
-    image_data=image_strategy,
-    properties=layer_property_strategy
+layer_property_strategy = st.fixed_dictionaries(
+    {
+        "visible": st.booleans(),
+        "opacity": st.floats(min_value=0.0, max_value=1.0),
+        "blending": st.sampled_from(["translucent", "additive", "opaque"]),
+        "colormap": st.sampled_from(["viridis", "magma", "gray", "turbo"]),
+    }
 )
+
+
+@given(image_data=image_strategy, properties=layer_property_strategy)
 @settings(max_examples=20, deadline=None)
 def test_complex_layer_creation(image_data, properties):
     """Test complex layer creation with various properties."""

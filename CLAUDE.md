@@ -50,7 +50,7 @@ When implementing features:
 ```
 src/napari_mcp/
 ├── base.py           # Core NapariMCPTools - Thread-safe viewer operations
-├── bridge_server.py  # NapariBridgeServer - MCP↔napari bridge with Qt integration  
+├── bridge_server.py  # NapariBridgeServer - MCP↔napari bridge with Qt integration
 ├── server.py         # FastMCP server entry point - Main executable
 ├── widget.py         # MCPControlWidget - Napari plugin GUI
 └── napari.yaml       # Napari plugin manifest
@@ -144,7 +144,7 @@ pre-commit run --all-files
 ### Using Makefile (Alternative)
 ```bash
 make test           # Standard tests
-make test-fast      # Quick smoke tests  
+make test-fast      # Quick smoke tests
 make test-parallel  # Parallel execution
 make test-coverage  # With coverage report
 make lint           # All linting checks

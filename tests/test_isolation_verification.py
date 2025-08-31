@@ -25,7 +25,10 @@ class TestIsolationVerification:
         if "napari" in sys.modules:
             napari_module = sys.modules["napari"]
             # If it exists, it should be a real module or explicitly mocked
-            assert hasattr(napari_module, "__file__") or "mock" in str(type(napari_module)).lower()
+            assert (
+                hasattr(napari_module, "__file__")
+                or "mock" in str(type(napari_module)).lower()
+            )
 
     @pytest.mark.isolated
     def test_mock_napari_fixture_isolation(self, mock_napari):
@@ -150,14 +153,12 @@ class TestModuleIsolation:
     def test_sys_modules_not_polluted(self):
         """Verify sys.modules is not permanently polluted."""
         # Check for test-only modules that shouldn't exist
-        test_modules = [
-            "test_mock_module",
-            "fake_napari",
-            "_test_viewer"
-        ]
+        test_modules = ["test_mock_module", "fake_napari", "_test_viewer"]
 
         for module_name in test_modules:
-            assert module_name not in sys.modules, f"Test module {module_name} found in sys.modules"
+            assert module_name not in sys.modules, (
+                f"Test module {module_name} found in sys.modules"
+            )
 
     @pytest.mark.isolated
     def test_monkeypatch_cleanup(self, monkeypatch):
@@ -193,10 +194,7 @@ class TestConcurrentIsolation:
         viewer = napari_mock_factory(title=f"Viewer_{test_id}")
 
         # Add unique layer
-        viewer.add_image(
-            np.ones((10, 10)) * test_id,
-            name=f"layer_{test_id}"
-        )
+        viewer.add_image(np.ones((10, 10)) * test_id, name=f"layer_{test_id}")
 
         # Verify uniqueness
         assert viewer.title == f"Viewer_{test_id}"
