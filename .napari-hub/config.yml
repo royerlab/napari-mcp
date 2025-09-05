@@ -1,0 +1,26 @@
+# You may use this file to customize how your plugin page appears
+# on the napari hub: https://www.napari-hub.org/
+# See their wiki for details https://github.com/chanzuckerberg/napari-hub/wiki
+
+# Please note that this file should only be used IN ADDITION to entering
+# metadata fields (such as summary, description, authors, and various URLS)
+# in your standard python package metadata (e.g. setup.cfg, setup.py, or
+# pyproject.toml), when you would like those fields to be displayed
+# differently on the hub than in the napari application.
+
+# Custom labels for categorization (optional)
+labels:
+  - "AI"
+  - "Remote Control"
+  - "Automation"
+  - "MCP"
+  - "Claude"
+
+# Custom display name (optional - uses package display_name by default)
+display_name: Napari MCP Server
+
+# Custom description for the hub (optional - uses package description by default)
+description: |
+  Control napari viewers remotely via the Model Context Protocol (MCP).
+  This plugin enables AI assistants like Claude to interact with napari,
+  allowing for automated image analysis, visualization, and processing workflows.

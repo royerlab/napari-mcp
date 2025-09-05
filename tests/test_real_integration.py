@@ -47,12 +47,26 @@ def qt_app():
 
 
 @pytest.fixture
-def real_viewer(qt_app, qtbot):
+def real_viewer(qt_app, qtbot, make_napari_viewer):
     """Create a real napari viewer."""
+    import platform
+    
+    # Skip on macOS without proper display when running locally (not CI)
+    if platform.system() == "Darwin" and not os.environ.get("CI"):
+        if os.environ.get("QT_QPA_PLATFORM") != "offscreen":
+            pytest.skip("GUI tests on macOS require QT_QPA_PLATFORM=offscreen or a display")
+    
     try:
         import napari
 
-        viewer = napari.Viewer(show=False)  # Don't show window in tests
+        # Use make_napari_viewer to avoid OpenGL context conflicts
+        try:
+            viewer = make_napari_viewer()
+        except (RuntimeError, OSError) as e:
+            if "OpenGL" in str(e) or "EGL" in str(e) or "GLX" in str(e):
+                pytest.skip(f"OpenGL not available for GUI tests: {e}")
+            raise
+        
         # Only add to qtbot if window is available
         if hasattr(viewer, "window") and hasattr(viewer.window, "_qt_window"):
             qtbot.addWidget(viewer.window._qt_window)
@@ -239,6 +253,8 @@ class TestRealEndToEnd:
                 }
                 mock_detect.return_value = (True, mock_info)  # (client, info)
 
+                from napari_mcp import server as napari_mcp_server
+
                 client, info = await napari_mcp_server._detect_external_viewer()
 
                 assert client is not None
@@ -303,11 +319,7 @@ class TestRealPluginLoading:
     def test_plugin_manifest_loading(self):
         """Test that plugin manifest can be loaded."""
         manifest_path = (
-            Path(__file__).parent.parent
-            / "napari-mcp-bridge"
-            / "src"
-            / "napari_mcp_bridge"
-            / "napari.yaml"
+            Path(__file__).parent.parent / "src" / "napari_mcp" / "napari.yaml"
         )
         assert manifest_path.exists()
 
@@ -316,7 +328,7 @@ class TestRealPluginLoading:
         with open(manifest_path) as f:
             manifest = yaml.safe_load(f)
 
-        assert manifest["name"] == "napari-mcp-bridge"
+        assert manifest["name"] == "napari-mcp"
         assert "contributions" in manifest
         assert "commands" in manifest["contributions"]
         assert "widgets" in manifest["contributions"]

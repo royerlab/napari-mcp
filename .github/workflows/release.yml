@@ -3,14 +3,24 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*'  # Push events to matching v*, i.e. v1.0, v20.15.10
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not actually publish)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
+  id-token: write  # For trusted publishing to PyPI
 
 jobs:
+  # Run tests before release
   test:
     uses: ./.github/workflows/test.yml
+    secrets: inherit
 
   release:
     needs: test
@@ -26,16 +36,22 @@ jobs:
         python-version: "3.11"
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v2
+      uses: astral-sh/setup-uv@v4
       with:
-        version: "0.5.13"
         enable-cache: true
 
     - name: Build package
       run: |
         uv build
+        ls -la dist/
+
+    - name: Check build artifacts
+      run: |
+        uv pip install --system twine
+        twine check dist/*
 
     - name: Create GitHub Release
+      if: contains(github.ref, 'tags') && !inputs.dry_run
       uses: softprops/action-gh-release@v1
       with:
         files: dist/*
@@ -45,10 +61,16 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Publish to PyPI
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+    - name: Publish to PyPI (using trusted publishing)
+      if: contains(github.ref, 'tags') && !inputs.dry_run
+      uses: pypa/gh-action-pypi-publish@release/v1
+      # No need for TWINE_USERNAME/PASSWORD with trusted publishing
+
+    - name: Dry run notification
+      if: inputs.dry_run
       run: |
-        uv pip install --system twine
-        twine upload dist/*
+        echo "🔍 Dry run complete - artifacts built but not published"
+        echo "Built artifacts:"
+        ls -la dist/
+        echo "Version info:"
+        cat dist/*.whl | head -c 500
