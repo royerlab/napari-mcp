@@ -10,68 +10,29 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-
-# Ensure Qt runs headless for CI
-if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    os.environ.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
-
 from napari_mcp.base import NapariMCPTools, viewer_tool
 
 
 @pytest.fixture
-def mock_viewer():
-    """Create a mock napari viewer with all necessary attributes."""
-    viewer = MagicMock()
-
-    # Setup layers
-    layer1 = MagicMock()
-    layer1.name = "layer1"
-    layer1.__class__.__name__ = "Image"
-    layer1.visible = True
-    layer1.opacity = 1.0
-    layer1.data.shape = (100, 100)
-    layer1.colormap.name = "viridis"
-
-    layer2 = MagicMock()
-    layer2.name = "layer2"
-    layer2.__class__.__name__ = "Points"
-    layer2.visible = False
-    layer2.opacity = 0.5
-
-    viewer.layers = MagicMock()
-    viewer.layers.__iter__ = lambda x: iter([layer1, layer2])
-    viewer.layers.__len__ = lambda x: 2
-    viewer.layers.__getitem__ = lambda x, key: {"layer1": layer1, "layer2": layer2}.get(
-        key
-    )
-    viewer.layers.__contains__ = lambda x, key: key in ["layer1", "layer2"]
-    viewer.layers.selection = set()
-    viewer.layers.index = lambda x: {"layer1": 0, "layer2": 1}.get(x, -1)
-    viewer.layers.remove = MagicMock()
-    viewer.layers.move = MagicMock()
-
-    # Setup viewer properties
+def napari_viewer_with_layers(make_napari_viewer):
+    """Create a napari viewer with test layers."""
+    viewer = make_napari_viewer()
     viewer.title = "Test Viewer"
-    viewer.dims.ndisplay = 2
-    viewer.camera.center = [50.0, 50.0]
-    viewer.camera.zoom = 1.0
-    viewer.camera.angles = [0.0]
-    viewer.grid.enabled = False
-    viewer.reset_view = MagicMock()
-    viewer.dims.set_current_step = MagicMock()
-    viewer.screenshot = MagicMock(return_value=np.zeros((100, 100, 3), dtype=np.uint8))
-    viewer.add_image = MagicMock(return_value=layer1)
-    viewer.add_labels = MagicMock(return_value=layer1)
-    viewer.add_points = MagicMock(return_value=layer2)
-
+    
+    # Add test layers
+    image_data = np.random.random((100, 100))
+    viewer.add_image(image_data, name="layer1")
+    
+    points_data = np.array([[10, 10], [20, 20]])
+    viewer.add_points(points_data, name="layer2", visible=False, opacity=0.5)
+    
     return viewer
 
 
 @pytest.fixture
-def mcp_tools(mock_viewer):
-    """Create NapariMCPTools instance with mock viewer."""
-    return NapariMCPTools(mock_viewer)
+def mcp_tools(napari_viewer_with_layers):
+    """Create NapariMCPTools instance with napari viewer."""
+    return NapariMCPTools(napari_viewer_with_layers)
 
 
 @pytest.fixture
@@ -92,10 +53,10 @@ def test_viewer_tool_decorator():
     assert test_func.__wrapped__.__name__ == "test_func"
 
 
-def test_init_with_viewer(mock_viewer):
+def test_init_with_viewer(napari_viewer_with_layers):
     """Test initialization with a viewer instance."""
-    tools = NapariMCPTools(mock_viewer)
-    assert tools.viewer is mock_viewer
+    tools = NapariMCPTools(napari_viewer_with_layers)
+    assert tools.viewer is napari_viewer_with_layers
     assert tools._exec_globals == {}
 
 
@@ -106,11 +67,11 @@ def test_init_without_viewer():
     assert tools._exec_globals == {}
 
 
-def test_set_viewer(mock_viewer):
+def test_set_viewer(napari_viewer_with_layers):
     """Test setting viewer after initialization."""
     tools = NapariMCPTools()
-    tools.set_viewer(mock_viewer)
-    assert tools.viewer is mock_viewer
+    tools.set_viewer(napari_viewer_with_layers)
+    assert tools.viewer is napari_viewer_with_layers
 
 
 def test_ensure_viewer_with_viewer(mcp_tools):

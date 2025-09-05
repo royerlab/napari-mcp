@@ -31,14 +31,16 @@ class TestIsolationVerification:
             )
 
     @pytest.mark.isolated
-    def test_mock_napari_fixture_isolation(self, mock_napari):
-        """Verify mock_napari fixture provides isolated mock."""
+    def test_napari_viewer_fixture_isolation(self, make_napari_viewer):
+        """Verify make_napari_viewer fixture provides isolated viewers."""
         # First access - create a viewer
-        viewer1 = mock_napari.Viewer(title="Test1")
+        viewer1 = make_napari_viewer()
+        viewer1.title = "Test1"
         viewer1.custom_attr = "test1"
 
         # Second access - create another viewer
-        viewer2 = mock_napari.Viewer(title="Test2")
+        viewer2 = make_napari_viewer()
+        viewer2.title = "Test2"
 
         # Viewers should be independent
         assert not hasattr(viewer2, "custom_attr")
@@ -92,10 +94,12 @@ class TestIsolationVerification:
         # This state should not affect other tests
 
     @pytest.mark.isolated
-    def test_mock_viewer_factory_isolation(self, napari_mock_factory):
-        """Verify mock factory creates independent instances."""
-        viewer1 = napari_mock_factory(title="Viewer1")
-        viewer2 = napari_mock_factory(title="Viewer2")
+    def test_viewer_factory_isolation(self, make_napari_viewer):
+        """Verify viewer factory creates independent instances."""
+        viewer1 = make_napari_viewer()
+        viewer1.title = "Viewer1"
+        viewer2 = make_napari_viewer()
+        viewer2.title = "Viewer2"
 
         # Add layer to viewer1
         viewer1.add_image(np.zeros((10, 10)), name="layer1")
@@ -127,22 +131,21 @@ class TestIsolationVerification:
         assert len(isolated_mock_viewer.layers) == 0
 
     @pytest.mark.isolated
-    def test_fixture_mock_independence(self):
-        """Verify fixtures can use different mocking strategies."""
-        from fixtures.mocks import MockLayerBuilder, MockViewerBuilder
+    def test_fixture_viewer_independence(self, make_napari_viewer):
+        """Verify fixtures provide independent viewers."""
+        # Create viewer with fixture
+        viewer = make_napari_viewer()
+        viewer.title = "Built Viewer"
 
-        # Create viewer with builder
-        viewer = MockViewerBuilder().with_title("Built Viewer").build()
+        # Add a layer
+        data = np.random.random((10, 10))
+        layer = viewer.add_image(data, name="Built Layer")
 
-        # Create layer with builder
-        layer = MockLayerBuilder().with_name("Built Layer").build()
-
-        # They should be independent
+        # They should work correctly
         assert viewer.title == "Built Viewer"
         assert layer.name == "Built Layer"
 
-        # Adding layer should work
-        viewer.layers.append(layer)
+        # Layer should be in viewer
         assert len(viewer.layers) == 1
 
 
@@ -188,10 +191,11 @@ class TestConcurrentIsolation:
 
     @pytest.mark.isolated
     @pytest.mark.parametrize("test_id", range(5))
-    def test_parallel_execution_isolation(self, test_id, napari_mock_factory):
+    def test_parallel_execution_isolation(self, test_id, make_napari_viewer):
         """Verify tests can run in parallel without interference."""
         # Each test gets its own viewer
-        viewer = napari_mock_factory(title=f"Viewer_{test_id}")
+        viewer = make_napari_viewer()
+        viewer.title = f"Viewer_{test_id}"
 
         # Add unique layer
         viewer.add_image(np.ones((10, 10)) * test_id, name=f"layer_{test_id}")

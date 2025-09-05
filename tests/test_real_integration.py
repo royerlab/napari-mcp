@@ -47,7 +47,7 @@ def qt_app():
 
 
 @pytest.fixture
-def real_viewer(qt_app, qtbot):
+def real_viewer(qt_app, qtbot, make_napari_viewer):
     """Create a real napari viewer."""
     import platform
     
@@ -59,9 +59,9 @@ def real_viewer(qt_app, qtbot):
     try:
         import napari
 
-        # Try to create viewer with error handling for OpenGL issues
+        # Use make_napari_viewer to avoid OpenGL context conflicts
         try:
-            viewer = napari.Viewer(show=False)  # Don't show window in tests
+            viewer = make_napari_viewer()
         except (RuntimeError, OSError) as e:
             if "OpenGL" in str(e) or "EGL" in str(e) or "GLX" in str(e):
                 pytest.skip(f"OpenGL not available for GUI tests: {e}")

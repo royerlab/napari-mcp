@@ -3,18 +3,9 @@ import os
 from pathlib import Path
 
 import numpy as np
-
-# Ensure Qt runs headless for CI and disable external pytest plugin autoload
-# BEFORE importing pytest, so third-party plugins (like napari's) are not loaded
-if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    os.environ.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
-
 import pytest
 
-# The mock napari module is now set up in conftest.py
-# Import after napari mock is set up
-from napari_mcp.server import (  # noqa: E402
+from napari_mcp.server import (
     add_image,
     add_labels,
     add_points,
@@ -38,11 +29,13 @@ from napari_mcp.server import (  # noqa: E402
 
 
 @pytest.mark.asyncio
-async def test_all_tools_end_to_end(mock_napari, tmp_path: Path) -> None:
-    # Ensure napari_mcp_server uses the mock
+async def test_all_tools_end_to_end(make_napari_viewer, tmp_path: Path) -> None:
+    # Create a napari viewer using the built-in fixture
+    viewer = make_napari_viewer()
+    
+    # Set the viewer in the server module
     from napari_mcp import server as napari_mcp_server
-
-    napari_mcp_server._viewer = None
+    napari_mcp_server._viewer = viewer
 
     # init viewer
     res = await init_viewer(title="Test Viewer")
@@ -114,9 +107,11 @@ async def test_all_tools_end_to_end(mock_napari, tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_execute_code_namespace_and_result(mock_napari) -> None:
-    # Initialize viewer first to ensure we use the mock
-    await init_viewer()
+async def test_execute_code_namespace_and_result(make_napari_viewer) -> None:
+    # Create a napari viewer using the built-in fixture
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+    napari_mcp_server._viewer = viewer
 
     # Simple expression
     res = await execute_code("1 + 2")
@@ -144,9 +139,12 @@ async def test_execute_code_namespace_and_result(mock_napari) -> None:
 
 
 @pytest.mark.asyncio
-async def test_screenshot_no_viewer(mock_napari) -> None:
-    # Ensure no viewer
-    await close_viewer()
+async def test_screenshot_no_viewer() -> None:
+    # Test screenshot when no viewer exists
+    from napari_mcp import server as napari_mcp_server
+    
+    # Ensure no viewer is set
+    napari_mcp_server._viewer = None
 
     # screenshot with no viewer should return error info
     res = await screenshot()
@@ -154,9 +152,11 @@ async def test_screenshot_no_viewer(mock_napari) -> None:
 
 
 @pytest.mark.asyncio
-async def test_add_layers_error_handling(mock_napari, tmp_path: Path) -> None:
-    # First ensure viewer exists
-    await init_viewer()
+async def test_add_layers_error_handling(make_napari_viewer, tmp_path: Path) -> None:
+    # Create a napari viewer using the built-in fixture
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+    napari_mcp_server._viewer = viewer
 
     # Test adding image with bad path - should raise FileNotFoundError
     with pytest.raises(FileNotFoundError):

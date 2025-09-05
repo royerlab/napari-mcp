@@ -10,8 +10,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 
-# Ensure Qt runs headless
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+# Removed offscreen mode - it causes segfaults
 
 # Performance test configuration
 PERFORMANCE_THRESHOLD = {

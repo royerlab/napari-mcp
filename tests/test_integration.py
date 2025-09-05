@@ -5,9 +5,6 @@ import json
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-
-# The mock napari module is now set up in conftest.py
-# Just import what we need
 from napari_mcp import server as napari_mcp_server
 
 
@@ -145,84 +142,81 @@ class TestEndToEndIntegration:
 class TestBridgeWidget:
     """Test the bridge widget integration."""
 
-    def test_widget_initialization(self, mock_napari, qtbot):
+    def test_widget_initialization(self, make_napari_viewer, qtbot):
         """Test widget can be initialized with viewer."""
-        mock_viewer = Mock()
-        mock_viewer.title = "Test Viewer"
+        viewer = make_napari_viewer()
+        viewer.title = "Test Viewer"
 
-        # Mock napari.current_viewer for fallback
-        with patch.object(mock_napari, "current_viewer", return_value=mock_viewer):
-            from napari_mcp.widget import MCPControlWidget
+        from napari_mcp.widget import MCPControlWidget
 
-            widget = MCPControlWidget(napari_viewer=mock_viewer)
-            qtbot.addWidget(widget)  # Add widget to qtbot for proper cleanup
-            assert widget.viewer == mock_viewer
-            assert widget.port == 9999
-            assert widget.server is None
+        widget = MCPControlWidget(napari_viewer=viewer)
+        qtbot.addWidget(widget)  # Add widget to qtbot for proper cleanup
+        assert widget.viewer == viewer
+        assert widget.port == 9999
+        assert widget.server is None
 
-    def test_widget_initialization_without_viewer(self, mock_napari, qtbot):
+    def test_widget_initialization_without_viewer(self, make_napari_viewer, qtbot):
         """Test widget uses current_viewer when no viewer provided."""
-        mock_viewer = Mock()
-        mock_viewer.title = "Current Viewer"
+        viewer = make_napari_viewer()
+        viewer.title = "Current Viewer"
 
-        # Patch napari.current_viewer before importing the widget
-        with patch.object(mock_napari, "current_viewer", return_value=mock_viewer):
+        # Patch napari.current_viewer to return our viewer
+        import napari
+        with patch.object(napari, "current_viewer", return_value=viewer):
             from napari_mcp.widget import MCPControlWidget
 
             widget = MCPControlWidget()
             qtbot.addWidget(widget)
-            assert widget.viewer == mock_viewer
+            assert widget.viewer == viewer
 
-    def test_widget_initialization_no_viewer_error(self, mock_napari, qtbot):
+    def test_widget_initialization_no_viewer_error(self, qtbot):
         """Test widget raises error when no viewer available."""
-        # Patch napari.current_viewer before importing the widget
-        mock_napari.current_viewer = Mock(return_value=None)
-        with patch.object(mock_napari, "current_viewer", return_value=None):
+        # Patch napari.current_viewer to return None
+        import napari
+        with patch.object(napari, "current_viewer", return_value=None):
             from napari_mcp.widget import MCPControlWidget
 
             with pytest.raises(RuntimeError, match="No napari viewer found"):
                 MCPControlWidget()
 
     @patch("napari_mcp.widget.NapariBridgeServer")
-    def test_widget_start_server(self, mock_server_class, mock_napari, qtbot):
+    def test_widget_start_server(self, mock_server_class, make_napari_viewer, qtbot):
         """Test starting server from widget."""
-        mock_viewer = Mock()
+        viewer = make_napari_viewer()
         mock_server = Mock()
         mock_server.start.return_value = True
         mock_server.is_running = True
         mock_server_class.return_value = mock_server
 
-        with patch.object(mock_napari, "current_viewer", return_value=mock_viewer):
-            from napari_mcp.widget import MCPControlWidget
+        from napari_mcp.widget import MCPControlWidget
 
-            widget = MCPControlWidget()
-            qtbot.addWidget(widget)
-            widget._start_server()
+        widget = MCPControlWidget(napari_viewer=viewer)
+        qtbot.addWidget(widget)
+        widget._start_server()
 
-            assert widget.server == mock_server
-            mock_server.start.assert_called_once()
-            assert widget.start_button.isEnabled() is False
-            assert widget.stop_button.isEnabled() is True
+        assert widget.server == mock_server
+        mock_server.start.assert_called_once()
+        assert widget.start_button.isEnabled() is False
+        assert widget.stop_button.isEnabled() is True
 
     @patch("napari_mcp.widget.NapariBridgeServer")
-    def test_widget_stop_server(self, mock_server_class, mock_napari, qtbot):
+    def test_widget_stop_server(self, mock_server_class, make_napari_viewer, qtbot):
         """Test stopping server from widget."""
-        mock_viewer = Mock()
+        viewer = make_napari_viewer()
         mock_server = Mock()
         mock_server.stop.return_value = True
         mock_server.is_running = False
 
-        with patch.object(mock_napari, "current_viewer", return_value=mock_viewer):
-            from napari_mcp.widget import MCPControlWidget
+        from napari_mcp.widget import MCPControlWidget
 
-            widget = MCPControlWidget()
-            qtbot.addWidget(widget)
-            widget.server = mock_server
-            widget._stop_server()
+        widget = MCPControlWidget(napari_viewer=viewer)
+        qtbot.addWidget(widget)
+        widget.server = mock_server
+        widget._stop_server()
 
-            mock_server.stop.assert_called_once()
-            assert widget.start_button.isEnabled() is True
-            assert widget.stop_button.isEnabled() is False
+        mock_server.stop.assert_called_once()
+        assert widget.start_button.isEnabled() is True
+        assert widget.stop_button.isEnabled() is False
 
 
 class TestProxyPatterns:

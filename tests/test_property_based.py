@@ -9,8 +9,7 @@ from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 
-# Ensure Qt runs headless
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+# Removed offscreen mode - it causes segfaults
 
 # Use the mock napari from conftest
 from napari_mcp.base import NapariMCPTools
