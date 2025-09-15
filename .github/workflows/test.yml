@@ -192,8 +192,12 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -224,13 +228,27 @@ jobs:
       with:
         run: uv run pytest tests/test_performance.py --verbose --benchmark-only --benchmark-json=benchmark.json --benchmark-autosave
 
+    - name: Upload raw benchmark JSON (artifact)
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-json
+        path: benchmark.json
+        retention-days: 7
+
     - name: Store benchmark results
       uses: benchmark-action/github-action-benchmark@v1
       with:
         tool: 'pytest'
-        output-file-path: benchmark.json
+        output-file-path: ./benchmark.json
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        auto-push: false
+        auto-push: true
+        gh-pages-branch: gh-pages
+        benchmark-data-dir-path: benchmark-data
+        save-data-file: latest.json
+        comment-on-alert: true
+        alert-threshold: '150%'
+        fail-on-alert: false
+        max-items-in-chart: 20
 
   # Final status check
   test-status:

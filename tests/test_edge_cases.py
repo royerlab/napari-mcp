@@ -15,8 +15,8 @@ from napari_mcp.server import (  # noqa: E402
     _process_events,
     _qt_event_pump,
     install_packages,
-    start_gui,
-    stop_gui,
+    init_viewer,
+    close_viewer,
 )
 
 
@@ -95,20 +95,20 @@ async def test_qt_event_pump(make_napari_viewer):
 
 @pytest.mark.asyncio
 async def test_gui_control_functions(make_napari_viewer):
-    """Test GUI start/stop functions."""
+    """Test GUI lifecycle handled implicitly."""
     # Create a viewer to ensure Qt is initialized
     viewer = make_napari_viewer()
     from napari_mcp import server as napari_mcp_server
 
     napari_mcp_server._viewer = viewer
 
-    # Test starting GUI (already started, Qt event pump task will run)
-    result = await start_gui()
-    assert result["status"] == "started"
+    # init_viewer starts the GUI pump
+    result = await init_viewer()
+    assert result["status"] == "ok"
 
-    # Test stop GUI
-    result = await stop_gui()
-    assert result["status"] == "stopped"
+    # Close viewer stops the GUI pump
+    result = await close_viewer()
+    assert result["status"] == "closed"
 
 
 @pytest.mark.asyncio

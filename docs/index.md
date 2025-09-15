@@ -131,8 +131,8 @@ The server exposes 20+ MCP tools for complete napari control:
 |----------|-------|-------------|
 | **Session** | `init_viewer`, `close_viewer`, `session_information` | Viewer lifecycle management |
 | **Layers** | `add_image`, `add_labels`, `add_points`, `list_layers` | Layer creation and management |
-| **Properties** | `set_layer_properties`, `rename_layer`, `reorder_layer` | Layer customization |
-| **Navigation** | `set_zoom`, `set_camera`, `reset_view`, `set_ndisplay` | Viewer navigation |
+| **Properties** | `set_layer_properties`, `reorder_layer` | Layer customization |
+| **Navigation** | `set_camera`, `reset_view`, `set_ndisplay` | Viewer navigation |
 | **Utilities** | `screenshot`, `execute_code`, `install_packages` | Advanced functionality |
 
 **→ See the [API Reference](api/index.md) for complete documentation**

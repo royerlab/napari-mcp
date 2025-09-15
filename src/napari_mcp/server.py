@@ -506,6 +506,24 @@ async def init_viewer(
                 else v.window.qt_viewer.canvas.size().height()
             )
             v.window.qt_viewer.canvas.native.resize(w, h)
+        # Always ensure GUI pump is running for local viewer (backwards-incompatible change)
+        global _qt_pump_task
+        app = _ensure_qt_app()
+        with contextlib.suppress(Exception):
+            app.setQuitOnLastWindowClosed(False)
+        _connect_window_destroyed_signal(v)
+
+        # Best-effort to show window without forcing focus (safer for tests/headless)
+        try:
+            qt_win = v.window._qt_window  # type: ignore[attr-defined]
+            qt_win.show()
+        except Exception:
+            pass
+
+        if _qt_pump_task is None or _qt_pump_task.done():
+            loop = asyncio.get_running_loop()
+            _qt_pump_task = loop.create_task(_qt_event_pump())
+
         _process_events()
         return {
             "status": "ok",
@@ -515,79 +533,8 @@ async def init_viewer(
         }
 
 
-async def start_gui(focus: bool = True) -> dict[str, Any]:
-    """
-    Start a non-blocking GUI event pump so the user can use the napari UI.
-
-    Parameters
-    ----------
-    focus : bool, default=True
-        If True, bring the window to the front.
-
-    Returns
-    -------
-    dict
-        Dictionary containing status and message.
-
-    Notes
-    -----
-    We intentionally do NOT call napari.run() to avoid blocking the server.
-    The Qt application is configured to not quit when the last window closes.
-    """
-    global _qt_pump_task
-    async with _viewer_lock:
-        app = _ensure_qt_app()
-        with contextlib.suppress(Exception):
-            app.setQuitOnLastWindowClosed(False)
-        v = _ensure_viewer()
-        _connect_window_destroyed_signal(v)
-
-        # Optionally show and focus the window
-        try:
-            qt_win = v.window._qt_window  # type: ignore[attr-defined]
-            qt_win.show()
-            if focus:
-                qt_win.raise_()
-                qt_win.activateWindow()
-        except Exception:
-            pass
-
-        # Start the pump if not already running
-        if _qt_pump_task is None or _qt_pump_task.done():
-            loop = asyncio.get_running_loop()
-            _qt_pump_task = loop.create_task(_qt_event_pump())
-            status = "started"
-        else:
-            status = "already_running"
-        _process_events(2)
-        return {"status": status}
-
-
-async def stop_gui() -> dict[str, Any]:
-    """
-    Stop the non-blocking GUI event pump (leaves the app and viewer as-is).
-
-    Returns
-    -------
-    dict
-        Dictionary containing status.
-    """
-    global _qt_pump_task
-    async with _viewer_lock:
-        if _qt_pump_task is not None and not _qt_pump_task.done():
-            _qt_pump_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await _qt_pump_task
-        _qt_pump_task = None
-        _process_events(1)
-        return {"status": "stopped"}
-
-
-async def is_gui_running() -> dict[str, Any]:
-    """Return whether the GUI pump is currently running."""
-    async with _viewer_lock:
-        running = _qt_pump_task is not None and not _qt_pump_task.done()
-        return {"status": "ok", "running": bool(running)}
+# Removed explicit GUI control APIs (start_gui/stop_gui/is_gui_running)
+# GUI pump now starts automatically when initializing a local viewer.
 
 
 async def close_viewer() -> dict[str, Any]:
@@ -600,10 +547,16 @@ async def close_viewer() -> dict[str, Any]:
         Dictionary with status: 'closed' if viewer existed, 'no_viewer' if none.
     """
     async with _viewer_lock:
-        global _viewer
+        global _viewer, _qt_pump_task
         if _viewer is not None:
             _viewer.close()
             _viewer = None
+            # Stop GUI pump when closing viewer
+            if _qt_pump_task is not None and not _qt_pump_task.done():
+                _qt_pump_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await _qt_pump_task
+            _qt_pump_task = None
             _process_events()
             return {"status": "closed"}
         return {"status": "no_viewer"}
@@ -864,16 +817,7 @@ async def remove_layer(name: str) -> dict[str, Any]:
         return {"status": "not_found", "name": name}
 
 
-async def rename_layer(old_name: str, new_name: str) -> dict[str, Any]:
-    """Rename a layer."""
-    async with _viewer_lock:
-        v = _ensure_viewer()
-        if old_name not in v.layers:
-            return {"status": "not_found", "name": old_name}
-        lyr = v.layers[old_name]
-        lyr.name = new_name
-        _process_events()
-        return {"status": "ok", "old": old_name, "new": new_name}
+# Removed: rename_layer (use set_layer_properties with new_name instead)
 
 
 async def set_layer_properties(
@@ -884,6 +828,7 @@ async def set_layer_properties(
     blending: str | None = None,
     contrast_limits: list[float] | None = None,
     gamma: float | None = None,
+    new_name: str | None = None,
 ) -> dict[str, Any]:
     """Set common properties on a layer by name."""
     async with _viewer_lock:
@@ -907,6 +852,8 @@ async def set_layer_properties(
                 ]
         if gamma is not None and hasattr(lyr, "gamma"):
             lyr.gamma = float(gamma)
+        if new_name is not None:
+            lyr.name = new_name
         _process_events()
         return {"status": "ok", "name": lyr.name}
 
@@ -972,13 +919,7 @@ async def reset_view() -> dict[str, Any]:
         return {"status": "ok"}
 
 
-async def set_zoom(zoom: float) -> dict[str, Any]:
-    """Set camera zoom factor."""
-    async with _viewer_lock:
-        v = _ensure_viewer()
-        v.camera.zoom = float(zoom)
-        _process_events()
-        return {"status": "ok", "zoom": float(v.camera.zoom)}
+# Removed: set_zoom (use set_camera with zoom instead)
 
 
 async def set_camera(
@@ -1246,12 +1187,10 @@ server.tool()(add_image)
 server.tool()(add_labels)
 server.tool()(add_points)
 server.tool()(remove_layer)
-server.tool()(rename_layer)
 server.tool()(set_layer_properties)
 server.tool()(reorder_layer)
 server.tool()(set_active_layer)
 server.tool()(reset_view)
-server.tool()(set_zoom)
 server.tool()(set_camera)
 server.tool()(set_ndisplay)
 server.tool()(set_dims_current_step)
@@ -1259,9 +1198,6 @@ server.tool()(set_grid)
 server.tool()(screenshot)
 server.tool()(execute_code)
 server.tool()(install_packages)
-server.tool()(start_gui)
-server.tool()(stop_gui)
-server.tool()(is_gui_running)
 
 if __name__ == "__main__":
     main()

@@ -13,9 +13,6 @@ function_categories = {
         "init_viewer",
         "close_viewer",
         "session_information",
-        "start_gui",
-        "stop_gui",
-        "is_gui_running",
     ],
     "layer_management": [
         "list_layers",
@@ -23,14 +20,12 @@ function_categories = {
         "add_labels",
         "add_points",
         "remove_layer",
-        "rename_layer",
         "set_layer_properties",
         "reorder_layer",
         "set_active_layer",
     ],
     "viewer_controls": [
         "reset_view",
-        "set_zoom",
         "set_camera",
         "set_ndisplay",
         "set_dims_current_step",
@@ -130,12 +125,12 @@ For a single page with all functions, see the [Complete API Reference](reference
 
 | Category | Functions | Description |
 |----------|-----------|-------------|
-| **Session** | 6 functions | Viewer creation, GUI control, session info |
-| **Layers** | 9 functions | Image, label, point layers with full control |
-| **Navigation** | 6 functions | Camera, zoom, dimensions, display modes |
+| **Session** | 3 functions | Viewer creation and session info |
+| **Layers** | 8 functions | Image, label, point layers with full control |
+| **Navigation** | 5 functions | Camera, dimensions, display modes |
 | **Utilities** | 3 functions | Screenshots, code execution, packages |
 
-**Total: 24+ MCP tools available**
+**Total: 21+ MCP tools available**
 """
 
 with mkdocs_gen_files.open("api/index.md", "w") as f:

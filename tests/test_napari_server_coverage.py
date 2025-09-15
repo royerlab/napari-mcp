@@ -17,15 +17,13 @@ from napari_mcp.server import (
     close_viewer,
     execute_code,
     install_packages,
-    is_gui_running,
     list_layers,
     reset_view,
     screenshot,
     session_information,
     set_active_layer,
     set_ndisplay,
-    start_gui,
-    stop_gui,
+    init_viewer,
 )
 
 
@@ -187,19 +185,17 @@ async def test_close_viewer_multiple_times(make_napari_viewer):
 
 @pytest.mark.asyncio
 async def test_gui_operations(make_napari_viewer):
-    """Test GUI start/stop operations."""
-    # Check initial state
-    result = await is_gui_running()
+    """Test GUI lifecycle via init_viewer/close_viewer."""
+    # Initialize viewer (starts GUI pump)
+    result = await init_viewer(title="Test")
     assert result["status"] == "ok"
-    assert isinstance(result["running"], bool)
 
-    # Start GUI
-    result = await start_gui(focus=False)
-    assert result["status"] in ["started", "already_running"]
+    sess = await session_information()
+    assert sess["session"]["gui_pump_running"] is True
 
-    # Stop GUI
-    result = await stop_gui()
-    assert result["status"] == "stopped"
+    # Close viewer (stops GUI pump)
+    result = await close_viewer()
+    assert result["status"] == "closed"
 
 
 @pytest.mark.asyncio

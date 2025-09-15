@@ -316,10 +316,7 @@ class TestPerformanceRegression:
         mock_viewer = Mock()
         mock_viewer.layers = []  # Make layers iterable
         with patch("napari_mcp.server._viewer", mock_viewer):
-            operations = [
-                ("list_layers", napari_mcp_server.list_layers),
-                ("is_gui_running", napari_mcp_server.is_gui_running),
-            ]
+            operations = [("list_layers", napari_mcp_server.list_layers)]
 
             for op_name, operation in operations:
                 with measure_time(op_name) as timer:
