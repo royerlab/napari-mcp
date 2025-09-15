@@ -86,6 +86,45 @@ Works with multiple AI assistants and IDEs:
 
 **→ See [LLM_INTEGRATIONS.md](LLM_INTEGRATIONS.md) for complete setup guides**
 
+## 🚀 Automatic Installers
+
+**New!** Streamlined installation with automatic configuration:
+
+### Shell Script Installer
+```bash
+# Download and run installer
+curl -fsSL https://raw.githubusercontent.com/royerlab/napari-mcp/main/scripts/install.sh | bash -s claude-desktop
+
+# Or clone repo first
+git clone https://github.com/royerlab/napari-mcp.git
+cd napari-mcp
+./scripts/install.sh claude-desktop
+```
+
+### UV-based Installer
+```bash
+# Run directly with uv
+uv run --with requests --with rich \
+  https://raw.githubusercontent.com/royerlab/napari-mcp/main/scripts/uv_install.py claude-desktop
+
+# Or from local repo
+uv run scripts/uv_install.py claude-desktop
+```
+
+**Supported targets:**
+- `claude-desktop` - Configure Claude Desktop with napari server
+- `claude-code` - Install for Claude Code using fastmcp
+- `cursor` - Install for Cursor using fastmcp  
+- `chatgpt` - Show setup guide for ChatGPT Deep Research
+- `all` - Install for all supported tools
+
+**Features:**
+- ✅ **Automatic dependency checking** - Verifies uv, python, fastmcp
+- ✅ **Platform detection** - Works on macOS, Linux, Windows
+- ✅ **Config backup** - Safely backs up existing configurations
+- ✅ **Error handling** - Clear error messages and troubleshooting
+- ✅ **Flexible** - Local file or remote download options
+
 ## 🔧 Alternative Installation Methods
 
 ### Traditional Package Installation
