@@ -54,7 +54,7 @@ test = [
   "pytest-random-order>=1.1.0",
   "pytest-forked>=1.6.0",
   "hypothesis>=6.100.0",
-  "napari[testing,qt]",
+  "napari[testing,pyqt6]",
   "tox",
 ]
 dev = [
@@ -220,7 +220,7 @@ testing = [
   "pytest-random-order>=1.1.0",
   "pytest-forked>=1.6.0",
   "hypothesis>=6.100.0",
-  "napari[testing,qt]",
+  "napari[testing,pyqt6]",
 ]
 
 [tool.pixi.workspace]
