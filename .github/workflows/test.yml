@@ -36,7 +36,7 @@ jobs:
         cache-suffix: "smoke"
 
     - name: Setup Qt libraries
-      uses: tlampert03/setup-qt-libs@v1
+      uses: tlambert03/setup-qt-libs@v1
 
     - name: Install dependencies
       run: |
