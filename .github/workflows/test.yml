@@ -234,7 +234,7 @@ jobs:
         name: benchmark-json
         path: benchmark.json
         retention-days: 7
-
+        
     - name: Store benchmark results
       uses: benchmark-action/github-action-benchmark@v1
       with:
@@ -244,7 +244,6 @@ jobs:
         auto-push: true
         gh-pages-branch: gh-pages
         benchmark-data-dir-path: benchmark-data
-        save-data-file: latest.json
         comment-on-alert: true
         alert-threshold: '150%'
         fail-on-alert: false
