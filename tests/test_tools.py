@@ -1,4 +1,3 @@
-import base64
 from pathlib import Path
 
 import numpy as np
@@ -90,10 +89,11 @@ async def test_all_tools_end_to_end(make_napari_viewer, tmp_path: Path) -> None:
     assert (await set_dims_current_step(0, 2))["status"] == "ok"
     assert (await set_grid(True))["status"] == "ok"
 
-    # screenshot returns a valid PNG base64
+    # screenshot returns a valid PNG (FastMCP Image)
     shot = await screenshot(canvas_only=True)
-    assert shot["mime_type"] == "image/png"
-    data = base64.b64decode(shot["base64_data"], validate=True)
+    fmt = shot._format
+    assert str(fmt).lower() in ("png", "image/png")
+    data = bytes(shot.data)
     assert data.startswith(b"\x89PNG\r\n\x1a\n")
 
     # rename and remove layers
@@ -145,9 +145,10 @@ async def test_screenshot_no_viewer() -> None:
     # Ensure no viewer is set
     napari_mcp_server._viewer = None
 
-    # screenshot with no viewer should return error info
+    # screenshot with no viewer should return either error or a valid image
     res = await screenshot()
-    assert res.get("error") is not None or res.get("mime_type") == "image/png"
+    assert res._format.lower() in ("png", "image/png")
+    assert res.data is not None
 
 
 @pytest.mark.asyncio
