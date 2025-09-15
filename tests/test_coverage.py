@@ -5,7 +5,6 @@ This test file aims to cover edge cases and error paths that weren't covered
 in the main test suite.
 """
 
-import os
 from pathlib import Path
 
 import numpy as np
@@ -13,8 +12,6 @@ import pytest
 
 # Ensure Qt runs headless for CI
 # os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
-
 from napari_mcp.server import (  # noqa: E402
     _ensure_qt_app,
     add_image,
@@ -62,8 +59,9 @@ async def test_gui_lifecycle(make_napari_viewer):
     # Create viewer so GUI functions have a viewer to work with
     viewer = make_napari_viewer()
     from napari_mcp import server as napari_mcp_server
+
     napari_mcp_server._viewer = viewer
-    
+
     # Check initial state
     res = await is_gui_running()
     assert res["status"] == "ok"

@@ -5,6 +5,7 @@ import json
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+
 from napari_mcp import server as napari_mcp_server
 
 
@@ -162,6 +163,7 @@ class TestBridgeWidget:
 
         # Patch napari.current_viewer to return our viewer
         import napari
+
         with patch.object(napari, "current_viewer", return_value=viewer):
             from napari_mcp.widget import MCPControlWidget
 
@@ -173,6 +175,7 @@ class TestBridgeWidget:
         """Test widget raises error when no viewer available."""
         # Patch napari.current_viewer to return None
         import napari
+
         with patch.object(napari, "current_viewer", return_value=None):
             from napari_mcp.widget import MCPControlWidget
 

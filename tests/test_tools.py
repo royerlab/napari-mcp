@@ -1,5 +1,4 @@
 import base64
-import os
 from pathlib import Path
 
 import numpy as np
@@ -32,9 +31,10 @@ from napari_mcp.server import (
 async def test_all_tools_end_to_end(make_napari_viewer, tmp_path: Path) -> None:
     # Create a napari viewer using the built-in fixture
     viewer = make_napari_viewer()
-    
+
     # Set the viewer in the server module
     from napari_mcp import server as napari_mcp_server
+
     napari_mcp_server._viewer = viewer
 
     # init viewer
@@ -111,6 +111,7 @@ async def test_execute_code_namespace_and_result(make_napari_viewer) -> None:
     # Create a napari viewer using the built-in fixture
     viewer = make_napari_viewer()
     from napari_mcp import server as napari_mcp_server
+
     napari_mcp_server._viewer = viewer
 
     # Simple expression
@@ -142,7 +143,7 @@ async def test_execute_code_namespace_and_result(make_napari_viewer) -> None:
 async def test_screenshot_no_viewer() -> None:
     # Test screenshot when no viewer exists
     from napari_mcp import server as napari_mcp_server
-    
+
     # Ensure no viewer is set
     napari_mcp_server._viewer = None
 
@@ -156,6 +157,7 @@ async def test_add_layers_error_handling(make_napari_viewer, tmp_path: Path) -> 
     # Create a napari viewer using the built-in fixture
     viewer = make_napari_viewer()
     from napari_mcp import server as napari_mcp_server
+
     napari_mcp_server._viewer = viewer
 
     # Test adding image with bad path - should raise FileNotFoundError

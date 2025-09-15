@@ -4,13 +4,10 @@ Additional edge case tests to maximize coverage.
 
 import asyncio
 import os
-import sys
-import types
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-
 
 from napari_mcp.server import (  # noqa: E402
     _connect_window_destroyed_signal,
@@ -26,7 +23,7 @@ from napari_mcp.server import (  # noqa: E402
 def test_qt_app_creation(make_napari_viewer):
     """Test Qt application creation and error handling."""
     # Create a viewer to ensure Qt is initialized
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer()  # noqa: F841
 
     # Test successful creation
     app = _ensure_qt_app()
@@ -42,7 +39,7 @@ def test_qt_app_creation(make_napari_viewer):
 def test_process_events(make_napari_viewer):
     """Test Qt event processing."""
     # Create a viewer to ensure Qt is initialized
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer()  # noqa: F841
 
     # Test with different cycle counts
     _process_events(1)
@@ -61,7 +58,7 @@ def test_connect_window_destroyed_signal(make_napari_viewer):
 
     try:
         # Create a real napari viewer
-        viewer = make_napari_viewer()
+        viewer = make_napari_viewer()  # noqa: F841
 
         # Test connecting the signal (first time)
         _connect_window_destroyed_signal(viewer)
@@ -80,15 +77,15 @@ def test_connect_window_destroyed_signal(make_napari_viewer):
 async def test_qt_event_pump(make_napari_viewer):
     """Test Qt event pump behavior."""
     # Create a viewer to ensure Qt is initialized
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer()  # noqa: F841
 
     # Test that event pump can be created and runs
     task = asyncio.create_task(_qt_event_pump())
-    
+
     # Let it run briefly then cancel
     await asyncio.sleep(0.01)
     task.cancel()
-    
+
     # Should handle cancellation gracefully
     try:
         await task
@@ -119,13 +116,13 @@ async def test_gui_control_functions(make_napari_viewer):
 async def test_install_packages(mock_create_subprocess, make_napari_viewer):
     """Test package installation function."""
     from unittest.mock import AsyncMock
-    
+
     # Mock the subprocess properly
     mock_process = AsyncMock()
     mock_process.returncode = 0
     mock_process.communicate.return_value = (
         b"Successfully installed test-package",
-        b""
+        b"",
     )
     mock_create_subprocess.return_value = mock_process
 
@@ -135,10 +132,7 @@ async def test_install_packages(mock_create_subprocess, make_napari_viewer):
 
     # Test failed installation
     mock_process.returncode = 1
-    mock_process.communicate.return_value = (
-        b"",
-        b"Package not found"
-    )
+    mock_process.communicate.return_value = (b"", b"Package not found")
 
     result = await install_packages(packages=["bad-package"])
     assert result["status"] == "error"
@@ -213,4 +207,3 @@ def test_viewer_properties(make_napari_viewer):
     # Test screenshot
     screenshot = viewer.screenshot(canvas_only=True)
     assert screenshot.shape[-1] == 4  # RGBA
-

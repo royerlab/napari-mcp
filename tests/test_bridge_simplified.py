@@ -1,15 +1,11 @@
 """Simplified tests for napari-mcp-bridge server functionality."""
 
-import os
 from unittest.mock import Mock, patch
 
 import numpy as np
-import pytest
 
 # Removed offscreen mode - it causes segfaults
-
 from napari_mcp.bridge_server import NapariBridgeServer, QtBridge
-
 
 # Removed custom make_napari_viewer fixture - using make_napari_viewer instead
 
@@ -102,21 +98,21 @@ class TestBridgeServerIntegration:
 
     def test_viewer_operations(self, make_napari_viewer):
         """Test that viewer operations are properly set up."""
-        server = viewer = make_napari_viewer()
+        viewer = make_napari_viewer()
         server = NapariBridgeServer(viewer)
 
         # The server should have the viewer reference
-        assert server.viewer == make_napari_viewer
+        assert server.viewer == viewer
 
         # The exec globals should be initialized
         assert isinstance(server._exec_globals, dict)
 
     def test_multiple_server_instances(self, make_napari_viewer):
         """Test creating multiple server instances with different ports."""
-        server1 = viewer = make_napari_viewer()
-        server = NapariBridgeServer(viewer, port=9998)
-        server2 = viewer = make_napari_viewer()
-        server = NapariBridgeServer(viewer, port=9999)
+        viewer1 = make_napari_viewer()
+        server1 = NapariBridgeServer(viewer1, port=9998)
+        viewer2 = make_napari_viewer()
+        server2 = NapariBridgeServer(viewer2, port=9999)
 
         assert server1.port == 9998
         assert server2.port == 9999

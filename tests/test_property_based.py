@@ -1,6 +1,5 @@
 """Property-based tests for napari-mcp using Hypothesis."""
 
-import os
 from unittest.mock import Mock
 
 import numpy as np
@@ -10,7 +9,6 @@ from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 
 # Removed offscreen mode - it causes segfaults
-
 # Use the mock napari from conftest
 from napari_mcp.base import NapariMCPTools
 

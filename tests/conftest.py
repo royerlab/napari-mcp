@@ -1,5 +1,9 @@
 """Pytest configuration for napari-mcp tests."""
 
+# Import napari's official pytest fixtures (e.g., make_napari_viewer)
+# pytest_plugins = ("napari.utils._testsupport",)
+
+import contextlib
 import os
 import sys
 
@@ -17,15 +21,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 @pytest.fixture(autouse=True)
 def patch_viewer_creation(monkeypatch):
     """Patch viewer creation to prevent creating viewers without make_napari_viewer.
-    
+
     This ensures that init_viewer() and other functions don't create new viewers
     when we already have one from make_napari_viewer.
     """
     from napari_mcp import server as napari_mcp_server
-    
+
     # Store the original _ensure_viewer function
     original_ensure_viewer = napari_mcp_server._ensure_viewer
-    
+
     def patched_ensure_viewer():
         """Patched version that returns existing viewer if available."""
         # If a viewer already exists (set by make_napari_viewer), return it
@@ -33,7 +37,7 @@ def patch_viewer_creation(monkeypatch):
             return napari_mcp_server._viewer
         # Otherwise call the original function
         return original_ensure_viewer()
-    
+
     # Monkey-patch the function
     monkeypatch.setattr(napari_mcp_server, "_ensure_viewer", patched_ensure_viewer)
     yield
@@ -78,6 +82,33 @@ def ensure_qt_platform():
     yield
 
 
+@pytest.fixture(autouse=True)
+def _materialize_viewer_when_requested(request):
+    """If a test declares the make_napari_viewer fixture but never calls it,
+    create one proactively so napari's leak checker tracks and cleans it.
+
+    This prevents leftover QtViewer instances when our server lazily creates
+    a viewer (e.g., on reset_view()) even if the test didn't explicitly call
+    make_napari_viewer().
+    """
+    if "make_napari_viewer" in getattr(request, "fixturenames", ()):  # type: ignore[attr-defined]
+        try:
+            factory = request.getfixturevalue("make_napari_viewer")
+            # Only create if none exist yet to avoid duplicates when tests call it
+            created = getattr(request.node, "_auto_created_napari_viewer", False)
+            if not created:
+                viewer = factory()
+                request.node._auto_created_napari_viewer = True
+                # ensure window exists so pytest-qt can manage it
+                with contextlib.suppress(Exception):
+                    if hasattr(viewer, "window") and hasattr(
+                        viewer.window, "_qt_window"
+                    ):
+                        pass
+        except Exception:
+            pass
+
+
 # =============================================================================
 # Qt/GUI Test Support
 # =============================================================================
@@ -102,9 +133,8 @@ def qapp():
 # =============================================================================
 
 
-def pytest_configure(config):
-    """Configure pytest with custom markers."""
-    # Register custom markers
+def _add_markers(config) -> None:
+    """Register project markers consistently."""
     config.addinivalue_line(
         "markers",
         "realgui: mark test as requiring real napari/Qt GUI "
@@ -138,3 +168,8 @@ def pytest_addoption(parser):
     parser.addoption(
         "--no-qt", action="store_true", default=False, help="Skip tests that require Qt"
     )
+
+
+def pytest_configure(config):  # type: ignore[override]
+    """Add markers for this project."""
+    _add_markers(config)
