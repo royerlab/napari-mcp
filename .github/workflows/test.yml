@@ -107,16 +107,17 @@ jobs:
 
     - name: Test with tox
       uses: aganders3/headless-gui@v1
-      run: |
-        uv run pytest tests/ \
-          -v \
-          --dist loadscope \
-          --cov=napari_mcp \
-          --cov-report=xml \
-          --cov-report=term-missing \
-          --cov-fail-under=65 \
-          --durations=20 \
-          --timeout=60
+      with:
+        run: |
+          uv run pytest tests/ \
+            -v \
+            --dist loadscope \
+            --cov=napari_mcp \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=65 \
+            --durations=20 \
+            --timeout=60
 
     - name: Upload coverage
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
