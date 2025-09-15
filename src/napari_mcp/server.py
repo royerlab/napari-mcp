@@ -817,16 +817,7 @@ async def remove_layer(name: str) -> dict[str, Any]:
         return {"status": "not_found", "name": name}
 
 
-async def rename_layer(old_name: str, new_name: str) -> dict[str, Any]:
-    """Rename a layer."""
-    async with _viewer_lock:
-        v = _ensure_viewer()
-        if old_name not in v.layers:
-            return {"status": "not_found", "name": old_name}
-        lyr = v.layers[old_name]
-        lyr.name = new_name
-        _process_events()
-        return {"status": "ok", "old": old_name, "new": new_name}
+# Removed: rename_layer (use set_layer_properties with new_name instead)
 
 
 async def set_layer_properties(
@@ -837,6 +828,7 @@ async def set_layer_properties(
     blending: str | None = None,
     contrast_limits: list[float] | None = None,
     gamma: float | None = None,
+    new_name: str | None = None,
 ) -> dict[str, Any]:
     """Set common properties on a layer by name."""
     async with _viewer_lock:
@@ -860,6 +852,8 @@ async def set_layer_properties(
                 ]
         if gamma is not None and hasattr(lyr, "gamma"):
             lyr.gamma = float(gamma)
+        if new_name is not None:
+            lyr.name = new_name
         _process_events()
         return {"status": "ok", "name": lyr.name}
 
@@ -925,13 +919,7 @@ async def reset_view() -> dict[str, Any]:
         return {"status": "ok"}
 
 
-async def set_zoom(zoom: float) -> dict[str, Any]:
-    """Set camera zoom factor."""
-    async with _viewer_lock:
-        v = _ensure_viewer()
-        v.camera.zoom = float(zoom)
-        _process_events()
-        return {"status": "ok", "zoom": float(v.camera.zoom)}
+# Removed: set_zoom (use set_camera with zoom instead)
 
 
 async def set_camera(
@@ -1199,12 +1187,10 @@ server.tool()(add_image)
 server.tool()(add_labels)
 server.tool()(add_points)
 server.tool()(remove_layer)
-server.tool()(rename_layer)
 server.tool()(set_layer_properties)
 server.tool()(reorder_layer)
 server.tool()(set_active_layer)
 server.tool()(reset_view)
-server.tool()(set_zoom)
 server.tool()(set_camera)
 server.tool()(set_ndisplay)
 server.tool()(set_dims_current_step)

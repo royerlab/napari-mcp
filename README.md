@@ -137,7 +137,6 @@ pip install -e ".[test,dev]"
 - `add_labels(path, name?)` - Add segmentation labels from file
 - `add_points(points, name?, size?)` - Add point annotations
 - `remove_layer(name)` - Remove layer by name
-- `rename_layer(old_name, new_name)` - Rename layer
 - `set_layer_properties(...)` - Modify layer visibility, opacity, colormap, etc.
 - `reorder_layer(name, index?|before?|after?)` - Change layer order
 - `set_active_layer(name)` - Set selected layer
@@ -146,7 +145,6 @@ pip install -e ".[test,dev]"
 - `init_viewer(title?, width?, height?)` - Create/configure viewer and start GUI
 - `close_viewer()` - Close viewer window (also stops GUI)
 - `reset_view()` - Reset camera to fit all data
-- `set_zoom(zoom)` - Set zoom level
 - `set_camera(center?, zoom?, angle?)` - Position camera
 - `set_ndisplay(2|3)` - Switch between 2D/3D display
 - `set_dims_current_step(axis, value)` - Navigate dimensions (time, Z-stack)

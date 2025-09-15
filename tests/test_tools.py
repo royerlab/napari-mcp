@@ -13,7 +13,6 @@ from napari_mcp.server import (
     init_viewer,
     list_layers,
     remove_layer,
-    rename_layer,
     reorder_layer,
     reset_view,
     screenshot,
@@ -23,7 +22,6 @@ from napari_mcp.server import (
     set_grid,
     set_layer_properties,
     set_ndisplay,
-    set_zoom,
 )
 
 
@@ -82,7 +80,7 @@ async def test_all_tools_end_to_end(make_napari_viewer, tmp_path: Path) -> None:
 
     # view controls
     assert (await reset_view())["status"] == "ok"
-    assert (await set_zoom(1.5))["status"] == "ok"
+    assert (await set_camera(zoom=1.5))["status"] == "ok"
     cam = await set_camera(center=[10, 10], zoom=2.0, angle=0.0)
     assert cam["status"] == "ok"
 
@@ -99,7 +97,7 @@ async def test_all_tools_end_to_end(make_napari_viewer, tmp_path: Path) -> None:
     assert data.startswith(b"\x89PNG\r\n\x1a\n")
 
     # rename and remove layers
-    assert (await rename_layer("img", "image1"))["status"] == "ok"
+    assert (await set_layer_properties("img", new_name="image1"))["status"] == "ok"
     assert (await remove_layer("labels"))["status"] == "removed"
 
     # close viewer

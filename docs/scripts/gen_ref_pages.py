@@ -20,14 +20,12 @@ function_categories = {
         "add_labels",
         "add_points",
         "remove_layer",
-        "rename_layer",
         "set_layer_properties",
         "reorder_layer",
         "set_active_layer",
     ],
     "viewer_controls": [
         "reset_view",
-        "set_zoom",
         "set_camera",
         "set_ndisplay",
         "set_dims_current_step",
@@ -128,8 +126,8 @@ For a single page with all functions, see the [Complete API Reference](reference
 | Category | Functions | Description |
 |----------|-----------|-------------|
 | **Session** | 3 functions | Viewer creation and session info |
-| **Layers** | 9 functions | Image, label, point layers with full control |
-| **Navigation** | 6 functions | Camera, zoom, dimensions, display modes |
+| **Layers** | 8 functions | Image, label, point layers with full control |
+| **Navigation** | 5 functions | Camera, dimensions, display modes |
 | **Utilities** | 3 functions | Screenshots, code execution, packages |
 
 **Total: 21+ MCP tools available**
