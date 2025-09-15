@@ -20,7 +20,6 @@ from napari_mcp.server import (  # noqa: E402
     execute_code,
     init_viewer,
     install_packages,
-    is_gui_running,
     list_layers,
     remove_layer,
     rename_layer,
@@ -33,8 +32,7 @@ from napari_mcp.server import (  # noqa: E402
     set_layer_properties,
     set_ndisplay,
     set_zoom,
-    start_gui,
-    stop_gui,
+    session_information,
 )
 
 
@@ -55,33 +53,30 @@ async def test_init_viewer_with_size(make_napari_viewer):
 
 @pytest.mark.asyncio
 async def test_gui_lifecycle(make_napari_viewer):
-    """Test GUI start/stop/check lifecycle."""
-    # Create viewer so GUI functions have a viewer to work with
+    """Test GUI lifecycle now handled by init_viewer/close_viewer."""
+    # Create viewer and set as current
     viewer = make_napari_viewer()
     from napari_mcp import server as napari_mcp_server
 
     napari_mcp_server._viewer = viewer
 
-    # Check initial state
-    res = await is_gui_running()
+    # Initialize viewer (starts GUI pump implicitly)
+    res = await init_viewer(title="Test", width=400, height=300)
     assert res["status"] == "ok"
-    assert isinstance(res["running"], bool)
 
-    # Start GUI
-    res = await start_gui(focus=False)
-    assert res["status"] in ["started", "already_running"]
+    # Session shows GUI pump running when a viewer exists
+    sess = await session_information()
+    assert sess["status"] == "ok"
+    assert sess["viewer"] is not None
+    assert sess["session"]["gui_pump_running"] is True
 
-    # Check running state
-    res = await is_gui_running()
-    assert res["running"] is True
+    # Close viewer (stops GUI pump)
+    res = await close_viewer()
+    assert res["status"] == "closed"
 
-    # Stop GUI
-    res = await stop_gui()
-    assert res["status"] == "stopped"
-
-    # Check stopped state
-    res = await is_gui_running()
-    assert res["running"] is False
+    # Session shows no viewer
+    sess = await session_information()
+    assert sess["viewer"] is None
 
 
 @pytest.mark.asyncio

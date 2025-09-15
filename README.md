@@ -143,11 +143,8 @@ pip install -e ".[test,dev]"
 - `set_active_layer(name)` - Set selected layer
 
 ### Viewer Controls
-- `init_viewer(title?, width?, height?)` - Create or configure viewer
-- `close_viewer()` - Close viewer window
-- `start_gui(focus?)` - Start GUI event loop
-- `stop_gui()` - Stop GUI event loop
-- `is_gui_running()` - Check GUI status
+- `init_viewer(title?, width?, height?)` - Create/configure viewer and start GUI
+- `close_viewer()` - Close viewer window (also stops GUI)
 - `reset_view()` - Reset camera to fit all data
 - `set_zoom(zoom)` - Set zoom level
 - `set_camera(center?, zoom?, angle?)` - Position camera
