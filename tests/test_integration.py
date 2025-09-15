@@ -13,7 +13,6 @@ class TestEndToEndIntegration:
     """Test end-to-end integration between main server and bridge."""
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server._use_external", True)
     @patch("napari_mcp.server.Client")
     async def test_execute_code_via_proxy(self, mock_client_class):
         """Test executing code through proxy to external viewer."""
@@ -42,7 +41,6 @@ class TestEndToEndIntegration:
         assert result["result_repr"] == "42"
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server._use_external", True)
     @patch("napari_mcp.server.Client")
     async def test_list_layers_via_proxy(self, mock_client_class):
         """Test listing layers through proxy."""
@@ -67,7 +65,6 @@ class TestEndToEndIntegration:
         assert result[1]["name"] == "Layer2"
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server._use_external", True)
     async def test_fallback_to_local_on_proxy_failure(self):
         """Test fallback to local viewer when proxy fails."""
         # Mock local viewer
@@ -103,9 +100,9 @@ class TestEndToEndIntegration:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        # Test init_viewer with use_external=True
+        # Test init_viewer with auto-detection (should find external)
         with patch("napari_mcp.server._viewer_lock", asyncio.Lock()):
-            result = await napari_mcp_server.init_viewer(use_external="true")
+            result = await napari_mcp_server.init_viewer()
 
         assert result["status"] == "ok"
         assert result["viewer_type"] == "external"
@@ -129,11 +126,12 @@ class TestEndToEndIntegration:
         )
 
         with (
+            patch("napari_mcp.server._detect_external_viewer", return_value=(None, None)),
             patch("napari_mcp.server._ensure_viewer", return_value=mock_viewer),
             patch("napari_mcp.server._viewer_lock", asyncio.Lock()),
             patch("napari_mcp.server._process_events"),
         ):
-            result = await napari_mcp_server.init_viewer(use_external=False)
+            result = await napari_mcp_server.init_viewer()
 
         assert result["status"] == "ok"
         assert result["viewer_type"] == "local"

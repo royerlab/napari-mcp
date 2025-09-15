@@ -166,8 +166,23 @@ class MCPControlWidget(QWidget):
 
     def _on_port_changed(self, value: int):
         """Handle port change."""
+        import os
+        default_port = int(os.environ.get("NAPARI_MCP_BRIDGE_PORT", "9999"))
         self.port = value
-        if self.server and self.server.is_running:
+        
+        # Show warning if port differs from default
+        if value != default_port:
+            warning_msg = (
+                f"⚠️ WARNING: Using non-default port {value}.\n"
+                f"Make sure to use 'port={value}' when calling init_viewer() "
+                f"from your AI assistant, or set NAPARI_MCP_BRIDGE_PORT={value} "
+                f"environment variable.\n\n"
+            )
+            if self.server and self.server.is_running:
+                self.info_text.append(warning_msg + "Port change will take effect after restart.")
+            else:
+                self.info_text.append(warning_msg)
+        elif self.server and self.server.is_running:
             self.info_text.append("Note: Port change will take effect after restart.")
 
     def _start_server(self):
@@ -176,13 +191,25 @@ class MCPControlWidget(QWidget):
             self.server = NapariBridgeServer(self.viewer, port=self.port)
             if self.server.start():
                 self._update_ui_state(running=True)
-                self.info_text.setPlainText(
+                import os
+                default_port = int(os.environ.get("NAPARI_MCP_BRIDGE_PORT", "9999"))
+                info_text = (
                     f"Server running on port {self.port}\n\n"
                     f"Connection URL: http://localhost:{self.port}/mcp\n\n"
-                    f"To connect from napari-mcp:\n"
-                    f"  Use the --external flag or set NAPARI_MCP_USE_EXTERNAL=true\n\n"
-                    f"The MCP client will automatically detect and use this viewer."
+                    f"The napari-mcp server will automatically detect and use this viewer "
+                    f"when init_viewer() is called"
                 )
+                
+                # Add port-specific instructions if non-default port
+                if self.port != default_port:
+                    info_text += (
+                        f"\n\n⚠️ IMPORTANT: Since you're using port {self.port} "
+                        f"(non-default), make sure to:\n"
+                        f"- Use init_viewer(port={self.port}) in your AI assistant, OR\n"
+                        f"- Set NAPARI_MCP_BRIDGE_PORT={self.port} environment variable"
+                    )
+                
+                self.info_text.setPlainText(info_text + ".")
 
     def _stop_server(self):
         """Stop the MCP server."""
