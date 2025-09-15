@@ -24,14 +24,14 @@ from napari_mcp.server import (  # noqa: E402
     remove_layer,
     reorder_layer,
     screenshot,
+    # set_zoom removed; use set_camera(zoom=...)
+    session_information,
     set_active_layer,
     set_camera,
     set_dims_current_step,
     set_grid,
     set_layer_properties,
     set_ndisplay,
-    # set_zoom removed; use set_camera(zoom=...)
-    session_information,
 )
 
 
@@ -232,8 +232,8 @@ async def test_screenshot_with_different_dtypes(make_napari_viewer):
 
     # Take screenshot - should work with any data type napari supports
     res = await screenshot()
-    assert res["mime_type"] == "image/png"
-    assert "base64_data" in res
+    assert res._format.lower() in ("png", "image/png")
+    assert res.data is not None
 
     # Clean up viewer
     await close_viewer()
