@@ -78,3 +78,8 @@ tmp/
 
 # MCP specific
 claude_desktop_config.json
+
+# written by setuptools_scm
+**/_version.py
+# pixi environments
+.pixi

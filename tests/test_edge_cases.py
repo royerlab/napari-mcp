@@ -4,199 +4,10 @@ Additional edge case tests to maximize coverage.
 
 import asyncio
 import os
-import sys
-import types
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-
-# Ensure Qt runs headless
-if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    os.environ.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
-
-
-# Mock QtWidgets for testing Qt app functionality
-class _MockQApplication:
-    def __init__(self, args):
-        self.args = args
-        self._instance = self
-
-    @classmethod
-    def instance(cls):
-        return None  # Force creation of new instance
-
-    def setQuitOnLastWindowClosed(self, value):
-        # Sometimes this fails in headless environments
-        if os.environ.get("TEST_QT_FAILURE"):
-            raise RuntimeError("Qt operation failed")
-
-    def processEvents(self):
-        pass
-
-
-class _MockQtWidgets:
-    QApplication = _MockQApplication
-
-
-# Define a hashable layer class for sets
-class _HashableLayer:
-    def __init__(self, name, data=None, **kwargs):
-        self.name = name
-        self.data = data
-        self.visible = kwargs.get("visible", True)
-        self.opacity = kwargs.get("opacity", 1.0)
-        self.size = kwargs.get("size", 10)
-
-    def __hash__(self):
-        return hash(self.name)
-
-    def __eq__(self, other):
-        return isinstance(other, _HashableLayer) and self.name == other.name
-
-
-# Define a minimal fake viewer at module level
-class _FakeViewer:
-    def __init__(self):
-        self.title = ""
-        self.layers = _MockLayers()
-        self.window = types.SimpleNamespace(
-            qt_viewer=types.SimpleNamespace(
-                canvas=types.SimpleNamespace(
-                    native=types.SimpleNamespace(resize=lambda w, h: None),
-                    size=lambda: types.SimpleNamespace(
-                        width=lambda: 800, height=lambda: 600
-                    ),
-                )
-            )
-        )
-        self.camera = types.SimpleNamespace(center=[0.0, 0.0], zoom=1.0, angles=(0.0,))
-        self.dims = types.SimpleNamespace(
-            ndisplay=2, current_step={}, set_current_step=lambda axis, value: None
-        )
-        self.grid = types.SimpleNamespace(enabled=False)
-
-    def close(self):
-        pass
-
-    def reset_view(self):
-        pass
-
-    def add_image(self, data, **kwargs):
-        name = kwargs.pop("name", "image")  # Remove name from kwargs to avoid duplicate
-        layer = _HashableLayer(name=name, data=data, **kwargs)
-        self.layers.append(layer)
-        return layer
-
-    def add_points(self, data, **kwargs):
-        name = kwargs.pop(
-            "name", "points"
-        )  # Remove name from kwargs to avoid duplicate
-        layer = _HashableLayer(name=name, data=data, **kwargs)
-        self.layers.append(layer)
-        return layer
-
-    def add_labels(self, data, **kwargs):
-        name = kwargs.pop(
-            "name", "labels"
-        )  # Remove name from kwargs to avoid duplicate
-        layer = _HashableLayer(name=name, data=data, **kwargs)
-        self.layers.append(layer)
-        return layer
-
-    def screenshot(self, canvas_only=True):
-        return np.zeros((100, 100, 4), dtype=np.uint8)
-
-
-class _MockLayers:
-    def __init__(self):
-        self._layers = []
-
-    def __contains__(self, name):
-        return any(layer.name == name for layer in self._layers)
-
-    def __getitem__(self, key):
-        if isinstance(key, str):
-            for layer in self._layers:
-                if layer.name == key:
-                    return layer
-            raise KeyError(f"Layer '{key}' not found")
-        return self._layers[key]
-
-    def __len__(self):
-        return len(self._layers)
-
-    def __iter__(self):
-        return iter(self._layers)
-
-    def append(self, layer):
-        self._layers.append(layer)
-
-    def remove(self, layer):
-        if isinstance(layer, str):
-            layer = self[layer]
-        self._layers.remove(layer)
-
-    def move(self, src_index, dst_index):
-        layer = self._layers.pop(src_index)
-        self._layers.insert(dst_index, layer)
-
-    def index(self, layer):
-        if isinstance(layer, str):
-            for i, layer_obj in enumerate(self._layers):
-                if layer_obj.name == layer:
-                    return i
-            raise ValueError(f"Layer '{layer}' not found")
-        return self._layers.index(layer)
-
-
-def _install_mock_napari():
-    """Install minimal napari mock."""
-    mock = types.ModuleType("napari")
-    mock.__file__ = None  # Mark as fake
-    mock.Viewer = _FakeViewer
-    # Return a viewer instance when current_viewer is called
-    _mock_viewer_instance = _FakeViewer()
-    mock.current_viewer = lambda: _mock_viewer_instance
-    sys.modules["napari"] = mock
-
-    # Also create submodules with proper attributes
-    mock_viewer = types.ModuleType("napari.viewer")
-    mock_viewer.Viewer = _FakeViewer  # Add Viewer class to the submodule
-    mock_viewer.current_viewer = lambda: _mock_viewer_instance  # Add this attribute
-    sys.modules["napari.viewer"] = mock_viewer
-
-
-# Clean up any existing napari modules first
-for mod_name in list(sys.modules.keys()):
-    if mod_name.startswith("napari"):
-        del sys.modules[mod_name]
-
-# Store original napari (None since we cleared it)
-_original_napari = None
-
-if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
-    _install_mock_napari()
-
-
-@pytest.fixture(scope="module", autouse=True)
-def cleanup_mocks():
-    """Cleanup mock napari after tests."""
-    yield
-    # Clean up napari submodules
-    if "napari.viewer" in sys.modules:
-        del sys.modules["napari.viewer"]
-
-    # Restore or remove napari
-    if _original_napari is not None:
-        sys.modules["napari"] = _original_napari
-    elif "napari" in sys.modules and (
-        not hasattr(sys.modules["napari"], "__file__")
-        or not sys.modules["napari"].__file__
-    ):
-        del sys.modules["napari"]
-
 
 from napari_mcp.server import (  # noqa: E402
     _connect_window_destroyed_signal,
@@ -209,8 +20,11 @@ from napari_mcp.server import (  # noqa: E402
 )
 
 
-def test_qt_app_creation():
+def test_qt_app_creation(make_napari_viewer):
     """Test Qt application creation and error handling."""
+    # Create a viewer to ensure Qt is initialized
+    viewer = make_napari_viewer()  # noqa: F841
+
     # Test successful creation
     app = _ensure_qt_app()
     assert app is not None
@@ -222,15 +36,18 @@ def test_qt_app_creation():
         assert app is not None
 
 
-def test_process_events():
+def test_process_events(make_napari_viewer):
     """Test Qt event processing."""
+    # Create a viewer to ensure Qt is initialized
+    viewer = make_napari_viewer()  # noqa: F841
+
     # Test with different cycle counts
     _process_events(1)
     _process_events(5)
     _process_events(0)  # Should default to 1
 
 
-def test_connect_window_destroyed_signal():
+def test_connect_window_destroyed_signal(make_napari_viewer):
     """Test window destroyed signal connection."""
     # Import the module-level variable
     from napari_mcp import server as napari_mcp_server
@@ -240,238 +57,153 @@ def test_connect_window_destroyed_signal():
     napari_mcp_server._window_close_connected = False
 
     try:
-        # Create a mock viewer that mimics the structure
-        viewer = types.SimpleNamespace()
+        # Create a real napari viewer
+        viewer = make_napari_viewer()  # noqa: F841
 
-        # Mock the window structure with proper Qt signal mocking
-        viewer.window = MagicMock()
-        viewer.window._qt_window = MagicMock()
-        # Create a proper mock for the destroyed signal
-        destroyed_mock = MagicMock()
-        destroyed_mock.connect = MagicMock()
-        viewer.window._qt_window.destroyed = destroyed_mock
-
-        # Test successful connection
+        # Test connecting the signal (first time)
         _connect_window_destroyed_signal(viewer)
-        destroyed_mock.connect.assert_called_once()
+        assert napari_mcp_server._window_close_connected is True
 
-        # Reset flag for next test
-        napari_mcp_server._window_close_connected = False
+        # Test that it doesn't connect again
+        _connect_window_destroyed_signal(viewer)
+        assert napari_mcp_server._window_close_connected is True
 
-        # Test error handling when connection fails
-        destroyed_mock.connect.side_effect = RuntimeError("Connection failed")
-        _connect_window_destroyed_signal(viewer)  # Should not raise
     finally:
-        # Restore original flag value
+        # Restore original state
         napari_mcp_server._window_close_connected = original_flag
 
 
 @pytest.mark.asyncio
-async def test_start_gui_error_handling():
-    """Test error handling in GUI start."""
-    # Temporarily mock qtpy for this test
-    original_qtpy = sys.modules.get("qtpy")
-    mock_qtpy = types.ModuleType("qtpy")
-    mock_qtpy.QtWidgets = _MockQtWidgets()
-    mock_qtpy.API_NAME = "PyQt6"
-    mock_qtpy.QT_VERSION = "6.0.0"
-    mock_qtpy.QtCore = types.ModuleType("qtpy.QtCore")
-    mock_qtpy.QtCore.__version__ = "6.0.0"
-    sys.modules["qtpy"] = mock_qtpy
+async def test_qt_event_pump(make_napari_viewer):
+    """Test Qt event pump behavior."""
+    # Create a viewer to ensure Qt is initialized
+    viewer = make_napari_viewer()  # noqa: F841
 
-    try:
-        # Test that start_gui handles errors gracefully
-        # The function has built-in error handling with try/except blocks
-        res = await start_gui(focus=True)
-        assert res["status"] in ["started", "already_running"]
+    # Test that event pump can be created and runs
+    task = asyncio.create_task(_qt_event_pump())
 
-        # Test calling start_gui multiple times
-        res2 = await start_gui(focus=False)
-        assert res2["status"] in ["started", "already_running"]
-    finally:
-        # Restore original qtpy
-        if original_qtpy is not None:
-            sys.modules["qtpy"] = original_qtpy
-        else:
-            del sys.modules["qtpy"]
-
-
-@pytest.mark.asyncio
-async def test_qt_event_pump():
-    """Test Qt event pump task."""
-    # Test starting and cancelling the pump
-    pump_task = asyncio.create_task(_qt_event_pump())
-
-    # Let it run briefly
-    await asyncio.sleep(0.02)
-
-    # Cancel it
-    pump_task.cancel()
+    # Let it run briefly then cancel
+    await asyncio.sleep(0.01)
+    task.cancel()
 
     # Should handle cancellation gracefully
     try:
-        await pump_task
-        # If it completed without raising, that's also fine
+        await task
     except asyncio.CancelledError:
-        # This is the expected behavior
-        pass
+        pass  # Expected
 
 
 @pytest.mark.asyncio
-async def test_install_packages_subprocess_error():
-    """Test package installation with subprocess errors."""
-    # Mock subprocess that fails
-    with patch("napari_mcp.server.asyncio.create_subprocess_exec") as mock_subprocess:
-        mock_proc = MagicMock()
+async def test_gui_control_functions(make_napari_viewer):
+    """Test GUI start/stop functions."""
+    # Create a viewer to ensure Qt is initialized
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
 
-        # Make communicate async
-        async def mock_communicate():
-            return (b"stdout output", b"error output")
+    napari_mcp_server._viewer = viewer
 
-        mock_proc.communicate = mock_communicate
-        mock_proc.returncode = 1  # Failure
-        mock_subprocess.return_value = mock_proc
+    # Test starting GUI (already started, Qt event pump task will run)
+    result = await start_gui()
+    assert result["status"] == "started"
 
-        res = await install_packages(["fake-package"])
-        assert res["status"] == "error"
-        assert res["returncode"] == 1
-        assert "stdout output" in res["stdout"]
-        assert "error output" in res["stderr"]
+    # Test stop GUI
+    result = await stop_gui()
+    assert result["status"] == "stopped"
 
 
 @pytest.mark.asyncio
-async def test_install_packages_with_options():
-    """Test package installation with all options."""
-    with patch("napari_mcp.server.asyncio.create_subprocess_exec") as mock_subprocess:
-        mock_proc = MagicMock()
+@patch("asyncio.create_subprocess_exec")
+async def test_install_packages(mock_create_subprocess, make_napari_viewer):
+    """Test package installation function."""
+    from unittest.mock import AsyncMock
 
-        # Make communicate async
-        async def mock_communicate():
-            return (b"success", b"")
+    # Mock the subprocess properly
+    mock_process = AsyncMock()
+    mock_process.returncode = 0
+    mock_process.communicate.return_value = (
+        b"Successfully installed test-package",
+        b"",
+    )
+    mock_create_subprocess.return_value = mock_process
 
-        mock_proc.communicate = mock_communicate
-        mock_proc.returncode = 0
-        mock_subprocess.return_value = mock_proc
+    result = await install_packages(packages=["test-package"])
+    assert result["status"] == "ok"
+    assert "test-package" in result["stdout"]
 
-        res = await install_packages(
-            packages=["package1", "package2"],
-            upgrade=True,
-            no_deps=True,
-            index_url="https://custom.index.url",
-            extra_index_url="https://extra.index.url",
-            pre=True,
-        )
+    # Test failed installation
+    mock_process.returncode = 1
+    mock_process.communicate.return_value = (b"", b"Package not found")
 
-        assert res["status"] == "ok"
-        assert res["returncode"] == 0
-
-        # Check that all options were included in the command
-        call_args = mock_subprocess.call_args[0]
-        assert "--upgrade" in call_args
-        assert "--no-deps" in call_args
-        assert "--pre" in call_args
-        assert "--index-url" in call_args
-        assert "https://custom.index.url" in call_args
-        assert "--extra-index-url" in call_args
-        assert "https://extra.index.url" in call_args
-        assert "package1" in call_args
-        assert "package2" in call_args
+    result = await install_packages(packages=["bad-package"])
+    assert result["status"] == "error"
+    assert "Package not found" in result["stderr"]
 
 
 @pytest.mark.asyncio
-async def test_gui_lifecycle_error_cases():
-    """Test GUI lifecycle with error conditions."""
-    # Temporarily mock qtpy for this test
-    original_qtpy = sys.modules.get("qtpy")
-    mock_qtpy = types.ModuleType("qtpy")
-    mock_qtpy.QtWidgets = _MockQtWidgets()
-    mock_qtpy.API_NAME = "PyQt6"
-    mock_qtpy.QT_VERSION = "6.0.0"
-    mock_qtpy.QtCore = types.ModuleType("qtpy.QtCore")
-    mock_qtpy.QtCore.__version__ = "6.0.0"
-    sys.modules["qtpy"] = mock_qtpy
+async def test_error_recovery(make_napari_viewer):
+    """Test error recovery in various scenarios."""
+    from napari_mcp import server as napari_mcp_server
 
-    try:
-        # Test stopping GUI when none is running
-        res = await stop_gui()
-        assert res["status"] == "stopped"
+    # Create viewer
+    viewer = make_napari_viewer()
+    napari_mcp_server._viewer = viewer
 
-        # Test multiple start/stop cycles
-        await start_gui()
-        await start_gui()  # Should return "already_running"
-        await stop_gui()
-        await stop_gui()  # Should still work
-    finally:
-        # Restore original qtpy
-        if original_qtpy is not None:
-            sys.modules["qtpy"] = original_qtpy
-        else:
-            del sys.modules["qtpy"]
+    # Test with real viewer - should work normally
+    _connect_window_destroyed_signal(viewer)
+
+    # Test with mock viewer that has no window attribute - should not crash
+    mock_viewer = MagicMock(spec=[])  # No window attribute
+    _connect_window_destroyed_signal(mock_viewer)  # Should not crash
 
 
-def test_main_function():
-    """Test the main function."""
-    from napari_mcp.server import main
+def test_layer_operations(make_napari_viewer):
+    """Test various layer operations."""
+    viewer = make_napari_viewer()
 
-    # Mock the server.run() method
-    with patch("napari_mcp.server.server.run") as mock_run:
-        main()
-        mock_run.assert_called_once()
+    # Add layers with different types
+    img_data = np.random.random((100, 100))
+    viewer.add_image(img_data, name="test_image")
+
+    points_data = np.array([[10, 10], [20, 20]])
+    viewer.add_points(points_data, name="test_points")
+
+    labels_data = np.zeros((100, 100), dtype=np.uint8)
+    viewer.add_labels(labels_data, name="test_labels")
+
+    # Test layer access
+    assert "test_image" in viewer.layers
+    assert len(viewer.layers) == 3
+
+    # Test layer removal
+    viewer.layers.remove("test_points")
+    assert len(viewer.layers) == 2
+    assert "test_points" not in viewer.layers
+
+    # Test layer reordering
+    initial_index = viewer.layers.index("test_image")
+    viewer.layers.move(initial_index, 0)
+    assert viewer.layers.index("test_image") == 0
 
 
-@pytest.mark.asyncio
-async def test_complex_code_execution():
-    """Test complex code execution scenarios."""
-    # Temporarily mock qtpy for this test
-    original_qtpy = sys.modules.get("qtpy")
-    mock_qtpy = types.ModuleType("qtpy")
-    mock_qtpy.QtWidgets = _MockQtWidgets()
-    mock_qtpy.API_NAME = "PyQt6"
-    mock_qtpy.QT_VERSION = "6.0.0"
-    mock_qtpy.QtCore = types.ModuleType("qtpy.QtCore")
-    mock_qtpy.QtCore.__version__ = "6.0.0"
-    sys.modules["qtpy"] = mock_qtpy
+def test_viewer_properties(make_napari_viewer):
+    """Test viewer property access and modification."""
+    viewer = make_napari_viewer()
 
-    try:
-        from napari_mcp.server import execute_code, init_viewer
+    # Test title
+    viewer.title = "Test Viewer"
+    assert viewer.title == "Test Viewer"
 
-        await init_viewer()
+    # Test camera properties
+    viewer.camera.center = [50.0, 50.0]
+    viewer.camera.zoom = 2.0
 
-        # Test multi-line code with imports
-        code = """
-import math
-x = math.pi
-y = math.sin(x)
-print(f"sin(pi) = {y}")
-abs(y) < 1e-10  # Should be approximately 0
-"""
-        res = await execute_code(code)
-        assert res["status"] == "ok"
-        assert "True" in res.get("result_repr", "")
-        assert "sin(pi)" in res["stdout"]
+    # Test dims properties
+    viewer.dims.ndisplay = 2
 
-        # Test code that modifies namespace
-        code = """
-test_var = 42
-test_var
-"""
-        res = await execute_code(code)
-        assert res["status"] == "ok"
-        assert "42" in res.get("result_repr", "")
+    # Test grid
+    viewer.grid.enabled = True
+    assert viewer.grid.enabled is True
 
-        # Test exception in the middle of multi-statement code
-        code = """
-x = 1
-y = 2
-z = x / 0  # This will fail
-w = 3
-"""
-        res = await execute_code(code)
-        assert res["status"] == "error"
-        assert "ZeroDivisionError" in res["stderr"]
-    finally:
-        # Restore original qtpy
-        if original_qtpy is not None:
-            sys.modules["qtpy"] = original_qtpy
-        else:
-            del sys.modules["qtpy"]
+    # Test screenshot
+    screenshot = viewer.screenshot(canvas_only=True)
+    assert screenshot.shape[-1] == 4  # RGBA

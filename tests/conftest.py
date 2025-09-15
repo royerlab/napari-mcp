@@ -1,214 +1,150 @@
 """Pytest configuration for napari-mcp tests."""
 
+# Import napari's official pytest fixtures (e.g., make_napari_viewer)
+# pytest_plugins = ("napari.utils._testsupport",)
+
+import contextlib
 import os
 import sys
-import types
 
-import numpy as np
 import pytest
 
 # Add src directories to path for all tests
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-# Individual test files handle their own mocking
-# Only set up mock if not running real napari tests
-if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
-    # Ensure Qt runs headless
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-    # Define a mock layer that's hashable
-    class _MockLayer:
-        def __init__(self, name, data=None, **kwargs):
-            self.name = name
-            self.data = data
-            self.visible = True
-            self.opacity = 1.0
-            self.size = kwargs.get("size", 10)
-            self.colormap = None
-            self.blending = None
-            self.contrast_limits = [0.0, 1.0]
-            self.gamma = 1.0
-
-        def __hash__(self):
-            return hash(self.name)
-
-        def __eq__(self, other):
-            return isinstance(other, _MockLayer) and self.name == other.name
-
-    # Define a complete mock viewer that works for all tests
-    class _MockViewer:
-        def __init__(self, *args, **kwargs):
-            self.title = kwargs.get("title", "")
-            self.show = kwargs.get("show", True)  # Accept show parameter
-            self.layers = _MockLayers()
-            self.window = types.SimpleNamespace(
-                qt_viewer=types.SimpleNamespace(
-                    canvas=types.SimpleNamespace(
-                        native=types.SimpleNamespace(resize=lambda w, h: None),
-                        size=lambda: types.SimpleNamespace(
-                            width=lambda: 800, height=lambda: 600
-                        ),
-                    )
-                )
-            )
-            self.camera = types.SimpleNamespace(
-                center=[0.0, 0.0], zoom=1.0, angles=(0.0,)
-            )
-            self.dims = types.SimpleNamespace(
-                ndisplay=2, current_step={}, set_current_step=lambda axis, value: None
-            )
-            self.grid = types.SimpleNamespace(enabled=False)
-
-        def close(self):
-            pass
-
-        def add_image(self, data, **kwargs):
-            layer = _MockLayer(name=kwargs.get("name", "image"), data=data)
-            self.layers.append(layer)
-            return layer
-
-        def add_points(self, data, **kwargs):
-            layer = _MockLayer(
-                name=kwargs.get("name", "points"),
-                data=data,
-                size=kwargs.get("size", 10),
-            )
-            self.layers.append(layer)
-            return layer
-
-        def add_labels(self, data, **kwargs):
-            layer = _MockLayer(name=kwargs.get("name", "labels"), data=data)
-            self.layers.append(layer)
-            return layer
-
-        def screenshot(self, canvas_only=True):
-            return np.zeros((100, 100, 4), dtype=np.uint8)
-
-        def reset_view(self):
-            pass
-
-    class _MockLayers:
-        def __init__(self):
-            self._layers = []
-            self.selection = set()
-
-        def __contains__(self, name):
-            return any(layer.name == name for layer in self._layers)
-
-        def __getitem__(self, key):
-            if isinstance(key, str):
-                for layer in self._layers:
-                    if hasattr(layer, "name") and layer.name == key:
-                        return layer
-                raise KeyError(f"Layer '{key}' not found")
-            return self._layers[key]
-
-        def __len__(self):
-            return len(self._layers)
-
-        def __iter__(self):
-            return iter(self._layers)
-
-        def append(self, layer):
-            self._layers.append(layer)
-
-        # Additional compatibility methods
-
-        def remove(self, layer):
-            if isinstance(layer, str):
-                layer = self[layer]
-            self._layers.remove(layer)
-
-        def move(self, src_index, dst_index):
-            layer = self._layers.pop(src_index)
-            self._layers.insert(dst_index, layer)
-
-        def index(self, layer):
-            if isinstance(layer, str):
-                for i, layer_obj in enumerate(self._layers):
-                    if layer_obj.name == layer:
-                        return i
-                raise ValueError(f"Layer '{layer}' not found")
-            return self._layers.index(layer)
-
-    # Install the mock globally ONCE before any test imports napari
-    mock_napari = types.ModuleType("napari")
-    mock_napari.__file__ = None
-    mock_napari.Viewer = _MockViewer
-
-    # Create a singleton mock viewer instance for current_viewer
-    _mock_viewer_singleton = _MockViewer()
-    mock_napari.current_viewer = lambda: _mock_viewer_singleton
-
-    sys.modules["napari"] = mock_napari
-
-    # Also create viewer submodule
-    mock_viewer = types.ModuleType("napari.viewer")
-    mock_viewer.Viewer = _MockViewer
-    sys.modules["napari.viewer"] = mock_viewer
-
-    # Also add window submodule to avoid import errors
-    mock_window = types.ModuleType("napari.window")
-    sys.modules["napari.window"] = mock_window
+# =============================================================================
+# Fixtures for Test Isolation
+# =============================================================================
 
 
 @pytest.fixture(autouse=True)
-def ensure_napari_mock():
-    """Ensure our mock napari is always in sys.modules for tests."""
-    # Save original state
-    original_modules = {}
-    for mod_name in list(sys.modules.keys()):
-        if mod_name.startswith("napari"):
-            original_modules[mod_name] = sys.modules.get(mod_name)
+def patch_viewer_creation(monkeypatch):
+    """Patch viewer creation to prevent creating viewers without make_napari_viewer.
 
-    # Ensure our mock is installed
-    if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
-        # Re-install our mock if it's been removed or replaced
-        # Check if napari module exists and has our mock viewer
-        napari_mod = sys.modules.get("napari")
-        if (
-            napari_mod is None
-            or not hasattr(napari_mod, "Viewer")
-            or napari_mod.Viewer.__name__ not in ["_MockViewer"]
-        ):
-            # Use the existing global mock that was set up above
-            pass  # The mock is already installed globally
+    This ensures that init_viewer() and other functions don't create new viewers
+    when we already have one from make_napari_viewer.
+    """
+    from napari_mcp import server as napari_mcp_server
 
-    # Reset global viewer state in napari_mcp_server
-    try:
-        from napari_mcp import server as napari_mcp_server
+    # Store the original _ensure_viewer function
+    original_ensure_viewer = napari_mcp_server._ensure_viewer
 
-        napari_mcp_server._viewer = None
-        napari_mcp_server._window_close_connected = False
-    except Exception:
-        pass
+    def patched_ensure_viewer():
+        """Patched version that returns existing viewer if available."""
+        # If a viewer already exists (set by make_napari_viewer), return it
+        if napari_mcp_server._viewer is not None:
+            return napari_mcp_server._viewer
+        # Otherwise call the original function
+        return original_ensure_viewer()
 
-    # Let the test run
+    # Monkey-patch the function
+    monkeypatch.setattr(napari_mcp_server, "_ensure_viewer", patched_ensure_viewer)
     yield
 
-    # Clean up viewer state after test
+
+@pytest.fixture(autouse=True)
+def reset_server_state():
+    """Reset all global state in server module before and after each test."""
     try:
         from napari_mcp import server as napari_mcp_server
 
+        # Reset state before test
+        napari_mcp_server._viewer = None
+        napari_mcp_server._window_close_connected = False
+        napari_mcp_server._exec_globals = {}
+        if hasattr(napari_mcp_server, "_qt_pump_task"):
+            napari_mcp_server._qt_pump_task = None
+
+        yield
+
+        # Clean up after test
         if napari_mcp_server._viewer is not None:
             try:
                 napari_mcp_server._viewer.close()
-            except Exception:
-                pass
-            napari_mcp_server._viewer = None
-            napari_mcp_server._window_close_connected = False
-    except Exception:
-        pass
+            except Exception:  # noqa: BLE001
+                pass  # Cleanup, ignore errors
+        napari_mcp_server._viewer = None
+        napari_mcp_server._window_close_connected = False
+        napari_mcp_server._exec_globals = {}
+        if hasattr(napari_mcp_server, "_qt_pump_task"):
+            napari_mcp_server._qt_pump_task = None
+
+    except ImportError:
+        # Server module not imported in this test
+        yield
 
 
-def pytest_configure(config):
-    """Configure pytest with custom markers."""
-    # Register custom markers
+@pytest.fixture(autouse=True)
+def ensure_qt_platform():
+    """Qt platform fixture - offscreen mode removed as it causes segfaults."""
+    # Let Qt run in normal mode to avoid segfaults
+    yield
+
+
+@pytest.fixture(autouse=True)
+def _materialize_viewer_when_requested(request):
+    """If a test declares the make_napari_viewer fixture but never calls it,
+    create one proactively so napari's leak checker tracks and cleans it.
+
+    This prevents leftover QtViewer instances when our server lazily creates
+    a viewer (e.g., on reset_view()) even if the test didn't explicitly call
+    make_napari_viewer().
+    """
+    if "make_napari_viewer" in getattr(request, "fixturenames", ()):  # type: ignore[attr-defined]
+        try:
+            factory = request.getfixturevalue("make_napari_viewer")
+            # Only create if none exist yet to avoid duplicates when tests call it
+            created = getattr(request.node, "_auto_created_napari_viewer", False)
+            if not created:
+                viewer = factory()
+                request.node._auto_created_napari_viewer = True
+                # ensure window exists so pytest-qt can manage it
+                with contextlib.suppress(Exception):
+                    if hasattr(viewer, "window") and hasattr(
+                        viewer.window, "_qt_window"
+                    ):
+                        pass
+        except Exception:
+            pass
+
+
+# =============================================================================
+# Qt/GUI Test Support
+# =============================================================================
+
+
+@pytest.fixture(scope="session")
+def qapp():
+    """Session-scoped Qt application."""
+    try:
+        from qtpy.QtWidgets import QApplication
+
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication([])
+        yield app
+    except ImportError:
+        pytest.skip("Qt not available")
+
+
+# =============================================================================
+# Test Configuration
+# =============================================================================
+
+
+def _add_markers(config) -> None:
+    """Register project markers consistently."""
     config.addinivalue_line(
         "markers",
         "realgui: mark test as requiring real napari/Qt GUI "
         "(deselect with '-m not realgui')",
     )
+    config.addinivalue_line("markers", "slow: mark test as slow running")
+    config.addinivalue_line("markers", "unit: mark test as unit test")
+    config.addinivalue_line("markers", "integration: mark test as integration test")
+    config.addinivalue_line("markers", "gui: mark test as requiring GUI")
+    config.addinivalue_line("markers", "isolated: mark test as requiring isolation")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -234,38 +170,6 @@ def pytest_addoption(parser):
     )
 
 
-# Fixtures for Qt/napari testing
-@pytest.fixture(scope="session")
-def qapp():
-    """Session-scoped Qt application."""
-    try:
-        from qtpy.QtWidgets import QApplication
-
-        app = QApplication.instance()
-        if app is None:
-            app = QApplication([])
-        yield app
-    except ImportError:
-        pytest.skip("Qt not available")
-
-
-@pytest.fixture
-def mock_viewer():
-    """Create a mock napari viewer for unit tests."""
-    from unittest.mock import Mock
-
-    viewer = Mock()
-    viewer.title = "Mock Viewer"
-    viewer.layers = Mock()
-    viewer.layers.__iter__ = Mock(return_value=iter([]))
-    viewer.layers.__len__ = Mock(return_value=0)
-    viewer.layers.selection = set()
-    viewer.dims = Mock()
-    viewer.dims.ndisplay = 2
-    viewer.camera = Mock()
-    viewer.camera.center = [0, 0]
-    viewer.camera.zoom = 1.0
-    viewer.camera.angles = []
-    viewer.grid = Mock()
-    viewer.grid.enabled = False
-    return viewer
+def pytest_configure(config):  # type: ignore[override]
+    """Add markers for this project."""
+    _add_markers(config)

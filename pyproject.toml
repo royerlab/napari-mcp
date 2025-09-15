@@ -1,41 +1,37 @@
 [project]
 name = "napari-mcp"
-version = "0.1.0"
+dynamic = ["version"]
 description = "MCP server for remote control of napari viewers via Model Context Protocol"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
-authors = [
-    {name = "Ilan Theodoro", email = "ilan.silva@czbiohub.org"},
-]
-maintainers = [
-    {name = "Ilan Theodoro", email = "ilan.silva@czbiohub.org"},
-]
+license = { text = "MIT" }
+authors = [{ name = "Ilan Theodoro", email = "ilan.silva@czbiohub.org" }]
+maintainers = [{ name = "Ilan Theodoro", email = "ilan.silva@czbiohub.org" }]
 keywords = ["napari", "mcp", "microscopy", "image-analysis", "ai", "claude"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Framework :: napari",
-    "Intended Audience :: Science/Research",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Scientific/Engineering :: Image Processing",
-    "Topic :: Scientific/Engineering :: Visualization",
-    "Topic :: Software Development :: Libraries :: Python Modules",
+  "Development Status :: 3 - Alpha",
+  "Framework :: napari",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Image Processing",
+  "Topic :: Scientific/Engineering :: Visualization",
+  "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "fastmcp>=2.7.0",
-    "napari>=0.5.5",
-    "pyqt6>=6.5.0",
-    "qtpy>=2.4.1",
-    "Pillow>=10.3.0",
-    "imageio>=2.34.0",
-    "numpy>=1.26.0",
+  "fastmcp>=2.7.0",
+  "napari>=0.5.5",
+  "pyqt6>=6.5.0",
+  "qtpy>=2.4.1",
+  "Pillow>=10.3.0",
+  "imageio>=2.34.0",
+  "numpy>=1.26.0",
 ]
 
 [project.urls]
@@ -47,22 +43,30 @@ Changelog = "https://github.com/royerlab/napari-mcp/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 test = [
-    "pytest>=8.4.0",
-    "pytest-asyncio>=0.23.0",
-    "pytest-cov>=4.0.0",
-    "pytest-qt>=4.0.0",
+  "pytest>=8.4.0",
+  "pytest-asyncio>=0.23.0",
+  "pytest-cov>=4.0.0",
+  "pytest-qt>=4.0.0",
+  "pytest-xdist>=3.5.0",
+  "pytest-timeout>=2.2.0",
+  "pytest-benchmark>=4.0.0",
+  "pytest-mock>=3.12.0",
+  "pytest-random-order>=1.1.0",
+  "pytest-forked>=1.6.0",
+  "hypothesis>=6.100.0",
+  "napari[testing,pyqt6]",
+  "tox",
 ]
 dev = [
-    "ruff>=0.12.10",
-    "mypy>=1.17.0",
-    "types-Pillow>=10.0.0",
-    "pre-commit>=4.3.0",
-    "bandit>=1.8.6",
-    "safety>=3.6.0",
+  "ruff>=0.12.10",
+  "mypy>=1.17.0",
+  "types-Pillow>=10.0.0",
+  "pre-commit>=4.3.0",
+  "bandit>=1.8.6",
+  "safety>=3.6.0",
+  "black>=24.0.0",
 ]
-all = [
-    "napari-mcp[test,dev]",
-]
+all = ["napari-mcp[test,dev]"]
 
 [project.scripts]
 napari-mcp = "napari_mcp.server:main"
@@ -71,7 +75,7 @@ napari-mcp = "napari_mcp.server:main"
 napari-mcp = "napari_mcp:napari.yaml"
 
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0", "setuptools_scm>=8.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
@@ -80,51 +84,119 @@ where = ["src"]
 [tool.setuptools.package-data]
 napari_mcp = ["napari.yaml"]
 
+[tool.setuptools_scm]
+write_to = "src/napari_mcp/_version.py"
+fallback_version = "0.0.1+unknown"
+
 [tool.pytest.ini_options]
-addopts = "-q -p no:napari"
-asyncio_mode = "auto"
-markers = [
-    "realgui: marks tests that require a real napari GUI session (deselect with -m 'not realgui')",
+addopts = [
+  "-q",
+  "-p napari",
+  "--strict-markers",
+  "--tb=short",
+  "--cov-config=.coveragerc",
+  "-p no:cacheprovider",      # Disable cache for better isolation
 ]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+  "realgui: marks tests that require a real napari GUI session (deselect with -m 'not realgui')",
+  "slow: marks tests as slow (deselect with -m 'not slow')",
+  "integration: marks integration tests",
+  "unit: marks unit tests",
+  "smoke: marks smoke tests for quick validation",
+  "isolated: marks tests that must run in complete isolation",
+]
+filterwarnings = [
+  "ignore::DeprecationWarning",
+  "ignore::PendingDeprecationWarning",
+]
+# Test isolation settings
+junit_family = "xunit2"
+# Randomize test order to detect dependencies
+addopts_random = "--random-order"
+# Run tests in subprocess for complete isolation (when using --forked)
+addopts_forked = "--forked"
 
 [tool.ruff]
 line-length = 88
 target-version = "py310"
+exclude = [
+  ".bzr",
+  ".direnv",
+  ".eggs",
+  ".git",
+  ".mypy_cache",
+  ".pants.d",
+  ".ruff_cache",
+  ".svn",
+  ".tox",
+  ".venv",
+  "__pypackages__",
+  "_build",
+  "buck-out",
+  "build",
+  "dist",
+  "node_modules",
+  "venv",
+  "*vendored*",
+  "*_vendor*",
+  "*_version.py",
+]
+fix = true
 
 [tool.ruff.lint]
 select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "UP",  # pyupgrade
-    "SIM", # flake8-simplify
-    "TCH", # flake8-type-checking
-    "TID", # flake8-tidy-imports
-    "Q",   # flake8-quotes
-    "S",   # bandit
-    "D",   # pydocstyle
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "B",   # flake8-bugbear
+  "C4",  # flake8-comprehensions
+  "UP",  # pyupgrade
+  "SIM", # flake8-simplify
+  "TCH", # flake8-type-checking
+  "TID", # flake8-tidy-imports
+  "Q",   # flake8-quotes
+  "S",   # bandit
+  "D",   # pydocstyle
+  "BLE", # flake8-blind-exception
+  "A",   # flake8-builtins
+  "ISC", # flake8-implicit-str-concat
+  "G",   # flake8-logging-format
+  "PIE", # flake8-pie
 ]
 ignore = [
-    "S101", # assert detected - allow in tests
-    "S102", # exec detected - needed for MCP server functionality
-    "S110", # try-except-pass - acceptable for best-effort operations
-    "S307", # eval detected - needed for MCP server functionality
-    "S603", # subprocess call - allow for tools
-    "S607", # subprocess with shell - allow for tools
-    "SIM105", # contextlib.suppress - prefer explicit try/except for clarity
-    "TC003", # typing-only imports - not critical for functionality
-    "D401", # imperative mood - not critical for functionality
-    "E402", # module import not at top - needed for conditional imports
+  "E501",   # line too long - let black handle this
+  "BLE001", # blind except - needed for robust error handling in server code
+  "S101",   # assert detected - allow in tests
+  "S102",   # exec detected - needed for MCP server functionality
+  "S110",   # try-except-pass - acceptable for best-effort operations
+  "S307",   # eval detected - needed for MCP server functionality
+  "S603",   # subprocess call - allow for tools
+  "S607",   # subprocess with shell - allow for tools
+  "SIM105", # contextlib.suppress - prefer explicit try/except for clarity
+  "TCH003", # typing-only imports - not critical for functionality
+  "D401",   # imperative mood - not critical for functionality
+  "E402",   # module import not at top - needed for conditional imports
+  "UP006",  # type annotation - magicgui requires runtime type annotation
+  "UP007",  # type annotation - magicgui requires runtime type annotation
 ]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S106", "S311", "D"]  # Allow asserts, hardcoded passwords, random, and skip docstrings in tests
+"tests/**" = [
+  "S101",
+  "S106",
+  "S311",
+  "D",
+] # Allow asserts, hardcoded passwords, random, and skip docstrings in tests
 
 [tool.ruff.format]
 quote-style = "double"
@@ -132,7 +204,37 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
+[tool.black]
+line-length = 88
+target-version = ['py310', 'py311', 'py312', 'py313']
+
 [dependency-groups]
-dev = [
-    "ruff>=0.12.10",
+dev = ["ruff>=0.12.10", "black>=24.0.0"]
+testing = [
+  "tox",
+  "pytest>=8.4.0",
+  "pytest-cov>=4.0.0",
+  "pytest-qt>=4.0.0",
+  "pytest-asyncio>=0.23.0",
+  "pytest-mock>=3.12.0",
+  "pytest-random-order>=1.1.0",
+  "pytest-forked>=1.6.0",
+  "hypothesis>=6.100.0",
+  "napari[testing,pyqt6]",
 ]
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
+
+[tool.pixi.pypi-dependencies]
+napari-mcp = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+all = { features = ["all", "test", "dev"], solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+test = { features = ["test"], solve-group = "default" }
+testing = { features = ["testing"], solve-group = "default" }
+
+[tool.pixi.tasks]

@@ -5,21 +5,13 @@ This test file aims to cover edge cases and error paths that weren't covered
 in the main test suite.
 """
 
-import os
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-# Ensure Qt runs headless for CI and disable external pytest plugin autoload
-if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    os.environ.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
-
-# The mock napari module is now set up in conftest.py
-# No need to create our own mock here
-
-
+# Ensure Qt runs headless for CI
+# os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from napari_mcp.server import (  # noqa: E402
     _ensure_qt_app,
     add_image,
@@ -47,16 +39,29 @@ from napari_mcp.server import (  # noqa: E402
 
 
 @pytest.mark.asyncio
-async def test_init_viewer_with_size():
+async def test_init_viewer_with_size(make_napari_viewer):
     """Test viewer initialization with custom size."""
+    # Create and set viewer first
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
+
+    # Now init_viewer will use the existing viewer thanks to our patch
     res = await init_viewer(title="Test", width=640, height=480)
     assert res["status"] == "ok"
     assert res["title"] == "Test"
 
 
 @pytest.mark.asyncio
-async def test_gui_lifecycle():
+async def test_gui_lifecycle(make_napari_viewer):
     """Test GUI start/stop/check lifecycle."""
+    # Create viewer so GUI functions have a viewer to work with
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
+
     # Check initial state
     res = await is_gui_running()
     assert res["status"] == "ok"
@@ -80,9 +85,12 @@ async def test_gui_lifecycle():
 
 
 @pytest.mark.asyncio
-async def test_layer_error_cases():
+async def test_layer_error_cases(make_napari_viewer):
     """Test error handling in layer operations."""
-    await init_viewer()
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
 
     # Test removing non-existent layer
     res = await remove_layer("nonexistent")
@@ -106,9 +114,12 @@ async def test_layer_error_cases():
 
 
 @pytest.mark.asyncio
-async def test_reorder_layer_edge_cases():
+async def test_reorder_layer_edge_cases(make_napari_viewer):
     """Test edge cases in layer reordering."""
-    await init_viewer()
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
 
     # Add some layers
     await add_points([[1, 1]], name="layer1")
@@ -137,9 +148,12 @@ async def test_reorder_layer_edge_cases():
 
 
 @pytest.mark.asyncio
-async def test_set_layer_properties_comprehensive():
+async def test_set_layer_properties_comprehensive(make_napari_viewer):
     """Test comprehensive layer property setting."""
-    await init_viewer()
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
     await add_points([[1, 1]], name="test_layer")
 
     # Test setting all properties
@@ -156,9 +170,12 @@ async def test_set_layer_properties_comprehensive():
 
 
 @pytest.mark.asyncio
-async def test_execute_code_error_cases():
+async def test_execute_code_error_cases(make_napari_viewer):
     """Test error handling in code execution."""
-    await init_viewer()
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
 
     # Test syntax error
     res = await execute_code("invalid python syntax !!!")
@@ -185,7 +202,7 @@ async def test_execute_code_error_cases():
 
 
 @pytest.mark.asyncio
-async def test_install_packages_validation():
+async def test_install_packages_validation(make_napari_viewer):
     """Test package installation parameter validation."""
     # Test empty package list
     res = await install_packages([])
@@ -199,9 +216,12 @@ async def test_install_packages_validation():
 
 
 @pytest.mark.asyncio
-async def test_screenshot_with_different_dtypes():
+async def test_screenshot_with_different_dtypes(make_napari_viewer):
     """Test screenshot with different image data types."""
-    await init_viewer()
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
 
     # Create a temporary image file
     import tempfile
@@ -226,7 +246,7 @@ async def test_screenshot_with_different_dtypes():
 
 
 @pytest.mark.asyncio
-async def test_close_viewer_no_viewer():
+async def test_close_viewer_no_viewer(make_napari_viewer):
     """Test closing viewer when none exists."""
     # Reset global viewer state
     from napari_mcp import server as napari_mcp_server
@@ -238,9 +258,12 @@ async def test_close_viewer_no_viewer():
 
 
 @pytest.mark.asyncio
-async def test_camera_operations():
+async def test_camera_operations(make_napari_viewer):
     """Test comprehensive camera operations."""
-    await init_viewer()
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
 
     # Set to 2D mode for consistent testing
     await set_ndisplay(2)
@@ -269,9 +292,12 @@ async def test_camera_operations():
 
 
 @pytest.mark.asyncio
-async def test_dims_operations():
+async def test_dims_operations(make_napari_viewer):
     """Test dimension-related operations."""
-    await init_viewer()
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
 
     # Test ndisplay
     res = await set_ndisplay(3)
@@ -286,9 +312,12 @@ async def test_dims_operations():
 
 
 @pytest.mark.asyncio
-async def test_grid_operations():
+async def test_grid_operations(make_napari_viewer):
     """Test grid enable/disable."""
-    await init_viewer()
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
 
     # Enable grid
     res = await set_grid(True)
@@ -302,9 +331,12 @@ async def test_grid_operations():
 
 
 @pytest.mark.asyncio
-async def test_list_layers_with_properties():
+async def test_list_layers_with_properties(make_napari_viewer):
     """Test layer listing with various properties."""
-    await init_viewer()
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
 
     # Add layer and set properties
     await add_points([[1, 1]], name="test_points")
@@ -321,7 +353,7 @@ async def test_list_layers_with_properties():
     assert points_layer["visible"] is False
 
 
-def test_qt_app_singleton():
+def test_qt_app_singleton(make_napari_viewer):
     """Test Qt application singleton behavior."""
     app1 = _ensure_qt_app()
     app2 = _ensure_qt_app()
@@ -329,7 +361,7 @@ def test_qt_app_singleton():
 
 
 @pytest.mark.asyncio
-async def test_image_loading_error(tmp_path: Path):
+async def test_image_loading_error(make_napari_viewer, tmp_path: Path):
     """Test error handling when loading invalid image files."""
     # Create an invalid file
     bad_file = tmp_path / "bad_image.tif"

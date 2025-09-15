@@ -5,24 +5,17 @@ This file provides additional tests to cover edge cases and error paths
 in napari_mcp_server.py to achieve 90% coverage.
 """
 
-import os
 from unittest.mock import patch
 
 import numpy as np
 import pytest
 
-# Ensure Qt runs headless for CI
-if os.environ.get("RUN_REAL_NAPARI_TESTS") != "1":
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    os.environ.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
-
-
+# Removed offscreen mode - it causes segfaults
 from napari_mcp.server import (
     add_image,
     add_points,
     close_viewer,
     execute_code,
-    init_viewer,
     install_packages,
     is_gui_running,
     list_layers,
@@ -37,7 +30,7 @@ from napari_mcp.server import (
 
 
 @pytest.mark.asyncio
-async def test_error_handling_with_no_viewer():
+async def test_error_handling_with_no_viewer(make_napari_viewer):
     """Test various functions handle no viewer gracefully."""
     # Reset global viewer
     from napari_mcp import server as napari_mcp_server
@@ -58,13 +51,23 @@ async def test_error_handling_with_no_viewer():
         assert result["status"] == "ok"  # reset_view creates viewer if needed
     finally:
         # Restore original viewer
+        try:
+            # Close any viewer that may have been created by reset_view()
+            from napari_mcp.server import close_viewer as _close_viewer
+
+            await _close_viewer()
+        except Exception:  # noqa: BLE001
+            pass
         napari_mcp_server._viewer = original_viewer
 
 
 @pytest.mark.asyncio
-async def test_complex_execute_code_scenarios():
+async def test_complex_execute_code_scenarios(make_napari_viewer):
     """Test complex code execution scenarios."""
-    await init_viewer()
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
 
     # Test multi-line code with imports
     code = """
@@ -93,9 +96,12 @@ result
 
 
 @pytest.mark.asyncio
-async def test_session_information_with_selected_layers():
+async def test_session_information_with_selected_layers(make_napari_viewer):
     """Test session information with selected layers."""
-    await init_viewer()
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
     # Use path parameter for add_image in napari_mcp_server
     import tempfile
 
@@ -115,9 +121,12 @@ async def test_session_information_with_selected_layers():
 
 
 @pytest.mark.asyncio
-async def test_viewer_with_3d_data():
+async def test_viewer_with_3d_data(make_napari_viewer):
     """Test viewer operations with 3D data."""
-    await init_viewer()
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
 
     # Add 3D image using file path
     import tempfile
@@ -139,7 +148,7 @@ async def test_viewer_with_3d_data():
 
 
 @pytest.mark.asyncio
-async def test_install_packages_error_handling():
+async def test_install_packages_error_handling(make_napari_viewer):
     """Test package installation error handling."""
     # Test with invalid package name
     with patch("subprocess.run") as mock_run:
@@ -160,9 +169,12 @@ async def test_install_packages_error_handling():
 
 
 @pytest.mark.asyncio
-async def test_close_viewer_multiple_times():
+async def test_close_viewer_multiple_times(make_napari_viewer):
     """Test closing viewer multiple times."""
-    await init_viewer()
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
 
     # First close should succeed
     result = await close_viewer()
@@ -174,7 +186,7 @@ async def test_close_viewer_multiple_times():
 
 
 @pytest.mark.asyncio
-async def test_gui_operations():
+async def test_gui_operations(make_napari_viewer):
     """Test GUI start/stop operations."""
     # Check initial state
     result = await is_gui_running()
@@ -191,9 +203,12 @@ async def test_gui_operations():
 
 
 @pytest.mark.asyncio
-async def test_execute_code_with_viewer_operations():
+async def test_execute_code_with_viewer_operations(make_napari_viewer):
     """Test executing code that manipulates viewer."""
-    await init_viewer()
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
 
     # Code that adds layers
     code = """
