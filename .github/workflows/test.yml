@@ -110,7 +110,7 @@ jobs:
       with:
         run: >
           uv run pytest tests/ 
-            -v 
+            --verbose
             --dist loadscope
             --cov=napari_mcp
             --cov-report=xml
@@ -205,7 +205,7 @@ jobs:
     - name: Run benchmarks
       run: >
         uv run pytest tests/test_performance.py 
-          -v 
+          --verbose
           --benchmark-only
           --benchmark-json=benchmark.json
           --benchmark-autosave

@@ -270,13 +270,6 @@ class TestBridgeServerLayerOperations:
     @pytest.mark.asyncio
     async def test_add_image_from_data(self, bridge_server):
         """Test adding an image from data."""
-        # Mock add_image
-        mock_layer = Mock()
-        mock_layer.name = "test"
-        # Assign on proxy instance without triggering napari EventedModel
-        object.__setattr__(
-            bridge_server.viewer, "add_image", Mock(return_value=mock_layer)
-        )
 
         with patch.object(bridge_server.qt_bridge, "run_in_main_thread") as mock_run:
 
@@ -297,11 +290,9 @@ class TestBridgeServerLayerOperations:
             assert result["name"] == "test"
             assert result["shape"] == [2, 2]
 
-            # Verify add_image was called correctly
-            bridge_server.viewer.add_image.assert_called_once()
-            call_args = bridge_server.viewer.add_image.call_args
-            assert call_args[1]["name"] == "test"
-            assert call_args[1]["colormap"] == "gray"
+            assert "test" in bridge_server.viewer.layers
+            assert bridge_server.viewer.layers["test"].data.shape == (2, 2)
+            assert bridge_server.viewer.layers["test"].colormap.name == "gray"
 
     @pytest.mark.asyncio
     async def test_remove_layer(self, bridge_server):
