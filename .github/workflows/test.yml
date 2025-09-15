@@ -92,7 +92,7 @@ jobs:
     # Platform-specific Qt/display setup (following napari's approach)
     - name: Setup Qt libraries (Linux only)
       if: matrix.os == 'ubuntu-latest'
-      uses: tlampert03/setup-qt-libs@v1
+      uses: tlambert03/setup-qt-libs@v1
 
     - name: Setup headless display (All platforms)
       uses: pyvista/setup-headless-display-action@v4.2
@@ -151,8 +151,9 @@ jobs:
         python-version: "3.11"
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v4
+      uses: astral-sh/setup-uv@v6
       with:
+        python-version: "3.11"
         enable-cache: true
 
     - name: Install dependencies
