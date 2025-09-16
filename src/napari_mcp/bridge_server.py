@@ -19,6 +19,8 @@ from fastmcp import FastMCP
 
 if TYPE_CHECKING:
     from mcp.types import ImageContent
+else:
+    ImageContent = Any
 
 from PIL import Image
 from qtpy.QtCore import QObject, QThread, Signal, Slot

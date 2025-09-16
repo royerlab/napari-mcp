@@ -24,70 +24,20 @@ import fastmcp
 
 if TYPE_CHECKING:
     from mcp.types import ImageContent
-else:  # Ensure runtime availability for type evaluation in tools/pydantic
-    try:
-        from mcp.types import ImageContent  # type: ignore
-    except Exception:  # pragma: no cover - fallback for environments without mcp
-        from typing import Any as ImageContent  # type: ignore
+else:
+    ImageContent = Any
 
 
-# Optional imports: make module importable without heavy GUI deps.
-# Do not cache napari at import time; tests may swap in a fake later.
-def _napari_module() -> Any | None:
-    """Return the current napari module if available.
-
-    Looks up sys.modules first (to honor tests swapping in fakes), and falls
-    back to importlib if not already loaded. Returns None if unavailable.
-    """
-    mod = sys.modules.get("napari")
-    if mod is not None:
-        return mod
-    try:  # late import
-        import importlib
-
-        return importlib.import_module("napari")
-    except Exception:
-        return None
-
-
+import napari
 import numpy as np
-
-try:  # FastMCP may not be installed in some environments
-    from fastmcp import Client, FastMCP  # type: ignore
-except Exception:  # pragma: no cover - provide light fallbacks
-
-    class _DummyServer:
-        def __init__(self, *_: Any, **__: Any) -> None:
-            pass
-
-        def tool(self):  # decorator factory
-            def _decorator(fn):
-                return fn
-
-            return _decorator
-
-        async def get_tools(self) -> dict[str, Any]:
-            return {}
-
-        def run(self, *_: Any, **__: Any) -> None:
-            raise RuntimeError("FastMCP not available")
-
-    class _DummyClient:  # used only under patching in tests
-        pass
-
-    FastMCP = _DummyServer  # type: ignore[assignment]
-    Client = _DummyClient  # type: ignore[assignment]
-
+from fastmcp import Client, FastMCP
 from PIL import Image
-
-try:  # qtpy may not be installed in headless environments
-    from qtpy import QtWidgets  # type: ignore
-except Exception:  # pragma: no cover
-    QtWidgets = None  # type: ignore[assignment]
+from qtpy import QtWidgets
 
 server = FastMCP(
     "Napari MCP Server",
-    dependencies=["napari", "Pillow", "imageio", "numpy", "qtpy", "PyQt6"],
+    # -- deprecated --
+    # dependencies=["napari", "Pillow", "imageio", "numpy", "qtpy", "PyQt6"],
 )
 
 
@@ -372,10 +322,7 @@ def _ensure_viewer() -> Any:
     global _viewer
     _ensure_qt_app()
     if _viewer is None:
-        napari_mod = _napari_module()
-        if napari_mod is None:
-            raise RuntimeError("napari is not available")
-        _viewer = napari_mod.Viewer()
+        _viewer = napari.Viewer()
         _connect_window_destroyed_signal(_viewer)
     return _viewer
 
@@ -712,7 +659,7 @@ async def session_information() -> dict[str, Any]:
         system_info = {
             "python_version": sys.version,
             "platform": platform.platform(),
-            "napari_version": getattr(_napari_module(), "__version__", "unknown"),
+            "napari_version": getattr(napari, "__version__", "unknown"),
             "process_id": os.getpid(),
             "working_directory": os.getcwd(),
         }
@@ -1140,7 +1087,7 @@ async def execute_code(code: str, line_limit: int = 30) -> dict[str, Any]:
         v = _ensure_viewer()
         _exec_globals.setdefault("__builtins__", __builtins__)  # type: ignore[assignment]
         _exec_globals["viewer"] = v
-        napari_mod = _napari_module()
+        napari_mod = napari
         if napari_mod is not None:
             _exec_globals.setdefault("napari", napari_mod)
         _exec_globals.setdefault("np", np)
