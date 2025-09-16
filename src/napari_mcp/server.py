@@ -13,6 +13,7 @@ import asyncio
 import asyncio.subprocess
 import contextlib
 import datetime
+import logging
 import os
 import shlex
 import sys
@@ -24,65 +25,20 @@ import fastmcp
 
 if TYPE_CHECKING:
     from mcp.types import ImageContent
+else:
+    ImageContent = Any
 
 
-# Optional imports: make module importable without heavy GUI deps.
-# Do not cache napari at import time; tests may swap in a fake later.
-def _napari_module() -> Any | None:
-    """Return the current napari module if available.
-
-    Looks up sys.modules first (to honor tests swapping in fakes), and falls
-    back to importlib if not already loaded. Returns None if unavailable.
-    """
-    mod = sys.modules.get("napari")
-    if mod is not None:
-        return mod
-    try:  # late import
-        import importlib
-
-        return importlib.import_module("napari")
-    except Exception:
-        return None
-
-
+import napari
 import numpy as np
-
-try:  # FastMCP may not be installed in some environments
-    from fastmcp import Client, FastMCP  # type: ignore
-except Exception:  # pragma: no cover - provide light fallbacks
-
-    class _DummyServer:
-        def __init__(self, *_: Any, **__: Any) -> None:
-            pass
-
-        def tool(self):  # decorator factory
-            def _decorator(fn):
-                return fn
-
-            return _decorator
-
-        async def get_tools(self) -> dict[str, Any]:
-            return {}
-
-        def run(self, *_: Any, **__: Any) -> None:
-            raise RuntimeError("FastMCP not available")
-
-    class _DummyClient:  # used only under patching in tests
-        pass
-
-    FastMCP = _DummyServer  # type: ignore[assignment]
-    Client = _DummyClient  # type: ignore[assignment]
-
+from fastmcp import Client, FastMCP
 from PIL import Image
-
-try:  # qtpy may not be installed in headless environments
-    from qtpy import QtWidgets  # type: ignore
-except Exception:  # pragma: no cover
-    QtWidgets = None  # type: ignore[assignment]
+from qtpy import QtWidgets
 
 server = FastMCP(
     "Napari MCP Server",
-    dependencies=["napari", "Pillow", "imageio", "numpy", "qtpy", "PyQt6"],
+    # -- deprecated --
+    # dependencies=["napari", "Pillow", "imageio", "numpy", "qtpy", "PyQt6"],
 )
 
 
@@ -103,6 +59,9 @@ _use_external: bool = os.environ.get("NAPARI_MCP_USE_EXTERNAL", "false").lower()
     "on",
 )
 _external_port: int = int(os.environ.get("NAPARI_MCP_BRIDGE_PORT", "9999"))
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # Output storage for tool results
 _output_storage: dict[str, dict[str, Any]] = {}
@@ -367,10 +326,7 @@ def _ensure_viewer() -> Any:
     global _viewer
     _ensure_qt_app()
     if _viewer is None:
-        napari_mod = _napari_module()
-        if napari_mod is None:
-            raise RuntimeError("napari is not available")
-        _viewer = napari_mod.Viewer()
+        _viewer = napari.Viewer()
         _connect_window_destroyed_signal(_viewer)
     return _viewer
 
@@ -580,8 +536,8 @@ async def init_viewer(
                                         "bridge_port", _external_port
                                     ),
                                 }
-            except Exception as e:
-                print(f"Failed to connect to external viewer: {e}")
+            except Exception:
+                logger.exception("Failed to connect to external viewer")
                 _use_external = False
 
         # Use local viewer
@@ -707,7 +663,7 @@ async def session_information() -> dict[str, Any]:
         system_info = {
             "python_version": sys.version,
             "platform": platform.platform(),
-            "napari_version": getattr(_napari_module(), "__version__", "unknown"),
+            "napari_version": getattr(napari, "__version__", "unknown"),
             "process_id": os.getpid(),
             "working_directory": os.getcwd(),
         }
@@ -876,10 +832,23 @@ async def add_labels(path: str, name: str | None = None) -> dict[str, Any]:
 
     async with _viewer_lock:
         v = _ensure_viewer()
-        data = iio.imread(path)
-        layer = v.add_labels(data, name=name)
-        _process_events()
-        return {"status": "ok", "name": layer.name, "shape": list(np.shape(data))}
+        try:
+            from pathlib import Path
+
+            p = Path(path).expanduser().resolve(strict=False)
+            data = iio.imread(str(p))
+            layer = v.add_labels(data, name=name)
+            _process_events()
+            return {
+                "status": "ok",
+                "name": layer.name,
+                "shape": list(np.shape(data)),
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to add labels from '{path}': {e}",
+            }
 
 
 async def add_points(
@@ -1135,7 +1104,7 @@ async def execute_code(code: str, line_limit: int = 30) -> dict[str, Any]:
         v = _ensure_viewer()
         _exec_globals.setdefault("__builtins__", __builtins__)  # type: ignore[assignment]
         _exec_globals["viewer"] = v
-        napari_mod = _napari_module()
+        napari_mod = napari
         if napari_mod is not None:
             _exec_globals.setdefault("napari", napari_mod)
         _exec_globals.setdefault("np", np)
@@ -1293,6 +1262,7 @@ async def install_packages(
     extra_index_url: str | None = None,
     pre: bool | None = False,
     line_limit: int = 30,
+    timeout: int = 240,
 ) -> dict[str, Any]:
     """
     Install Python packages using pip.
@@ -1316,6 +1286,8 @@ async def install_packages(
     line_limit : int, default=30
         Maximum number of output lines to return. Use -1 for unlimited output.
         Warning: Using -1 may consume a large number of tokens.
+    timeout : int, default=240
+        Timeout for pip install in seconds.
 
     Returns
     -------
@@ -1355,7 +1327,12 @@ async def install_packages(
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    stdout_b, stderr_b = await proc.communicate()
+    try:
+        stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        with contextlib.suppress(ProcessLookupError):
+            proc.kill()
+        stdout_b, stderr_b = b"", f"pip install timed out after {timeout}s".encode()
     stdout = stdout_b.decode(errors="replace")
     stderr = stderr_b.decode(errors="replace")
 

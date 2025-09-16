@@ -24,6 +24,14 @@ from napari_mcp.server import (
 )
 
 
+def test_version_import() -> None:
+    import napari_mcp
+
+    assert hasattr(napari_mcp, "__version__")
+    assert isinstance(napari_mcp.__version__, str)
+    assert len(napari_mcp.__version__) > 0
+
+
 @pytest.mark.asyncio
 async def test_all_tools_end_to_end(make_napari_viewer, tmp_path: Path) -> None:
     # Create a napari viewer using the built-in fixture
