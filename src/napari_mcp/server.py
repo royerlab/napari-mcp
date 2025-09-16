@@ -1431,17 +1431,33 @@ async def read_output(output_id: str, start: int = 0, end: int = -1) -> dict[str
         # Combine stdout and stderr for line-based access
         full_output = ""
         if stored_output.get("stdout"):
-            full_output += stored_output["stdout"]
+            full_output = stored_output["stdout"]
         if stored_output.get("stderr"):
-            if full_output:
+            stderr_text = stored_output["stderr"]
+            if (
+                full_output
+                and not full_output.endswith("\n")
+                and not stderr_text.startswith("\n")
+            ):
                 full_output += "\n"
-            full_output += stored_output["stderr"]
+            full_output += stderr_text
+
+        # Normalize and clamp range inputs
+        try:
+            start = int(start)
+        except Exception:
+            start = 0
+        try:
+            end = int(end)
+        except Exception:
+            end = -1
+
+        start = max(0, start)
 
         lines = full_output.splitlines(keepends=True)
         total_lines = len(lines)
 
         # Handle line range
-        start = max(0, start)
         end = total_lines if end == -1 else min(total_lines, end)
 
         selected_lines = [] if start >= total_lines else lines[start:end]
