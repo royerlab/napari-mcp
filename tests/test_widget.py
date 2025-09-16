@@ -4,7 +4,6 @@ Tests the Qt widget interface for the MCP server using real Qt.
 """
 
 import numpy as np
-import pytest
 
 
 class TestWidgetWithRealQt:
