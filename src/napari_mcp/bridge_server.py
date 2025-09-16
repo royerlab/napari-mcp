@@ -10,12 +10,16 @@ import traceback
 from concurrent.futures import Future
 from functools import wraps
 from io import BytesIO, StringIO
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import fastmcp
 import napari
 import numpy as np
 from fastmcp import FastMCP
+
+if TYPE_CHECKING:
+    from mcp.types import ImageContent
+
 from PIL import Image
 from qtpy.QtCore import QObject, QThread, Signal, Slot
 from qtpy.QtWidgets import QApplication
@@ -298,7 +302,7 @@ class NapariBridgeServer:
             return self.qt_bridge.run_in_main_thread(set_nd)
 
         @self.server.tool
-        async def screenshot(canvas_only: bool = True) -> dict[str, str]:
+        async def screenshot(canvas_only: bool = True) -> ImageContent:
             """Take a screenshot and return as base64 PNG."""
 
             def take_screenshot():
@@ -312,7 +316,9 @@ class NapariBridgeServer:
                 buf = BytesIO()
                 pil.save(buf, format="PNG")
                 enc = buf.getvalue()
-                return fastmcp.utilities.types.Image(data=enc, format="png")
+                return fastmcp.utilities.types.Image(
+                    data=enc, format="png"
+                ).to_image_content()
 
             return self.qt_bridge.run_in_main_thread(take_screenshot)
 

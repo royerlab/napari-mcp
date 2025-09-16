@@ -18,9 +18,12 @@ import shlex
 import sys
 import traceback
 from io import BytesIO, StringIO
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import fastmcp
+
+if TYPE_CHECKING:
+    from mcp.types import ImageContent
 
 
 # Optional imports: make module importable without heavy GUI deps.
@@ -1062,7 +1065,7 @@ async def set_grid(enabled: bool = True) -> dict[str, Any]:
         return {"status": "ok", "grid": bool(v.grid.enabled)}
 
 
-async def screenshot(canvas_only: bool = True) -> dict[str, str]:
+async def screenshot(canvas_only: bool = True) -> ImageContent:
     """
     Take a screenshot of the napari canvas and return as base64.
 
@@ -1073,9 +1076,8 @@ async def screenshot(canvas_only: bool = True) -> dict[str, str]:
 
     Returns
     -------
-    dict
-        Dictionary with 'mime_type' and 'base64_data' keys containing
-        the base64-encoded PNG image.
+    ImageContent
+        The screenshot image as an mcp.types.ImageContent object.
     """
     # Try to proxy to external viewer first
     result = await _proxy_to_external("screenshot", {"canvas_only": canvas_only})
@@ -1098,7 +1100,7 @@ async def screenshot(canvas_only: bool = True) -> dict[str, str]:
         buf = BytesIO()
         img.save(buf, format="PNG")
         enc = buf.getvalue()
-        return fastmcp.utilities.types.Image(data=enc, format="png")
+        return fastmcp.utilities.types.Image(data=enc, format="png").to_image_content()
 
 
 async def execute_code(code: str, line_limit: int = 30) -> dict[str, Any]:

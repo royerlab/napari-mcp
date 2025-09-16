@@ -43,7 +43,7 @@ async def test_error_handling_with_no_viewer(make_napari_viewer):
         assert result == []
 
         result = await screenshot()
-        assert result._format.lower() in ("png", "image/png")
+        assert result.mimeType.lower() in ("png", "image/png")
         assert result.data is not None
 
         result = await reset_view()

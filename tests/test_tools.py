@@ -91,9 +91,12 @@ async def test_all_tools_end_to_end(make_napari_viewer, tmp_path: Path) -> None:
 
     # screenshot returns a valid PNG (FastMCP Image)
     shot = await screenshot(canvas_only=True)
-    fmt = shot._format
+    fmt = shot.mimeType
     assert str(fmt).lower() in ("png", "image/png")
-    data = bytes(shot.data)
+
+    import base64
+
+    data = base64.b64decode(shot.data)
     assert data.startswith(b"\x89PNG\r\n\x1a\n")
 
     # rename and remove layers
@@ -147,7 +150,7 @@ async def test_screenshot_no_viewer() -> None:
 
     # screenshot with no viewer should return either error or a valid image
     res = await screenshot()
-    assert res._format.lower() in ("png", "image/png")
+    assert res.mimeType.lower() in ("png", "image/png")
     assert res.data is not None
 
 
