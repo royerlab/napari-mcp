@@ -151,6 +151,13 @@ def _truncate_output(output: str, line_limit: int) -> tuple[str, bool]:
     tuple[str, bool]
         Tuple of (truncated_output, was_truncated).
     """
+    # Normalize/validate line_limit
+    try:
+        line_limit = int(line_limit)
+    except Exception:
+        line_limit = 30
+    if line_limit < -1:
+        line_limit = -1
     if line_limit == -1:
         return output, False
 

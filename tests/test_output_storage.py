@@ -51,6 +51,20 @@ class TestOutputTruncation:
         assert result == output
         assert was_truncated is False
 
+    def test_truncate_output_zero_limit(self):
+        """Test behavior when line_limit is 0 (returns no lines)."""
+        output = "line1\nline2\nline3\n"
+        result, was_truncated = _truncate_output(output, 0)
+        assert result == ""
+        assert was_truncated is True
+
+    def test_truncate_output_negative_less_than_minus_one(self):
+        """Test normalization when line_limit < -1 (treated as unlimited)."""
+        output = "line1\nline2\nline3\n"
+        result, was_truncated = _truncate_output(output, -2)
+        assert result == output
+        assert was_truncated is False
+
 
 @pytest.mark.asyncio
 class TestOutputStorage:
