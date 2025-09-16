@@ -23,7 +23,6 @@ from napari_mcp.server import (
     session_information,
     set_active_layer,
     set_ndisplay,
-    init_viewer,
 )
 
 

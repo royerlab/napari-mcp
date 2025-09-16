@@ -15,8 +15,6 @@ from napari_mcp.server import (  # noqa: E402
     _process_events,
     _qt_event_pump,
     install_packages,
-    init_viewer,
-    close_viewer,
 )
 
 

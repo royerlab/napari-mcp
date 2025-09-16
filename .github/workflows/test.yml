@@ -213,7 +213,7 @@ jobs:
     - name: Install dependencies
       run: |
         uv sync --extra test
-      
+
     - name: Setup Qt libraries (Linux only)
       uses: tlambert03/setup-qt-libs@v1
 
