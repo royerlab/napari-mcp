@@ -85,7 +85,11 @@ napari_mcp = ["napari.yaml"]
 
 [tool.setuptools_scm]
 write_to = "src/napari_mcp/_version.py"
-fallback_version = "0.0.1+unknown"
+fallback_version = "0.0.1"
+version_scheme = "guess-next-dev"
+local_scheme = "node-and-date"
+# Only accept SemVer tags like v1.2.3 or 1.2.3
+tag_regex = "^(?P<prefix>v)?(?P<version>\\d+\\.\\d+\\.\\d+)$"
 
 [tool.pytest.ini_options]
 addopts = [
