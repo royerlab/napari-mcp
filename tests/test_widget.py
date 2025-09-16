@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 
 
-@pytest.mark.gui
 class TestWidgetWithRealQt:
     """Test widget with real Qt and napari."""
 
@@ -82,7 +81,6 @@ class TestWidgetWithRealQt:
         assert hasattr(widget, "close")
 
 
-@pytest.mark.gui
 class TestWidgetIntegration:
     """Integration tests for widget with real napari."""
 

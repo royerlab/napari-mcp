@@ -13,11 +13,6 @@ on:
         required: false
         type: string
         default: '["3.10","3.11","3.12","3.13"]'
-      run-benchmarks:
-        description: 'Run the optional benchmark job'
-        required: false
-        type: boolean
-        default: false
     secrets:
       CODECOV_TOKEN:
         required: false
@@ -133,7 +128,6 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: false
-        flags: unittests
 
     - name: Upload test results
       if: always()
