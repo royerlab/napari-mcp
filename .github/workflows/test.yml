@@ -234,7 +234,7 @@ jobs:
         name: benchmark-json
         path: benchmark.json
         retention-days: 7
-        
+
     - name: Store benchmark results
       uses: benchmark-action/github-action-benchmark@v1
       with:
