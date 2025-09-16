@@ -12,6 +12,7 @@ from functools import wraps
 from io import BytesIO, StringIO
 from typing import Any
 
+import fastmcp
 import napari
 import numpy as np
 from fastmcp import FastMCP
@@ -306,7 +307,12 @@ class NapariBridgeServer:
                     arr = np.asarray(arr)
                 if arr.dtype != np.uint8:
                     arr = arr.astype(np.uint8, copy=False)
-                return self._encode_png_base64(arr)
+
+                pil = Image.fromarray(arr)
+                buf = BytesIO()
+                pil.save(buf, format="PNG")
+                enc = buf.getvalue()
+                return fastmcp.utilities.types.Image(data=enc, format="png")
 
             return self.qt_bridge.run_in_main_thread(take_screenshot)
 

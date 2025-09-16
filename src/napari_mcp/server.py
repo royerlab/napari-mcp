@@ -11,7 +11,6 @@ from __future__ import annotations
 import ast
 import asyncio
 import asyncio.subprocess
-import base64
 import contextlib
 import os
 import shlex
@@ -19,6 +18,8 @@ import sys
 import traceback
 from io import BytesIO, StringIO
 from typing import Any
+
+import fastmcp
 
 
 # Optional imports: make module importable without heavy GUI deps.
@@ -377,14 +378,6 @@ def _process_events(cycles: int = 2) -> None:
     app = _ensure_qt_app()
     for _ in range(max(1, cycles)):
         app.processEvents()
-
-
-def _encode_png_base64(img: np.ndarray) -> dict[str, str]:
-    pil = Image.fromarray(img)
-    buf = BytesIO()
-    pil.save(buf, format="PNG")
-    data = base64.b64encode(buf.getvalue()).decode("ascii")
-    return {"mime_type": "image/png", "base64_data": data}
 
 
 async def _qt_event_pump() -> None:
@@ -1079,7 +1072,11 @@ async def screenshot(canvas_only: bool = True) -> dict[str, str]:
         if arr.dtype != np.uint8:
             arr = arr.astype(np.uint8, copy=False)
 
-        return _encode_png_base64(arr)
+        img = Image.fromarray(arr)
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        enc = buf.getvalue()
+        return fastmcp.utilities.types.Image(data=enc, format="png")
 
 
 async def execute_code(code: str, line_limit: int = 30) -> dict[str, Any]:

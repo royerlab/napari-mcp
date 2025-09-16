@@ -25,7 +25,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-  "fastmcp>=2.7.0",
+  "fastmcp>=2.10.3",
   "napari>=0.5.5",
   "pyqt6>=6.5.0",
   "qtpy>=2.4.1",
@@ -63,7 +63,6 @@ dev = [
   "types-Pillow>=10.0.0",
   "pre-commit>=4.3.0",
   "bandit>=1.8.6",
-  "safety>=3.6.0",
   "black>=24.0.0",
 ]
 all = ["napari-mcp[test,dev]"]

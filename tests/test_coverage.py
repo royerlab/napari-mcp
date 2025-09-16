@@ -231,8 +231,8 @@ async def test_screenshot_with_different_dtypes(make_napari_viewer):
 
     # Take screenshot - should work with any data type napari supports
     res = await screenshot()
-    assert res["mime_type"] == "image/png"
-    assert "base64_data" in res
+    assert res._format.lower() in ("png", "image/png")
+    assert res.data is not None
 
     # Clean up viewer
     await close_viewer()

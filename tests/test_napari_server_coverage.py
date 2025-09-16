@@ -16,6 +16,7 @@ from napari_mcp.server import (
     add_points,
     close_viewer,
     execute_code,
+    init_viewer,
     install_packages,
     list_layers,
     reset_view,
@@ -42,7 +43,8 @@ async def test_error_handling_with_no_viewer(make_napari_viewer):
         assert result == []
 
         result = await screenshot()
-        assert "error" in result.get("status", "") or "mime_type" in result
+        assert result._format.lower() in ("png", "image/png")
+        assert result.data is not None
 
         result = await reset_view()
         assert result["status"] == "ok"  # reset_view creates viewer if needed
