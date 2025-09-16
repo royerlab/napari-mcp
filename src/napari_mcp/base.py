@@ -345,6 +345,132 @@ class NapariMCPTools:
             arr = arr.astype(np.uint8, copy=False)
         return self.encode_png_base64(arr)
 
+    async def screenshot_timelapse(
+        self,
+        axis: int,
+        slice_spec: str = ":",
+        canvas_only: bool = True,
+    ) -> dict[str, Any]:
+        """Take timelapse screenshots by stepping through temporal axis.
+
+        Parameters
+        ----------
+        axis : int
+            The axis index to step through (typically time dimension).
+        slice_spec : str, default=":"
+            Slice specification string (e.g., "1:5", ":6", "::2").
+            Supports Python slice notation.
+        canvas_only : bool, default=True
+            If True, only capture the canvas area.
+
+        Returns
+        -------
+        dict
+            Dictionary containing status, axis info, and list of screenshot data.
+            Each screenshot includes step_value and base64 PNG data.
+        """
+        v = self._ensure_viewer()
+
+        # Validate axis
+        if not hasattr(v.dims, "nsteps") or axis >= len(v.dims.nsteps):
+            return {
+                "status": "error",
+                "message": f"Axis {axis} is not valid. Available axes: 0-{len(v.dims.nsteps) - 1}",
+            }
+
+        axis_size = v.dims.nsteps[axis]
+        if axis_size <= 1:
+            return {
+                "status": "error", 
+                "message": f"Axis {axis} has only {axis_size} steps. Cannot create timelapse.",
+            }
+
+        # Parse slice specification
+        try:
+            # Create a slice object using Python's built-in slice parsing
+            parts = slice_spec.split(":")
+            if len(parts) == 1:
+                # Single index
+                if parts[0]:
+                    start = stop = int(parts[0])
+                    step = 1
+                else:
+                    start = None
+                    stop = None
+                    step = None
+            elif len(parts) == 2:
+                # start:stop
+                start = int(parts[0]) if parts[0] else None
+                stop = int(parts[1]) if parts[1] else None
+                step = None
+            elif len(parts) == 3:
+                # start:stop:step
+                start = int(parts[0]) if parts[0] else None
+                stop = int(parts[1]) if parts[1] else None
+                step = int(parts[2]) if parts[2] else None
+            else:
+                return {
+                    "status": "error",
+                    "message": f"Invalid slice specification: {slice_spec}",
+                }
+            
+            slice_obj = slice(start, stop, step)
+            indices = range(*slice_obj.indices(axis_size))
+            
+        except (ValueError, TypeError) as e:
+            return {
+                "status": "error",
+                "message": f"Invalid slice specification '{slice_spec}': {e}",
+            }
+
+        if not indices:
+            return {
+                "status": "error",
+                "message": f"Slice '{slice_spec}' produces no valid indices for axis size {axis_size}",
+            }
+
+        # Store original axis position to restore later
+        original_step = v.dims.current_step[axis] if hasattr(v.dims, "current_step") else 0
+
+        screenshots = []
+        try:
+            for step_value in indices:
+                # Set axis to current step
+                v.dims.set_current_step(axis, step_value)
+                
+                # Take screenshot
+                screenshot_arr = v.screenshot(canvas_only=canvas_only)
+                if not isinstance(screenshot_arr, np.ndarray):
+                    screenshot_arr = np.asarray(screenshot_arr)
+                if screenshot_arr.dtype != np.uint8:
+                    screenshot_arr = screenshot_arr.astype(np.uint8, copy=False)
+                
+                # Encode as base64 PNG
+                screenshot_data = self.encode_png_base64(screenshot_arr)
+                
+                screenshots.append({
+                    "step_value": int(step_value),
+                    "axis": int(axis),
+                    **screenshot_data,
+                })
+
+        finally:
+            # Restore original axis position
+            try:
+                v.dims.set_current_step(axis, original_step)
+            except Exception:
+                pass  # Best effort restoration
+
+        return {
+            "status": "ok",
+            "axis": int(axis),
+            "slice_spec": slice_spec,
+            "axis_size": int(axis_size),
+            "n_screenshots": len(screenshots),
+            "indices": list(indices),
+            "screenshots": screenshots,
+        }
+
     async def execute_code(self, code: str) -> dict[str, Any]:
         """Execute Python code with access to the viewer."""
         v = self._ensure_viewer()
