@@ -15,6 +15,7 @@ from napari_mcp.server import (
     reorder_layer,
     reset_view,
     screenshot,
+    screenshot_timelapse,
     set_active_layer,
     set_camera,
     set_dims_current_step,
@@ -149,6 +150,163 @@ async def test_screenshot_no_viewer() -> None:
     res = await screenshot()
     assert res._format.lower() in ("png", "image/png")
     assert res.data is not None
+
+
+@pytest.mark.asyncio
+async def test_screenshot_timelapse(make_napari_viewer, tmp_path: Path) -> None:
+    """Test timelapse screenshot functionality with temporal data."""
+    # Create a napari viewer using the built-in fixture
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
+
+    # Create sample 4D image (T, Z, Y, X) to test temporal timelapse
+    time_steps = 5
+    depth_steps = 3
+    height, width = 32, 32
+    img_4d = np.random.randint(
+        0, 255, size=(time_steps, depth_steps, height, width), dtype=np.uint8
+    )
+    img_path = tmp_path / "temporal_img.tif"
+    import imageio.v3 as iio
+
+    iio.imwrite(img_path, img_4d)
+
+    # Add the temporal image
+    res = await add_image(str(img_path), name="temporal")
+    assert res["status"] == "ok"
+    assert res["name"] == "temporal"
+
+    # Test 1: Basic timelapse across time axis (axis 0) - full range
+    res = await screenshot_timelapse(axis=0, slice_spec=":")
+    assert res["status"] == "ok"
+    assert res["axis"] == 0
+    assert res["slice_spec"] == ":"
+    assert res["axis_size"] == time_steps
+    assert res["n_screenshots"] == time_steps
+    assert len(res["screenshots"]) == time_steps
+    assert len(res["indices"]) == time_steps
+
+    # Verify all screenshots are valid
+    for i, screenshot in enumerate(res["screenshots"]):
+        assert screenshot["step_value"] == i
+        assert screenshot["axis"] == 0
+        assert screenshot["mime_type"] == "image/png"
+        assert screenshot["base64_data"].startswith("iVBORw0KGgo")
+
+    # Test 2: Partial range "1:4"
+    res = await screenshot_timelapse(axis=0, slice_spec="1:4")
+    assert res["status"] == "ok"
+    assert res["n_screenshots"] == 3  # indices 1, 2, 3
+    assert res["indices"] == [1, 2, 3]
+    for i, screenshot in enumerate(res["screenshots"]):
+        assert screenshot["step_value"] == i + 1
+
+    # Test 3: Step slice "::2" (every other frame)
+    res = await screenshot_timelapse(axis=0, slice_spec="::2")
+    assert res["status"] == "ok"
+    assert res["n_screenshots"] == 3  # indices 0, 2, 4
+    assert res["indices"] == [0, 2, 4]
+    assert res["screenshots"][0]["step_value"] == 0
+    assert res["screenshots"][1]["step_value"] == 2
+    assert res["screenshots"][2]["step_value"] == 4
+
+    # Test 4: Different axis (Z axis - axis 1)
+    res = await screenshot_timelapse(axis=1, slice_spec=":")
+    assert res["status"] == "ok"
+    assert res["axis"] == 1
+    assert res["axis_size"] == depth_steps
+    assert res["n_screenshots"] == depth_steps
+
+    # Clean up
+    await close_viewer()
+
+
+@pytest.mark.asyncio
+async def test_screenshot_timelapse_error_cases(make_napari_viewer, tmp_path: Path) -> None:
+    """Test error handling in timelapse screenshot functionality."""
+    # Create a napari viewer using the built-in fixture
+    viewer = make_napari_viewer()
+    from napari_mcp import server as napari_mcp_server
+
+    napari_mcp_server._viewer = viewer
+
+    # Create a simple 2D image (no temporal dimension)
+    img_2d = np.random.randint(0, 255, size=(32, 32), dtype=np.uint8)
+    img_path = tmp_path / "static_img.tif"
+    import imageio.v3 as iio
+
+    iio.imwrite(img_path, img_2d)
+
+    # Add the 2D image
+    res = await add_image(str(img_path), name="static")
+    assert res["status"] == "ok"
+
+    # Test 1: Invalid axis index
+    res = await screenshot_timelapse(axis=10)  # Way beyond available axes
+    assert res["status"] == "error"
+    assert "not valid" in res["message"]
+
+    # Test 2: Axis with only 1 step (cannot create timelapse)
+    res = await screenshot_timelapse(axis=0)  # 2D image, axis 0 has 1 step
+    assert res["status"] == "error"
+    assert "only 1 steps" in res["message"] or "Cannot create timelapse" in res["message"]
+
+    # Test 3: Invalid slice specification
+    res = await screenshot_timelapse(axis=0, slice_spec="invalid:::")
+    assert res["status"] == "error"
+    assert "Invalid slice specification" in res["message"]
+
+    # Test 4: Empty slice result
+    res = await screenshot_timelapse(axis=0, slice_spec="10:20")  # Beyond axis size
+    assert res["status"] == "error"
+    assert "no valid indices" in res["message"]
+
+    # Clean up
+    await close_viewer()
+
+
+@pytest.mark.asyncio
+async def test_screenshot_timelapse_base_class(make_napari_viewer, tmp_path: Path) -> None:
+    """Test timelapse screenshot functionality directly via NapariMCPTools."""
+    from napari_mcp.base import NapariMCPTools
+
+    # Create a napari viewer using the built-in fixture
+    viewer = make_napari_viewer()
+    tools = NapariMCPTools(viewer)
+
+    # Create sample 3D temporal data (T, Y, X)
+    time_steps = 4
+    height, width = 16, 16
+    img_3d = np.linspace(0, 255, time_steps * height * width, dtype=np.uint8).reshape(
+        time_steps, height, width
+    )
+    img_path = tmp_path / "temporal_3d.tif"
+    import imageio.v3 as iio
+
+    iio.imwrite(img_path, img_3d)
+
+    # Add the temporal image directly to viewer
+    viewer.add_image(img_3d, name="temporal_3d")
+
+    # Test the base class method directly
+    res = await tools.screenshot_timelapse(axis=0, slice_spec="1:3")
+    assert res["status"] == "ok"
+    assert res["axis"] == 0
+    assert res["n_screenshots"] == 2  # indices 1, 2
+    assert len(res["screenshots"]) == 2
+    
+    # Verify screenshots are properly encoded
+    for screenshot in res["screenshots"]:
+        assert "step_value" in screenshot
+        assert "axis" in screenshot
+        assert "mime_type" in screenshot
+        assert "base64_data" in screenshot
+        # Verify it's a valid PNG base64
+        import base64
+        png_data = base64.b64decode(screenshot["base64_data"])
+        assert png_data.startswith(b"\x89PNG\r\n\x1a\n")
 
 
 @pytest.mark.asyncio
