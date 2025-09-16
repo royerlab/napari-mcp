@@ -1306,6 +1306,58 @@ async def screenshot_timelapse(
         return result
 
 
+async def screenshot_timelapse(
+    axis: int,
+    slice_spec: str = ":",
+    canvas_only: bool = True,
+) -> dict[str, Any]:
+    """
+    Take timelapse screenshots by stepping through temporal axis.
+
+    Captures a series of screenshots by iterating through steps along a
+    specified axis (typically the temporal dimension) according to a slice
+    specification.
+
+    Parameters
+    ----------
+    axis : int
+        The axis index to step through (e.g., 0 for first dimension).
+    slice_spec : str, default=":"
+        Slice specification string using Python slice notation.
+        Examples: ":", "1:5", ":6", "::2", "2:8:2".
+    canvas_only : bool, default=True
+        If True, only capture the canvas area (not the full window).
+
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - status: "ok" or "error"
+        - axis: axis index used
+        - slice_spec: original slice specification
+        - axis_size: total size of the axis
+        - n_screenshots: number of screenshots taken
+        - indices: list of axis values used
+        - screenshots: list of screenshot data, each with step_value, axis,
+          mime_type, and base64_data
+    """
+    # Try to proxy to external viewer first
+    params = {"axis": axis, "slice_spec": slice_spec, "canvas_only": canvas_only}
+    result = await _proxy_to_external("screenshot_timelapse", params)
+    if result is not None:
+        return result
+
+    # Local execution using NapariMCPTools
+    from napari_mcp.base import NapariMCPTools
+
+    async with _viewer_lock:
+        v = _ensure_viewer()
+        tools = NapariMCPTools(v)
+        result = await tools.screenshot_timelapse(axis, slice_spec, canvas_only)
+        _process_events()
+        return result
+
+
 async def install_packages(
     packages: list[str],
     upgrade: bool | None = False,
