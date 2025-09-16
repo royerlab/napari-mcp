@@ -12,6 +12,7 @@ import ast
 import asyncio
 import asyncio.subprocess
 import contextlib
+import datetime
 import os
 import shlex
 import sys
@@ -100,6 +101,16 @@ _use_external: bool = os.environ.get("NAPARI_MCP_USE_EXTERNAL", "false").lower()
 )
 _external_port: int = int(os.environ.get("NAPARI_MCP_BRIDGE_PORT", "9999"))
 
+# Output storage for tool results
+_output_storage: dict[str, dict[str, Any]] = {}
+_output_storage_lock: asyncio.Lock = asyncio.Lock()
+_next_output_id: int = 1
+# Maximum number of output items to retain; set NAPARI_MCP_MAX_OUTPUT_ITEMS<=0 for unlimited
+try:
+    _MAX_OUTPUT_ITEMS: int = int(os.environ.get("NAPARI_MCP_MAX_OUTPUT_ITEMS", "1000"))
+except Exception:
+    _MAX_OUTPUT_ITEMS = 1000
+
 
 def _parse_bool(value: bool | str | None, default: bool = False) -> bool:
     """Parse a boolean value from various input types.
@@ -123,6 +134,93 @@ def _parse_bool(value: bool | str | None, default: bool = False) -> bool:
     if isinstance(value, str):
         return value.lower() in ("true", "1", "yes", "on")
     return bool(value)
+
+
+def _truncate_output(output: str, line_limit: int) -> tuple[str, bool]:
+    """Truncate output to specified line limit.
+
+    Parameters
+    ----------
+    output : str
+        The output text to truncate.
+    line_limit : int
+        Maximum number of lines to return. If -1, return all lines.
+
+    Returns
+    -------
+    tuple[str, bool]
+        Tuple of (truncated_output, was_truncated).
+    """
+    # Normalize/validate line_limit
+    try:
+        line_limit = int(line_limit)
+    except Exception:
+        line_limit = 30
+    if line_limit < -1:
+        line_limit = -1
+    if line_limit == -1:
+        return output, False
+
+    lines = output.splitlines(keepends=True)
+    if len(lines) <= line_limit:
+        return output, False
+
+    truncated = "".join(lines[:line_limit])
+    return truncated, True
+
+
+async def _store_output(
+    tool_name: str,
+    stdout: str = "",
+    stderr: str = "",
+    result_repr: str | None = None,
+    **metadata: Any,
+) -> str:
+    """Store tool output and return a unique ID.
+
+    Parameters
+    ----------
+    tool_name : str
+        Name of the tool that generated the output.
+    stdout : str
+        Standard output content.
+    stderr : str
+        Standard error content.
+    result_repr : str, optional
+        String representation of the result.
+    **metadata : Any
+        Additional metadata to store with the output.
+
+    Returns
+    -------
+    str
+        Unique output ID for later retrieval.
+    """
+    global _next_output_id
+
+    async with _output_storage_lock:
+        output_id = str(_next_output_id)
+        _next_output_id += 1
+
+        _output_storage[output_id] = {
+            "tool_name": tool_name,
+            # ISO8601 UTC timestamp for interoperability
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "stdout": stdout,
+            "stderr": stderr,
+            "result_repr": result_repr,
+            **metadata,
+        }
+        # Evict oldest items if exceeding capacity
+        if _MAX_OUTPUT_ITEMS > 0 and len(_output_storage) > _MAX_OUTPUT_ITEMS:
+            overflow = len(_output_storage) - _MAX_OUTPUT_ITEMS
+            # IDs are numeric strings; evict smallest IDs first
+            for victim in sorted(_output_storage.keys(), key=lambda k: int(k))[
+                :overflow
+            ]:
+                _output_storage.pop(victim, None)
+
+        return output_id
 
 
 async def _proxy_to_external(
@@ -1003,7 +1101,7 @@ async def screenshot(canvas_only: bool = True) -> dict[str, str]:
         return fastmcp.utilities.types.Image(data=enc, format="png")
 
 
-async def execute_code(code: str) -> dict[str, Any]:
+async def execute_code(code: str, line_limit: int = 30) -> dict[str, Any]:
     """
     Execute arbitrary Python code in the server's interpreter.
 
@@ -1015,11 +1113,15 @@ async def execute_code(code: str) -> dict[str, Any]:
     code : str
         Python code string. The value of the last expression (if any)
         is returned as 'result_repr'.
+    line_limit : int, default=30
+        Maximum number of output lines to return. Use -1 for unlimited output.
+        Warning: Using -1 may consume a large number of tokens.
 
     Returns
     -------
     dict
-        Dictionary with 'status', optional 'result_repr', 'stdout', and 'stderr'.
+        Dictionary with 'status', optional 'result_repr', 'stdout', 'stderr',
+        and 'output_id' for retrieving full output if truncated.
     """
     # Try to proxy to external viewer first
     result = await _proxy_to_external("execute_code", {"code": code})
@@ -1072,20 +1174,113 @@ async def execute_code(code: str) -> dict[str, Any]:
                         _exec_globals,
                     )
             _process_events(2)
-            return {
+
+            # Get full output
+            stdout_full = stdout_buf.getvalue()
+            stderr_full = stderr_buf.getvalue()
+
+            # Store full output and get ID
+            output_id = await _store_output(
+                tool_name="execute_code",
+                stdout=stdout_full,
+                stderr=stderr_full,
+                result_repr=result_repr,
+                code=code,
+            )
+
+            # Prepare response with line limiting
+            response = {
                 "status": "ok",
+                "output_id": output_id,
                 **({"result_repr": result_repr} if result_repr is not None else {}),
-                "stdout": stdout_buf.getvalue(),
-                "stderr": stderr_buf.getvalue(),
             }
-        except Exception:
+
+            # Add warning for unlimited output
+            if line_limit == -1:
+                response["warning"] = (
+                    "Unlimited output requested. This may consume a large number "
+                    "of tokens. Consider using read_output for large outputs."
+                )
+                response["stdout"] = stdout_full
+                response["stderr"] = stderr_full
+            else:
+                # Truncate stdout and stderr
+                stdout_truncated, stdout_was_truncated = _truncate_output(
+                    stdout_full, line_limit
+                )
+                stderr_truncated, stderr_was_truncated = _truncate_output(
+                    stderr_full, line_limit
+                )
+
+                response["stdout"] = stdout_truncated
+                response["stderr"] = stderr_truncated
+
+                if stdout_was_truncated or stderr_was_truncated:
+                    response["truncated"] = True  # type: ignore
+                    response["message"] = (
+                        f"Output truncated to {line_limit} lines. "
+                        f"Use read_output('{output_id}') to retrieve full output."
+                    )
+
+            return response
+        except Exception as e:
             _process_events(1)
             tb = traceback.format_exc()
-            return {
+
+            # Get full output including traceback
+            stdout_full = stdout_buf.getvalue()
+            stderr_full = stderr_buf.getvalue() + tb
+
+            # Store full output and get ID
+            output_id = await _store_output(
+                tool_name="execute_code",
+                stdout=stdout_full,
+                stderr=stderr_full,
+                code=code,
+                error=True,
+            )
+
+            # Prepare error response with line limiting
+            response = {
                 "status": "error",
-                "stdout": stdout_buf.getvalue(),
-                "stderr": stderr_buf.getvalue() + tb,
+                "output_id": output_id,
             }
+
+            # Add warning for unlimited output
+            if line_limit == -1:
+                response["warning"] = (
+                    "Unlimited output requested. This may consume a large number "
+                    "of tokens. Consider using read_output for large outputs."
+                )
+                response["stdout"] = stdout_full
+                response["stderr"] = stderr_full
+            else:
+                # Truncate stdout and stderr
+                stdout_truncated, stdout_was_truncated = _truncate_output(
+                    stdout_full, line_limit
+                )
+                stderr_truncated, stderr_was_truncated = _truncate_output(
+                    stderr_full, line_limit
+                )
+
+                response["stdout"] = stdout_truncated
+                # Ensure exception summary is present even when truncated
+                error_summary = f"{type(e).__name__}: {e}"
+                if error_summary not in stderr_truncated:
+                    # Append a concise summary line so callers can see the error type
+                    if stderr_truncated and not stderr_truncated.endswith("\n"):
+                        stderr_truncated += "\n"
+                    stderr_truncated += error_summary + "\n"
+                response["stderr"] = stderr_truncated
+
+                if stdout_was_truncated or stderr_was_truncated:
+                    response["truncated"] = True  # type: ignore
+                    response["message"] = (
+                        f"Output truncated to {line_limit} lines. "
+                        f"Use read_output('{output_id}') to retrieve full output."
+                    )
+
+            return response
 
 
 async def install_packages(
@@ -1095,6 +1290,7 @@ async def install_packages(
     index_url: str | None = None,
     extra_index_url: str | None = None,
     pre: bool | None = False,
+    line_limit: int = 30,
 ) -> dict[str, Any]:
     """
     Install Python packages using pip.
@@ -1115,12 +1311,15 @@ async def install_packages(
         Extra index URL.
     pre : bool, optional
         Allow pre-releases (--pre flag).
+    line_limit : int, default=30
+        Maximum number of output lines to return. Use -1 for unlimited output.
+        Warning: Using -1 may consume a large number of tokens.
 
     Returns
     -------
     dict
-        Dictionary including status, returncode, stdout, stderr, and the executed
-        command.
+        Dictionary including status, returncode, stdout, stderr, command,
+        and output_id for retrieving full output if truncated.
     """
     if not packages or not isinstance(packages, list):
         return {
@@ -1159,13 +1358,120 @@ async def install_packages(
     stderr = stderr_b.decode(errors="replace")
 
     status = "ok" if proc.returncode == 0 else "error"
-    return {
+    command_str = " ".join(shlex.quote(part) for part in cmd)
+
+    # Store full output and get ID
+    output_id = await _store_output(
+        tool_name="install_packages",
+        stdout=stdout,
+        stderr=stderr,
+        packages=packages,
+        command=command_str,
+        returncode=proc.returncode,
+    )
+
+    # Prepare response with line limiting
+    response = {
         "status": status,
         "returncode": proc.returncode if proc.returncode is not None else -1,
-        "command": " ".join(shlex.quote(part) for part in cmd),
-        "stdout": stdout,
-        "stderr": stderr,
+        "command": command_str,
+        "output_id": output_id,
     }
+
+    # Add warning for unlimited output
+    if line_limit == -1:
+        response["warning"] = (
+            "Unlimited output requested. This may consume a large number "
+            "of tokens. Consider using read_output for large outputs."
+        )
+        response["stdout"] = stdout
+        response["stderr"] = stderr
+    else:
+        # Truncate stdout and stderr
+        stdout_truncated, stdout_was_truncated = _truncate_output(stdout, line_limit)
+        stderr_truncated, stderr_was_truncated = _truncate_output(stderr, line_limit)
+
+        response["stdout"] = stdout_truncated
+        response["stderr"] = stderr_truncated
+
+        if stdout_was_truncated or stderr_was_truncated:
+            response["truncated"] = True
+            response["message"] = (
+                f"Output truncated to {line_limit} lines. "
+                f"Use read_output('{output_id}') to retrieve full output."
+            )
+
+    return response
+
+
+async def read_output(output_id: str, start: int = 0, end: int = -1) -> dict[str, Any]:
+    """
+    Read stored tool output with optional line range.
+
+    Parameters
+    ----------
+    output_id : str
+        Unique ID of the stored output.
+    start : int, default=0
+        Starting line number (0-indexed).
+    end : int, default=-1
+        Ending line number (exclusive). If -1, read to end.
+
+    Returns
+    -------
+    dict
+        Dictionary containing the requested output lines and metadata.
+    """
+    async with _output_storage_lock:
+        if output_id not in _output_storage:
+            return {"status": "error", "message": f"Output ID '{output_id}' not found"}
+
+        stored_output = _output_storage[output_id]
+
+        # Combine stdout and stderr for line-based access
+        full_output = ""
+        if stored_output.get("stdout"):
+            full_output = stored_output["stdout"]
+        if stored_output.get("stderr"):
+            stderr_text = stored_output["stderr"]
+            if (
+                full_output
+                and not full_output.endswith("\n")
+                and not stderr_text.startswith("\n")
+            ):
+                full_output += "\n"
+            full_output += stderr_text
+
+        # Normalize and clamp range inputs
+        try:
+            start = int(start)
+        except Exception:
+            start = 0
+        try:
+            end = int(end)
+        except Exception:
+            end = -1
+
+        start = max(0, start)
+
+        lines = full_output.splitlines(keepends=True)
+        total_lines = len(lines)
+
+        # Handle line range
+        end = total_lines if end == -1 else min(total_lines, end)
+
+        selected_lines = [] if start >= total_lines else lines[start:end]
+
+        return {
+            "status": "ok",
+            "output_id": output_id,
+            "tool_name": stored_output["tool_name"],
+            "timestamp": stored_output["timestamp"],
+            "lines": selected_lines,
+            "line_range": {"start": start, "end": min(end, total_lines)},
+            "total_lines": total_lines,
+            "result_repr": stored_output.get("result_repr"),
+        }
 
 
 def main() -> None:
@@ -1195,6 +1501,7 @@ server.tool()(set_grid)
 server.tool()(screenshot)
 server.tool()(execute_code)
 server.tool()(install_packages)
+server.tool()(read_output)
 
 if __name__ == "__main__":
     main()

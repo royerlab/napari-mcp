@@ -24,7 +24,6 @@ from napari_mcp.server import (  # noqa: E402
     remove_layer,
     reorder_layer,
     screenshot,
-    # set_zoom removed; use set_camera(zoom=...)
     session_information,
     set_active_layer,
     set_camera,
@@ -32,8 +31,6 @@ from napari_mcp.server import (  # noqa: E402
     set_grid,
     set_layer_properties,
     set_ndisplay,
-    # set_zoom removed; use set_camera(zoom=...)
-    session_information,
 )
 
 

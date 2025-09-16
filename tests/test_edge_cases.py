@@ -17,8 +17,6 @@ from napari_mcp.server import (  # noqa: E402
     close_viewer,
     init_viewer,
     install_packages,
-    init_viewer,
-    close_viewer,
 )
 
 
