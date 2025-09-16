@@ -13,6 +13,7 @@ import asyncio
 import asyncio.subprocess
 import contextlib
 import datetime
+import logging
 import os
 import shlex
 import sys
@@ -58,6 +59,9 @@ _use_external: bool = os.environ.get("NAPARI_MCP_USE_EXTERNAL", "false").lower()
     "on",
 )
 _external_port: int = int(os.environ.get("NAPARI_MCP_BRIDGE_PORT", "9999"))
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # Output storage for tool results
 _output_storage: dict[str, dict[str, Any]] = {}
@@ -532,8 +536,8 @@ async def init_viewer(
                                         "bridge_port", _external_port
                                     ),
                                 }
-            except Exception as e:
-                print(f"Failed to connect to external viewer: {e}")
+            except Exception:
+                logger.exception("Failed to connect to external viewer")
                 _use_external = False
 
         # Use local viewer
@@ -828,10 +832,23 @@ async def add_labels(path: str, name: str | None = None) -> dict[str, Any]:
 
     async with _viewer_lock:
         v = _ensure_viewer()
-        data = iio.imread(path)
-        layer = v.add_labels(data, name=name)
-        _process_events()
-        return {"status": "ok", "name": layer.name, "shape": list(np.shape(data))}
+        try:
+            from pathlib import Path
+
+            p = Path(path).expanduser().resolve(strict=False)
+            data = iio.imread(str(p))
+            layer = v.add_labels(data, name=name)
+            _process_events()
+            return {
+                "status": "ok",
+                "name": layer.name,
+                "shape": list(np.shape(data)),
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to add labels from '{path}': {e}",
+            }
 
 
 async def add_points(
@@ -1245,6 +1262,7 @@ async def install_packages(
     extra_index_url: str | None = None,
     pre: bool | None = False,
     line_limit: int = 30,
+    timeout: int = 240,
 ) -> dict[str, Any]:
     """
     Install Python packages using pip.
@@ -1268,6 +1286,8 @@ async def install_packages(
     line_limit : int, default=30
         Maximum number of output lines to return. Use -1 for unlimited output.
         Warning: Using -1 may consume a large number of tokens.
+    timeout : int, default=240
+        Timeout for pip install in seconds.
 
     Returns
     -------
@@ -1307,7 +1327,12 @@ async def install_packages(
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    stdout_b, stderr_b = await proc.communicate()
+    try:
+        stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        with contextlib.suppress(ProcessLookupError):
+            proc.kill()
+        stdout_b, stderr_b = b"", f"pip install timed out after {timeout}s".encode()
     stdout = stdout_b.decode(errors="replace")
     stderr = stderr_b.decode(errors="replace")
 

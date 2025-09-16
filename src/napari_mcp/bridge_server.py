@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import contextlib
+import logging
 import threading
 import traceback
 from concurrent.futures import Future
@@ -393,8 +394,10 @@ class NapariBridgeServer:
             self.server.run(
                 transport="http", host="127.0.0.1", port=self.port, path="/mcp"
             )
-        except Exception as e:
-            print(f"Server error: {e}")
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "Server error while running MCP server thread"
+            )
 
     def start(self):
         """Start the MCP server in a background thread."""
