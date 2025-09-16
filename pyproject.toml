@@ -74,7 +74,7 @@ napari-mcp = "napari_mcp.server:main"
 napari-mcp = "napari_mcp:napari.yaml"
 
 [build-system]
-requires = ["setuptools>=61.0", "setuptools_scm>=8.0", "wheel"]
+requires = ["setuptools>=64", "setuptools_scm>=8.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
@@ -88,8 +88,8 @@ write_to = "src/napari_mcp/_version.py"
 fallback_version = "0.0.1"
 version_scheme = "guess-next-dev"
 local_scheme = "node-and-date"
-# Only accept SemVer tags like v1.2.3 or 1.2.3
-tag_regex = "^(?P<prefix>v)?(?P<version>\\d+\\.\\d+\\.\\d+)$"
+# Accept SemVer tags, including pre-release/build metadata (e.g., v1.2.3, v1.2.3-alpha.1, 1.2.3+build)
+tag_regex = "^(?P<prefix>v)?(?P<version>\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?)$"
 
 [tool.pytest.ini_options]
 addopts = [

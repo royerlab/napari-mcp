@@ -24,6 +24,11 @@ import fastmcp
 
 if TYPE_CHECKING:
     from mcp.types import ImageContent
+else:  # Ensure runtime availability for type evaluation in tools/pydantic
+    try:
+        from mcp.types import ImageContent  # type: ignore
+    except Exception:  # pragma: no cover - fallback for environments without mcp
+        from typing import Any as ImageContent  # type: ignore
 
 
 # Optional imports: make module importable without heavy GUI deps.
