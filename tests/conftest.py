@@ -76,13 +76,6 @@ def reset_server_state():
 
 
 @pytest.fixture(autouse=True)
-def ensure_qt_platform():
-    """Qt platform fixture - offscreen mode removed as it causes segfaults."""
-    # Let Qt run in normal mode to avoid segfaults
-    yield
-
-
-@pytest.fixture(autouse=True)
 def _materialize_viewer_when_requested(request):
     """If a test declares the make_napari_viewer fixture but never calls it,
     create one proactively so napari's leak checker tracks and cleans it.
@@ -135,39 +128,11 @@ def qapp():
 
 def _add_markers(config) -> None:
     """Register project markers consistently."""
-    config.addinivalue_line(
-        "markers",
-        "realgui: mark test as requiring real napari/Qt GUI "
-        "(deselect with '-m not realgui')",
-    )
     config.addinivalue_line("markers", "slow: mark test as slow running")
     config.addinivalue_line("markers", "unit: mark test as unit test")
     config.addinivalue_line("markers", "integration: mark test as integration test")
-    config.addinivalue_line("markers", "gui: mark test as requiring GUI")
     config.addinivalue_line("markers", "isolated: mark test as requiring isolation")
-
-
-def pytest_collection_modifyitems(config, items):
-    """Modify test collection to handle markers."""
-    # Skip GUI tests by default in CI unless explicitly requested
-    if os.environ.get("CI") and not config.getoption("--run-realgui"):
-        skip_gui = pytest.mark.skip(reason="Real GUI tests skipped in CI by default")
-        for item in items:
-            if "realgui" in item.keywords:
-                item.add_marker(skip_gui)
-
-
-def pytest_addoption(parser):
-    """Add custom command line options."""
-    parser.addoption(
-        "--run-realgui",
-        action="store_true",
-        default=False,
-        help="Run real GUI tests that require napari and Qt",
-    )
-    parser.addoption(
-        "--no-qt", action="store_true", default=False, help="Skip tests that require Qt"
-    )
+    config.addinivalue_line("markers", "benchmark: mark test as benchmark")
 
 
 def pytest_configure(config):  # type: ignore[override]
