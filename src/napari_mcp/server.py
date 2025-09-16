@@ -12,6 +12,7 @@ import ast
 import asyncio
 import asyncio.subprocess
 import contextlib
+import datetime
 import os
 import shlex
 import sys
@@ -104,6 +105,11 @@ _external_port: int = int(os.environ.get("NAPARI_MCP_BRIDGE_PORT", "9999"))
 _output_storage: dict[str, dict[str, Any]] = {}
 _output_storage_lock: asyncio.Lock = asyncio.Lock()
 _next_output_id: int = 1
+# Maximum number of output items to retain; set NAPARI_MCP_MAX_OUTPUT_ITEMS<=0 for unlimited
+try:
+    _MAX_OUTPUT_ITEMS: int = int(os.environ.get("NAPARI_MCP_MAX_OUTPUT_ITEMS", "1000"))
+except Exception:
+    _MAX_OUTPUT_ITEMS = 1000
 
 
 def _parse_bool(value: bool | str | None, default: bool = False) -> bool:
@@ -191,12 +197,21 @@ async def _store_output(
 
         _output_storage[output_id] = {
             "tool_name": tool_name,
-            "timestamp": str(np.datetime64("now")),
+            # ISO8601 UTC timestamp for interoperability
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "stdout": stdout,
             "stderr": stderr,
             "result_repr": result_repr,
             **metadata,
         }
+        # Evict oldest items if exceeding capacity
+        if _MAX_OUTPUT_ITEMS > 0 and len(_output_storage) > _MAX_OUTPUT_ITEMS:
+            overflow = len(_output_storage) - _MAX_OUTPUT_ITEMS
+            # IDs are numeric strings; evict smallest IDs first
+            for victim in sorted(_output_storage.keys(), key=lambda k: int(k))[
+                :overflow
+            ]:
+                _output_storage.pop(victim, None)
 
         return output_id
 
