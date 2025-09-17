@@ -1,5 +1,5 @@
 import base64
-from typing import Iterable
+from collections.abc import Iterable
 
 import numpy as np
 import pytest
@@ -66,7 +66,7 @@ async def test_timelapse_screenshot_interpolate_to_fit_enforces_cap(
 
     orig_save = PIL.Image.Image.save
 
-    def fake_save(self, fp, format=None, *args, **kwargs):  # noqa: D401
+    def fake_save(self, fp, *args, **kwargs):  # noqa: D401
         # Write a number of bytes roughly proportional to area
         w, h = self.size
         # 2 bytes per pixel (arbitrary but deterministic)
@@ -94,11 +94,17 @@ async def test_timelapse_screenshot_interpolate_to_fit_enforces_cap(
 
         # Additionally, verify at least some reduction happened per-frame
         # Compare first frame sizes with/without interpolation
-        first_no = len(res_no[0].data) if isinstance(res_no[0].data, (bytes, bytearray)) else len(str(res_no[0].data))
-        first_yes = len(res_yes[0].data) if isinstance(res_yes[0].data, (bytes, bytearray)) else len(str(res_yes[0].data))
+        first_no = (
+            len(res_no[0].data)
+            if isinstance(res_no[0].data, bytes | bytearray)
+            else len(str(res_no[0].data))
+        )
+        first_yes = (
+            len(res_yes[0].data)
+            if isinstance(res_yes[0].data, bytes | bytearray)
+            else len(str(res_yes[0].data))
+        )
         assert first_yes <= first_no
     finally:
         # Restore original save
         monkeypatch.setattr(PIL.Image.Image, "save", orig_save)
-
-
