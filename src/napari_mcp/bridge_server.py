@@ -6,6 +6,7 @@ import asyncio
 import base64
 import contextlib
 import logging
+import math
 import threading
 import traceback
 from concurrent.futures import Future
@@ -16,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 import fastmcp
 import napari
 import numpy as np
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
 
 if TYPE_CHECKING:
     from mcp.types import ImageContent
@@ -326,6 +327,163 @@ class NapariBridgeServer:
             return self.qt_bridge.run_in_main_thread(take_screenshot)
 
         @self.server.tool
+        async def timelapse_screenshot(
+            ctx: Context,
+            axis: int,
+            slice_range: str,
+            canvas_only: bool = True,
+            max_total_base64_bytes: int | None = 1309246,
+        ) -> list[ImageContent]:
+            """Capture a series of screenshots while sweeping a dims axis with optional downsampling to fit size cap."""
+
+            def _parse_slice(spec: str, length: int) -> list[int]:
+                s = (spec or "").strip()
+                if s and ":" not in s:
+                    idx = int(s)
+                    if idx < 0:
+                        idx += length
+                    if not (0 <= idx < length):
+                        raise ValueError(
+                            f"Index out of bounds for axis with {length} steps: {idx}"
+                        )
+                    return [idx]
+
+                parts = s.split(":")
+                if len(parts) > 3:
+                    raise ValueError(f"Invalid slice range: {spec!r}")
+                start_s, stop_s, step_s = (parts + [""] * 3)[:3]
+
+                def _to_int_or_none(val: str) -> int | None:
+                    v = val.strip()
+                    if v == "":
+                        return None
+                    return int(v)
+
+                start = _to_int_or_none(start_s)
+                stop = _to_int_or_none(stop_s)
+                step = _to_int_or_none(step_s) or 1
+                if step == 0:
+                    raise ValueError("slice step cannot be 0")
+
+                if start is None:
+                    start = 0 if step > 0 else length - 1
+                if stop is None:
+                    stop = length if step > 0 else -1
+                if start < 0:
+                    start += length
+                if stop < 0:
+                    stop += length
+
+                rng = range(start, stop, step)
+                return [i for i in rng if 0 <= i < length]
+
+            # First, measure total steps and a sample PNG size on the main thread
+            def measure_plan():
+                v = self.viewer
+                try:
+                    nsteps_tuple = getattr(v.dims, "nsteps", None)
+                    if nsteps_tuple is None:
+                        raise AttributeError
+                    total = int(nsteps_tuple[int(axis)])
+                except Exception:
+                    try:
+                        total = max(
+                            int(getattr(lyr.data, "shape", [1])[(int(axis))])
+                            if int(axis) < getattr(lyr.data, "ndim", 0)
+                            else 1
+                            for lyr in v.layers
+                        )
+                    except Exception:
+                        total = 0
+                if total <= 0:
+                    raise RuntimeError(
+                        "Unable to determine number of steps for the given axis"
+                    )
+                idx_list = _parse_slice(slice_range, total)
+                if not idx_list:
+                    return idx_list, 0
+                v.dims.set_current_step(int(axis), int(idx_list[0]))
+                arr = v.screenshot(canvas_only=canvas_only)
+                if not isinstance(arr, np.ndarray):
+                    arr = np.asarray(arr)
+                if arr.dtype != np.uint8:
+                    arr = arr.astype(np.uint8, copy=False)
+                pil = Image.fromarray(arr)
+                buf = BytesIO()
+                pil.save(buf, format="PNG")
+                enc = buf.getvalue()
+                sample_b64_len = ((len(enc) + 2) // 3) * 4
+                return idx_list, sample_b64_len
+
+            indices, sample_b64_len = self.qt_bridge.run_in_main_thread(measure_plan)
+            if not indices:
+                return []
+
+            # Ask user about downsampling if needed
+            downsample_factor = 1.0
+            if (
+                max_total_base64_bytes is not None
+                and sample_b64_len * len(indices) > max_total_base64_bytes
+            ):
+                try:
+                    est_factor = math.sqrt(
+                        max_total_base64_bytes
+                        / float(max(1, sample_b64_len * len(indices)))
+                    )
+                    est_pct = int(max(1, min(100, round(est_factor * 100))))
+                    resp = await ctx.elicit(
+                        message=(
+                            "Estimated timelapse exceeds message cap. "
+                            f"Downsample to ~{est_pct}% to fit all images?"
+                        ),
+                        response_type=["yes", "no"],
+                    )
+                    if (
+                        getattr(resp, "action", None) == "accept"
+                        and getattr(resp, "data", "no") == "yes"
+                    ):
+                        downsample_factor = max(0.05, min(1.0, est_factor))
+                except Exception:
+                    downsample_factor = 1.0
+
+            # Perform the capture on the main thread, enforcing the cap
+            def capture_series():
+                v = self.viewer
+                images: list[ImageContent] = []
+                total_b64_len = 0
+                for idx in indices:
+                    v.dims.set_current_step(int(axis), int(idx))
+                    arr = v.screenshot(canvas_only=canvas_only)
+                    if not isinstance(arr, np.ndarray):
+                        arr = np.asarray(arr)
+                    if arr.dtype != np.uint8:
+                        arr = arr.astype(np.uint8, copy=False)
+                    pil = Image.fromarray(arr)
+                    if downsample_factor < 1.0:
+                        new_w = max(1, int(pil.width * downsample_factor))
+                        new_h = max(1, int(pil.height * downsample_factor))
+                        if new_w != pil.width or new_h != pil.height:
+                            pil = pil.resize((new_w, new_h), resample=Image.BILINEAR)
+                    buf = BytesIO()
+                    pil.save(buf, format="PNG")
+                    enc = buf.getvalue()
+                    b64_len = ((len(enc) + 2) // 3) * 4
+                    if (
+                        max_total_base64_bytes is not None
+                        and total_b64_len + b64_len > max_total_base64_bytes
+                    ):
+                        break
+                    total_b64_len += b64_len
+                    images.append(
+                        fastmcp.utilities.types.Image(
+                            data=enc, format="png"
+                        ).to_image_content()
+                    )
+                return images
+
+            return self.qt_bridge.run_in_main_thread(capture_series)
+
+        @self.server.tool
         async def execute_code(code: str):
             """Execute Python code with access to the viewer."""
 
@@ -445,6 +603,17 @@ class NapariBridgeServer:
         """Take screenshot via the registered tool."""
         tool = await self.server.get_tool("screenshot")
         return await tool.fn(canvas_only)
+
+    async def timelapse_screenshot(
+        self,
+        axis: int,
+        slice_range: str,
+        canvas_only: bool = True,
+        max_total_base64_bytes: int | None = 1309246,
+    ) -> list[dict[str, str]]:
+        """Timelapse screenshot via the registered tool."""
+        tool = await self.server.get_tool("timelapse_screenshot")
+        return await tool.fn(axis, slice_range, canvas_only, max_total_base64_bytes)
 
     async def add_image(self, **kwargs):
         """Add image via the registered tool."""
