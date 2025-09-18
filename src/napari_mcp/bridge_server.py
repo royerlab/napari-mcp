@@ -332,9 +332,10 @@ class NapariBridgeServer:
             axis: int,
             slice_range: str,
             canvas_only: bool = True,
-            max_total_base64_bytes: int | None = 1309246,
+            interpolate_to_fit: bool = False,
         ) -> list[ImageContent]:
             """Capture a series of screenshots while sweeping a dims axis with optional downsampling to fit size cap."""
+            max_total_base64_bytes = 1309246 if interpolate_to_fit else None
 
             def _parse_slice(spec: str, length: int) -> list[int]:
                 s = (spec or "").strip()
@@ -425,26 +426,11 @@ class NapariBridgeServer:
                 max_total_base64_bytes is not None
                 and sample_b64_len * len(indices) > max_total_base64_bytes
             ):
-                try:
-                    est_factor = math.sqrt(
-                        max_total_base64_bytes
-                        / float(max(1, sample_b64_len * len(indices)))
-                    )
-                    est_pct = int(max(1, min(100, round(est_factor * 100))))
-                    resp = await ctx.elicit(
-                        message=(
-                            "Estimated timelapse exceeds message cap. "
-                            f"Downsample to ~{est_pct}% to fit all images?"
-                        ),
-                        response_type=["yes", "no"],
-                    )
-                    if (
-                        getattr(resp, "action", None) == "accept"
-                        and getattr(resp, "data", "no") == "yes"
-                    ):
-                        downsample_factor = max(0.05, min(1.0, est_factor))
-                except Exception:
-                    downsample_factor = 1.0
+                est_factor = math.sqrt(
+                    max_total_base64_bytes
+                    / float(max(1, sample_b64_len * len(indices)))
+                )
+                downsample_factor = max(0.05, min(1.0, est_factor))
 
             # Perform the capture on the main thread, enforcing the cap
             def capture_series():
@@ -609,11 +595,11 @@ class NapariBridgeServer:
         axis: int,
         slice_range: str,
         canvas_only: bool = True,
-        max_total_base64_bytes: int | None = 1309246,
+        interpolate_to_fit: bool = False,
     ) -> list[dict[str, str]]:
         """Timelapse screenshot via the registered tool."""
         tool = await self.server.get_tool("timelapse_screenshot")
-        return await tool.fn(axis, slice_range, canvas_only, max_total_base64_bytes)
+        return await tool.fn(axis, slice_range, canvas_only, interpolate_to_fit)
 
     async def add_image(self, **kwargs):
         """Add image via the registered tool."""
