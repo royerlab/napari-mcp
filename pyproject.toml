@@ -120,10 +120,6 @@ filterwarnings = [
 ]
 # Test isolation settings
 junit_family = "xunit2"
-# Randomize test order to detect dependencies
-addopts_random = "--random-order"
-# Run tests in subprocess for complete isolation (when using --forked)
-addopts_forked = "--forked"
 
 [tool.ruff]
 line-length = 88

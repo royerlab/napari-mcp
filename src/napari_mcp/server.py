@@ -14,6 +14,7 @@ import asyncio.subprocess
 import contextlib
 import datetime
 import logging
+import math
 import os
 import shlex
 import sys
@@ -1072,6 +1073,190 @@ async def screenshot(canvas_only: bool = True) -> ImageContent:
         return fastmcp.utilities.types.Image(data=enc, format="png").to_image_content()
 
 
+async def timelapse_screenshot(
+    axis: int,
+    slice_range: str,
+    canvas_only: bool = True,
+    interpolate_to_fit: bool = False,
+) -> list[ImageContent]:
+    """
+    Capture a series of screenshots while sweeping a dims axis.
+
+    Parameters
+    ----------
+    axis : int
+        Dims axis index to sweep (e.g., temporal axis).
+    slice_range : str
+        Python-like slice string over step indices, e.g. "1:5", ":6", "::2".
+        Defaults follow Python semantics with start=0, stop=nsteps, step=1.
+    canvas_only : bool, default=True
+        If True, only capture the canvas area.
+    interpolate_to_fit : bool, default=False
+        If True, interpolate the images to fit the total size cap of 1309246 bytes.
+
+    Returns
+    -------
+    list[ImageContent]
+        List of screenshots as mcp.types.ImageContent objects.
+    """
+    max_total_base64_bytes = 1309246 if interpolate_to_fit else None
+
+    # Try to proxy to external viewer first
+    result = await _proxy_to_external(
+        "timelapse_screenshot",
+        {
+            "axis": axis,
+            "slice_range": slice_range,
+            "canvas_only": canvas_only,
+            "max_total_base64_bytes": max_total_base64_bytes,
+        },
+    )
+    if result is not None:
+        return result  # type: ignore[return-value]
+
+    def _parse_slice(spec: str, length: int) -> list[int]:
+        # Normalize
+        s = (spec or "").strip()
+        # Single integer
+        if s and ":" not in s:
+            try:
+                idx = int(s)
+            except Exception as err:
+                raise ValueError(f"Invalid slice range: {spec!r}") from err
+            if idx < 0:
+                idx += length
+            if not (0 <= idx < length):
+                raise ValueError(
+                    f"Index out of bounds for axis with {length} steps: {idx}"
+                )
+            return [idx]
+
+        # Slice form start:stop:step
+        parts = s.split(":")
+        if len(parts) > 3:
+            raise ValueError(f"Invalid slice range: {spec!r}")
+        start_s, stop_s, step_s = (parts + [""] * 3)[:3]
+
+        def _to_int_or_none(val: str) -> int | None:
+            v = val.strip()
+            if v == "":
+                return None
+            return int(v)
+
+        start = _to_int_or_none(start_s)
+        stop = _to_int_or_none(stop_s)
+        step = _to_int_or_none(step_s) or 1
+        if step == 0:
+            raise ValueError("slice step cannot be 0")
+
+        # Handle negatives like Python
+        if start is None:
+            start = 0 if step > 0 else length - 1
+        if stop is None:
+            stop = length if step > 0 else -1
+        if start < 0:
+            start += length
+        if stop < 0:
+            stop += length
+
+        # Clamp to valid iteration range similar to range() behavior
+        rng = range(start, stop, step)
+        indices = [i for i in rng if 0 <= i < length]
+        return indices
+
+    # Local execution
+    async with _viewer_lock:
+        v = _ensure_viewer()
+
+        # Determine number of steps along axis
+        try:
+            nsteps_tuple = getattr(v.dims, "nsteps", None)
+            if nsteps_tuple is None:
+                # Fallback: infer from current_step length and a conservative stop
+                # We cannot reliably infer total steps without dims.nsteps; require it
+                raise AttributeError
+            total = int(nsteps_tuple[int(axis)])
+        except Exception:
+            # Best effort via bounds from layers; may be approximate
+            try:
+                total = max(
+                    int(getattr(lyr.data, "shape", [1])[(int(axis))])
+                    if int(axis) < getattr(lyr.data, "ndim", 0)
+                    else 1
+                    for lyr in v.layers
+                )
+            except Exception:
+                total = 0
+
+        if total <= 0:
+            raise RuntimeError("Unable to determine number of steps for the given axis")
+
+        indices = _parse_slice(slice_range, total)
+        if not indices:
+            return []
+
+        # Take a sample at the first index to estimate size
+        v.dims.set_current_step(int(axis), int(indices[0]))
+        _process_events(2)
+        sample_arr = v.screenshot(canvas_only=canvas_only)
+        if not isinstance(sample_arr, np.ndarray):
+            sample_arr = np.asarray(sample_arr)
+        if sample_arr.dtype != np.uint8:
+            sample_arr = sample_arr.astype(np.uint8, copy=False)
+        sample_img = Image.fromarray(sample_arr)
+        sbuf = BytesIO()
+        sample_img.save(sbuf, format="PNG")
+        sample_png = sbuf.getvalue()
+        sample_b64_len = ((len(sample_png) + 2) // 3) * 4
+
+        # Ask user whether to downsample if estimated total exceeds cap
+        downsample_factor = 1.0
+        if (
+            max_total_base64_bytes is not None
+            and sample_b64_len * len(indices) > max_total_base64_bytes
+        ):
+            est_factor = math.sqrt(
+                max_total_base64_bytes / float(max(1, sample_b64_len * len(indices)))
+            )
+            downsample_factor = max(0.05, min(1.0, est_factor))
+
+        images: list[ImageContent] = []
+        total_b64_len = 0
+        for idx in indices:
+            # Move slider
+            v.dims.set_current_step(int(axis), int(idx))
+            _process_events(2)
+
+            # Capture
+            arr = v.screenshot(canvas_only=canvas_only)
+            if not isinstance(arr, np.ndarray):
+                arr = np.asarray(arr)
+            if arr.dtype != np.uint8:
+                arr = arr.astype(np.uint8, copy=False)
+
+            img = Image.fromarray(arr)
+            if downsample_factor < 1.0:
+                new_w = max(1, int(img.width * downsample_factor))
+                new_h = max(1, int(img.height * downsample_factor))
+                if new_w != img.width or new_h != img.height:
+                    img = img.resize((new_w, new_h), resample=Image.BILINEAR)
+            buf = BytesIO()
+            img.save(buf, format="PNG")
+            enc = buf.getvalue()
+            b64_len = ((len(enc) + 2) // 3) * 4
+            if (
+                max_total_base64_bytes is not None
+                and total_b64_len + b64_len > max_total_base64_bytes
+            ):
+                break
+            total_b64_len += b64_len
+            images.append(
+                fastmcp.utilities.types.Image(data=enc, format="png").to_image_content()
+            )
+
+        return images
+
+
 async def execute_code(code: str, line_limit: int = 30) -> dict[str, Any]:
     """
     Execute arbitrary Python code in the server's interpreter.
@@ -1478,6 +1663,7 @@ server.tool()(set_ndisplay)
 server.tool()(set_dims_current_step)
 server.tool()(set_grid)
 server.tool()(screenshot)
+server.tool()(timelapse_screenshot)
 server.tool()(execute_code)
 server.tool()(install_packages)
 server.tool()(read_output)
