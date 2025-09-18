@@ -193,35 +193,31 @@ async def _proxy_to_external(
         client = Client(f"http://localhost:{_external_port}/mcp")
         async with client:
             result = await client.call_tool(tool_name, params or {})
+            #return result
             if hasattr(result, "content"):
                 content = result.content
-                if isinstance(content, list) and len(content) > 0:
+                if content[0].type == "text":
                     import json
-
                     response = (
                         content[0].text
                         if hasattr(content[0], "text")
                         else str(content[0])
                     )
                     try:
-                        return (
-                            json.loads(response)
-                            if isinstance(response, str)
-                            else response
-                        )
+                        return json.loads(response)
                     except json.JSONDecodeError:
                         return {
                             "status": "error",
                             "message": f"Invalid JSON response: {response}",
                         }
+                else:
+                    return content
             return {
                 "status": "error",
                 "message": "Invalid response format from external viewer",
             }
-    except Exception as e:
-        print(e)
-        raise
-        #return None
+    except Exception:
+        return None
 
 
 def _ensure_qt_app() -> Any:
@@ -416,12 +412,44 @@ async def detect_viewers() -> dict[str, Any]:
 # Removed explicit selection API; the server now auto-detects an external
 # napari-mcp bridge if available and otherwise uses a local viewer.
 
+async def _external_session_information(_external_port: int) -> dict[str, Any]:
+    """
+    Get session information from the external viewer.
+    """
+    test_client = Client(f"http://localhost:{_external_port}/mcp")
+    async with test_client:
+        result = await test_client.call_tool("session_information")
+        if hasattr(result, "content"):
+            content = result.content
+            if isinstance(content, list) and len(content) > 0:
+                import json
+
+                info = (
+                    content[0].text
+                    if hasattr(content[0], "text")
+                    else str(content[0])
+                )
+                info_dict = (
+                    json.loads(info) if isinstance(info, str) else info
+                )
+                if info_dict.get("session_type") == "napari_bridge_session":
+                    return {
+                        "status": "ok",
+                        "viewer_type": "external",
+                        "title": info_dict.get("viewer", {}).get(
+                            "title", "External Viewer"
+                        ),
+                        "layers": info_dict.get("viewer", {}).get(
+                            "layer_names", []
+                        ),
+                        "port": info_dict.get("bridge_port", _external_port),
+                    }
 
 async def init_viewer(
     title: str | None = None,
-    width: int | None = None,
-    height: int | None = None,
-    port: int | None = None,
+    width: int | str | None = None,
+    height: int | str | None = None,
+    port: int | str | None = None,
 ) -> dict[str, Any]:
     """
     Create or return the napari viewer (local or external).
@@ -449,39 +477,13 @@ async def init_viewer(
         try:
             _external_port = int(port)
         except Exception:
+            logger.error("Invalid port: {port}")
             _external_port = _external_port
 
     async with _viewer_lock:
         # Try external viewer first; fall back to local
         try:
-            test_client = Client(f"http://localhost:{_external_port}/mcp")
-            async with test_client:
-                result = await test_client.call_tool("session_information")
-                if hasattr(result, "content"):
-                    content = result.content
-                    if isinstance(content, list) and len(content) > 0:
-                        import json
-
-                        info = (
-                            content[0].text
-                            if hasattr(content[0], "text")
-                            else str(content[0])
-                        )
-                        info_dict = (
-                            json.loads(info) if isinstance(info, str) else info
-                        )
-                        if info_dict.get("session_type") == "napari_bridge_session":
-                            return {
-                                "status": "ok",
-                                "viewer_type": "external",
-                                "title": info_dict.get("viewer", {}).get(
-                                    "title", "External Viewer"
-                                ),
-                                "layers": info_dict.get("viewer", {}).get(
-                                    "layer_names", []
-                                ),
-                                "port": info_dict.get("bridge_port", _external_port),
-                            }
+            return await _external_session_information(_external_port)
         except Exception:
             # No external viewer; continue to local viewer
             pass
@@ -573,6 +575,14 @@ async def session_information() -> dict[str, Any]:
 
     async with _viewer_lock:
         global _viewer, _qt_pump_task, _exec_globals
+
+        try:
+            return await _external_session_information(_external_port)
+        except Exception:
+            # No external viewer; continue to local viewer
+            pass
+
+        # Use local viewer
 
         # Check if viewer exists
         viewer_exists = _viewer is not None
@@ -717,7 +727,7 @@ async def add_image(
     name: str | None = None,
     colormap: str | None = None,
     blending: str | None = None,
-    channel_axis: int | None = None,
+    channel_axis: int | str |None = None,
 ) -> dict[str, Any]:
     """
     Add an image layer from a file path.
@@ -749,7 +759,7 @@ async def add_image(
     if blending:
         params["blending"] = blending
     if channel_axis is not None:
-        params["channel_axis"] = channel_axis
+        params["channel_axis"] = int(channel_axis)
 
     result = await _proxy_to_external("add_image", params)
     if result is not None:
@@ -766,7 +776,7 @@ async def add_image(
             name=name,
             colormap=colormap,
             blending=blending,
-            channel_axis=channel_axis,
+            channel_axis=int(channel_axis),
         )
         _process_events()
         return {"status": "ok", "name": layer.name, "shape": list(np.shape(data))}
@@ -798,7 +808,7 @@ async def add_labels(path: str, name: str | None = None) -> dict[str, Any]:
 
 
 async def add_points(
-    points: list[list[float]], name: str | None = None, size: float = 10.0
+    points: list[list[float]], name: str | None = None, size: float | str = 10.0
 ) -> dict[str, Any]:
     """
     Add a points layer.
@@ -810,7 +820,7 @@ async def add_points(
     async with _viewer_lock:
         v = _ensure_viewer()
         arr = np.asarray(points, dtype=float)
-        layer = v.add_points(arr, name=name, size=size)
+        layer = v.add_points(arr, name=name, size=float(size))
         _process_events()
         return {"status": "ok", "name": layer.name, "n_points": int(arr.shape[0])}
 
@@ -836,7 +846,7 @@ async def set_layer_properties(
     colormap: str | None = None,
     blending: str | None = None,
     contrast_limits: list[float] | None = None,
-    gamma: float | None = None,
+    gamma: float | str | None = None,
     new_name: str | None = None,
 ) -> dict[str, Any]:
     """Set common properties on a layer by name."""
@@ -869,7 +879,7 @@ async def set_layer_properties(
 
 async def reorder_layer(
     name: str,
-    index: int | None = None,
+    index: int | str | None = None,
     before: str | None = None,
     after: str | None = None,
 ) -> dict[str, Any]:
@@ -933,8 +943,8 @@ async def reset_view() -> dict[str, Any]:
 
 async def set_camera(
     center: list[float] | None = None,
-    zoom: float | None = None,
-    angle: float | None = None,
+    zoom: float | str | None = None,
+    angle: float | str | None = None,
 ) -> dict[str, Any]:
     """Set camera properties: center, zoom, and/or angle."""
     async with _viewer_lock:
@@ -953,7 +963,7 @@ async def set_camera(
         }
 
 
-async def set_ndisplay(ndisplay: int) -> dict[str, Any]:
+async def set_ndisplay(ndisplay: int | str) -> dict[str, Any]:
     """Set number of displayed dimensions (2 or 3)."""
     async with _viewer_lock:
         v = _ensure_viewer()
@@ -962,7 +972,7 @@ async def set_ndisplay(ndisplay: int) -> dict[str, Any]:
         return {"status": "ok", "ndisplay": int(v.dims.ndisplay)}
 
 
-async def set_dims_current_step(axis: int, value: int) -> dict[str, Any]:
+async def set_dims_current_step(axis: int | str, value: int | str) -> dict[str, Any]:
     """Set the current step (slider position) for a specific axis."""
     async with _viewer_lock:
         v = _ensure_viewer()
@@ -971,7 +981,7 @@ async def set_dims_current_step(axis: int, value: int) -> dict[str, Any]:
         return {"status": "ok", "axis": int(axis), "value": int(value)}
 
 
-async def set_grid(enabled: bool = True) -> dict[str, Any]:
+async def set_grid(enabled: bool | str = True) -> dict[str, Any]:
     """Enable or disable grid view."""
     async with _viewer_lock:
         v = _ensure_viewer()
@@ -980,7 +990,7 @@ async def set_grid(enabled: bool = True) -> dict[str, Any]:
         return {"status": "ok", "grid": bool(v.grid.enabled)}
 
 
-async def screenshot(canvas_only: bool = True) -> ImageContent:
+async def screenshot(canvas_only: bool | str = True) -> ImageContent:
     """
     Take a screenshot of the napari canvas and return as base64.
 
@@ -1019,10 +1029,10 @@ async def screenshot(canvas_only: bool = True) -> ImageContent:
 
 
 async def timelapse_screenshot(
-    axis: int,
+    axis: int | str,
     slice_range: str,
-    canvas_only: bool = True,
-    interpolate_to_fit: bool = False,
+    canvas_only: bool | str = True,
+    interpolate_to_fit: bool = True,
 ) -> list[ImageContent]:
     """
     Capture a series of screenshots while sweeping a dims axis.
@@ -1053,7 +1063,7 @@ async def timelapse_screenshot(
             "axis": axis,
             "slice_range": slice_range,
             "canvas_only": canvas_only,
-            "max_total_base64_bytes": max_total_base64_bytes,
+            "interpolate_to_fit": interpolate_to_fit,
         },
     )
     if result is not None:
@@ -1202,7 +1212,7 @@ async def timelapse_screenshot(
         return images
 
 
-async def execute_code(code: str, line_limit: int = 30) -> dict[str, Any]:
+async def execute_code(code: str, line_limit: int | str = 30) -> dict[str, Any]:
     """
     Execute arbitrary Python code in the server's interpreter.
 
@@ -1391,7 +1401,7 @@ async def install_packages(
     index_url: str | None = None,
     extra_index_url: str | None = None,
     pre: bool | None = False,
-    line_limit: int = 30,
+    line_limit: int | str = 30,
     timeout: int = 240,
 ) -> dict[str, Any]:
     """
@@ -1425,6 +1435,11 @@ async def install_packages(
         Dictionary including status, returncode, stdout, stderr, command,
         and output_id for retrieving full output if truncated.
     """
+    # Try to proxy to external viewer first
+    result = await _proxy_to_external("install_packages", {"packages": packages, "upgrade": upgrade, "no_deps": no_deps, "index_url": index_url, "extra_index_url": extra_index_url, "pre": pre, "line_limit": line_limit, "timeout": timeout})
+    if result is not None:
+        return result
+    
     if not packages or not isinstance(packages, list):
         return {
             "status": "error",
@@ -1513,7 +1528,7 @@ async def install_packages(
     return response
 
 
-async def read_output(output_id: str, start: int = 0, end: int = -1) -> dict[str, Any]:
+async def read_output(output_id: str, start: int | str = 0, end: int | str = -1) -> dict[str, Any]:
     """
     Read stored tool output with optional line range.
 

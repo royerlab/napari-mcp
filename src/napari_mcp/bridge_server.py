@@ -7,6 +7,8 @@ import base64
 import contextlib
 import logging
 import math
+import shlex
+import sys
 import threading
 import traceback
 from concurrent.futures import Future
@@ -17,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 import fastmcp
 import napari
 import numpy as np
-from fastmcp import Context, FastMCP
+from fastmcp import FastMCP
 
 if TYPE_CHECKING:
     from mcp.types import ImageContent
@@ -328,7 +330,6 @@ class NapariBridgeServer:
 
         @self.server.tool
         async def timelapse_screenshot(
-            ctx: Context,
             axis: int,
             slice_range: str,
             canvas_only: bool = True,
@@ -528,6 +529,108 @@ class NapariBridgeServer:
 
             return self.qt_bridge.run_in_main_thread(execute)
 
+        @self.server.tool
+        async def install_packages(
+            packages: list[str],
+            upgrade: bool | None = False,
+            no_deps: bool | None = False,
+            index_url: str | None = None,
+            extra_index_url: str | None = None,
+            pre: bool | None = False,
+            line_limit: int | str = 30,
+            timeout: int = 240,
+        ):
+            """Install Python packages using pip.
+
+            Install packages into the currently running server environment.
+            """
+            if not packages or not isinstance(packages, list):
+                return {
+                    "status": "error",
+                    "message": "Parameter 'packages' must be a non-empty list of package names",
+                }
+
+            cmd: list[str] = [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--no-input",
+                "--disable-pip-version-check",
+            ]
+            if upgrade:
+                cmd.append("--upgrade")
+            if no_deps:
+                cmd.append("--no-deps")
+            if pre:
+                cmd.append("--pre")
+            if index_url:
+                cmd.extend(["--index-url", index_url])
+            if extra_index_url:
+                cmd.extend(["--extra-index-url", extra_index_url])
+            cmd.extend(packages)
+
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            try:
+                stdout_b, stderr_b = await asyncio.wait_for(
+                    proc.communicate(), timeout=timeout
+                )
+            except asyncio.TimeoutError:
+                with contextlib.suppress(ProcessLookupError):
+                    proc.kill()
+                stdout_b, stderr_b = b"", f"pip install timed out after {timeout}s".encode()
+
+            stdout = stdout_b.decode(errors="replace")
+            stderr = stderr_b.decode(errors="replace")
+
+            status = "ok" if proc.returncode == 0 else "error"
+            command_str = " ".join(shlex.quote(part) for part in cmd)
+
+            def _truncate(text: str, limit: int) -> tuple[str, bool]:
+                if limit < 0:
+                    return text, False
+                lines = text.splitlines()
+                if len(lines) <= limit:
+                    return text, False
+                return "\n".join(lines[:limit]), True
+
+            response: dict[str, Any] = {
+                "status": status,
+                "returncode": proc.returncode if proc.returncode is not None else -1,
+                "command": command_str,
+            }
+
+            # Handle unlimited output
+            if line_limit == -1:
+                response["warning"] = (
+                    "Unlimited output requested. This may consume a large number "
+                    "of tokens."
+                )
+                response["stdout"] = stdout
+                response["stderr"] = stderr
+                return response
+
+            # Coerce line_limit to int if provided as a string
+            try:
+                limit_int = int(line_limit)
+            except Exception:
+                limit_int = 30
+
+            stdout_trunc, stdout_was_trunc = _truncate(stdout, limit_int)
+            stderr_trunc, stderr_was_trunc = _truncate(stderr, limit_int)
+            response["stdout"] = stdout_trunc
+            response["stderr"] = stderr_trunc
+            if stdout_was_trunc or stderr_was_trunc:
+                response["truncated"] = True
+                response["message"] = (
+                    f"Output truncated to {limit_int} lines."
+                )
+            return response
+
     def _run_server_thread(self):
         """Run the server in a separate thread with its own event loop."""
         self.loop = asyncio.new_event_loop()
@@ -615,6 +718,11 @@ class NapariBridgeServer:
         """Remove layer via the registered tool."""
         tool = await self.server.get_tool("remove_layer")
         return await tool.fn(name)
+
+    async def install_packages(self, **kwargs):
+        """Install packages via the registered tool."""
+        tool = await self.server.get_tool("install_packages")
+        return await tool.fn(**kwargs)
 
     @property
     def is_running(self) -> bool:
