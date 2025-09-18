@@ -16,7 +16,6 @@ from napari_mcp.server import (
     _parse_bool,
     _proxy_to_external,
     detect_viewers,
-    select_viewer,
 )
 
 
@@ -158,7 +157,6 @@ class TestProxyFunctionality:
     """Test proxying tool calls to external viewer."""
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server._use_external", True)
     @patch("napari_mcp.server.Client")
     async def test_proxy_to_external_success(self, mock_client_class):
         """Test successful proxy to external viewer."""
@@ -184,14 +182,13 @@ class TestProxyFunctionality:
         mock_client_class.assert_called_once_with("http://localhost:9999/mcp")
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server._use_external", False)
-    async def test_proxy_to_external_disabled(self):
-        """Test proxy when external viewer is disabled."""
+    @patch("napari_mcp.server.Client", side_effect=Exception("Connection refused"))
+    async def test_proxy_to_external_unavailable(self, _):
+        """Test proxy when external viewer is unavailable."""
         result = await _proxy_to_external("test_tool", {"param": "value"})
         assert result is None
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server._use_external", True)
     @patch("napari_mcp.server.Client")
     async def test_proxy_to_external_initialize_client(self, mock_client_class):
         """Test proxy initializes client if not present."""
@@ -214,7 +211,6 @@ class TestProxyFunctionality:
         mock_client_class.assert_called_once_with("http://localhost:9999/mcp")
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server._use_external", True)
     @patch("napari_mcp.server.Client")
     async def test_proxy_to_external_invalid_json(self, mock_client_class):
         """Test proxy with invalid JSON response."""
@@ -235,7 +231,7 @@ class TestProxyFunctionality:
 
 
 class TestViewerDetectionAndSelection:
-    """Test detect_viewers and select_viewer functions."""
+    """Test detect_viewers behavior."""
 
     @pytest.mark.asyncio
     @patch("napari_mcp.server._detect_external_viewer")
@@ -266,77 +262,4 @@ class TestViewerDetectionAndSelection:
         assert result["viewers"]["external"]["type"] == "napari_bridge"
         assert result["viewers"]["external"]["port"] == 9999
 
-    @pytest.mark.asyncio
-    @patch("napari_mcp.server._detect_external_viewer")
-    async def test_select_viewer_external(self, mock_detect):
-        """Test selecting external viewer."""
-        mock_client = AsyncMock()
-        mock_info = {"test": "info"}
-        mock_detect.return_value = (mock_client, mock_info)
-
-        result = await select_viewer(use_external=True)
-
-        assert result["status"] == "ok"
-        assert result["selected"] == "external"
-        assert result["info"] == mock_info
-
-    @pytest.mark.asyncio
-    @patch("napari_mcp.server._detect_external_viewer")
-    async def test_select_viewer_external_not_found(self, mock_detect):
-        """Test selecting external viewer when not available."""
-        mock_detect.return_value = (None, None)
-
-        result = await select_viewer(use_external=True)
-
-        assert result["status"] == "error"
-        assert "not found" in result["message"]
-        assert result["fallback"] == "local"
-
-    @pytest.mark.asyncio
-    async def test_select_viewer_local(self):
-        """Test selecting local viewer."""
-        result = await select_viewer(use_external=False)
-
-        assert result["status"] == "ok"
-        assert result["selected"] == "local"
-
-    @pytest.mark.asyncio
-    @patch("napari_mcp.server._detect_external_viewer")
-    async def test_select_viewer_auto_detect(self, mock_detect):
-        """Test auto-detecting viewer preference."""
-        # With external available
-        mock_client = AsyncMock()
-        mock_detect.return_value = (mock_client, {"test": "info"})
-
-        result = await select_viewer(use_external=None)
-        assert result["selected"] == "external"
-
-        # Without external available
-        mock_detect.return_value = (None, None)
-
-        result = await select_viewer(use_external=None)
-        assert result["selected"] == "local"
-
-    @pytest.mark.asyncio
-    @patch("napari_mcp.server._detect_external_viewer")
-    async def test_select_viewer_string_parsing(self, mock_detect):
-        """Test selecting viewer with string parameter."""
-        mock_client = AsyncMock()
-        mock_client.close = AsyncMock()
-        mock_detect.return_value = (mock_client, {"test": "info"})
-
-        # Test string "true"
-        result = await select_viewer(use_external="true")
-        assert result["selected"] == "external"
-
-        # Test string "false"
-        result = await select_viewer(use_external="false")
-        assert result["selected"] == "local"
-
-        # Test string "1"
-        result = await select_viewer(use_external="1")
-        assert result["selected"] == "external"
-
-        # Test string "no"
-        result = await select_viewer(use_external="no")
-        assert result["selected"] == "local"
+    # Selection API removed; auto-detection is covered by detect_viewers tests above
