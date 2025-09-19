@@ -29,14 +29,11 @@ pip install -e ".[test,dev]"
 uv pip install -e ".[test,dev]"
 ```
 
-### Verify Installation
+### Verify Installation (optional)
 
 ```bash
 # Check if the command is available
 napari-mcp --help
-
-# Or run directly
-python -m napari_mcp_server --help
 ```
 
 ## Method 2: PyPI Installation (When Available)
@@ -63,22 +60,9 @@ pip install git+https://github.com/royerlab/napari-mcp.git
 pip install git+https://github.com/royerlab/napari-mcp.git@main
 ```
 
-## Running the Server
+## Configure Your AI Assistant (preferred)
 
-After installation, you have multiple ways to run the server:
-
-### Command Line Interface
-
-```bash
-# Using the installed command
-napari-mcp
-
-# Using Python module
-python -m napari_mcp_server
-
-# With custom configuration
-napari-mcp --port 8000 --host 0.0.0.0
-```
+After installation, you do not need to start the server manually. Add the MCP server entry shown in Quick Start and your AI app will start it automatically.
 
 ### Python Script
 
@@ -94,33 +78,7 @@ if __name__ == "__main__":
 
 ## Claude Desktop Configuration
 
-For traditional installations, use this configuration:
-
-```json
-{
-  "mcpServers": {
-    "napari": {
-      "command": "python",
-      "args": ["-m", "napari_mcp_server"]
-    }
-  }
-}
-```
-
-### Alternative Configuration
-
-If you have the executable in your PATH:
-
-```json
-{
-  "mcpServers": {
-    "napari": {
-      "command": "napari-mcp",
-      "args": []
-    }
-  }
-}
-```
+Use the same configuration referenced in Quick Start.
 
 ## Virtual Environment Setup
 
@@ -231,8 +189,8 @@ pip list | grep -E "(napari|fastmcp|PyQt)"
 # Check napari installation
 python -c "import napari; print(napari.__version__)"
 
-# Test MCP server import
-python -c "import napari_mcp_server; print('Import successful')"
+# Test import
+python -c "import napari_mcp; print('Import successful')"
 ```
 
 ## Development Setup

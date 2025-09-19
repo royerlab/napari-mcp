@@ -18,82 +18,22 @@ The `uv run --with` approach automatically:
 
 This means you can run napari MCP server on any system with just `uv` installed!
 
-## Method 1: From GitHub (Latest Version)
+## Configure Your AI App (Recommended)
 
-### Direct GitHub Execution
+Use the MCP configuration JSON from the Quick Start guide.
 
-```bash
-uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
-  fastmcp run https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py
-```
-
-!!! success "Benefits"
-    - ✅ Always runs the latest version
-    - ✅ No local files needed
-    - ✅ Perfect for getting updates
-    - ✅ Great for testing new features
-
-### Download First, Then Run
+## Optional: Manual Run (for debugging)
 
 ```bash
-# Download latest version
-curl -O https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py
-
-# Run locally
-uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
-  fastmcp run napari_mcp_server.py
-```
-
-## Method 2: From Local File
-
-### Using Cloned Repository
-
-```bash
-# Clone the repository
-git clone https://github.com/royerlab/napari-mcp.git
-cd napari-mcp
-
-# Run with zero install
-uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
-  fastmcp run src/napari_mcp_server.py
-```
-
-### Using Downloaded File
-
-```bash
-# Download to specific location
-curl -o ~/napari_mcp_server.py https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py
-
-# Run from anywhere
-uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
-  fastmcp run ~/napari_mcp_server.py
+# Start the server manually (not required for normal use)
+uv run --with napari-mcp napari-mcp
 ```
 
 ## Claude Desktop Configuration
 
 ### Basic Configuration
 
-```json
-{
-  "mcpServers": {
-    "napari": {
-      "command": "uv",
-      "args": [
-        "run",
-        "--with", "Pillow",
-        "--with", "PyQt6",
-        "--with", "fastmcp",
-        "--with", "imageio",
-        "--with", "napari",
-        "--with", "numpy",
-        "--with", "qtpy",
-        "fastmcp", "run",
-        "/absolute/path/to/napari_mcp_server.py"
-      ]
-    }
-  }
-}
-```
+Use the JSON shown above in "Configure Your AI App".
 
 ### Advanced Configuration with Environment Variables
 
@@ -102,18 +42,7 @@ uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --
   "mcpServers": {
     "napari": {
       "command": "uv",
-      "args": [
-        "run",
-        "--with", "Pillow>=10.3.0",
-        "--with", "PyQt6>=6.5.0",
-        "--with", "fastmcp>=2.7.0",
-        "--with", "imageio>=2.34.0",
-        "--with", "napari>=0.5.5",
-        "--with", "numpy>=1.26.0",
-        "--with", "qtpy>=2.4.1",
-        "fastmcp", "run",
-        "/absolute/path/to/napari_mcp_server.py"
-      ],
+      "args": ["run", "--with", "napari-mcp", "napari-mcp"],
       "env": {
         "QT_QPA_PLATFORM": "offscreen",
         "NAPARI_ASYNC": "1"
@@ -125,34 +54,7 @@ uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --
 
 ## Convenience Scripts
 
-Use our pre-built scripts for even easier execution:
-
-### Unix/macOS/Linux
-
-```bash
-# Download and run our convenience script
-curl -O https://raw.githubusercontent.com/royerlab/napari-mcp/main/scripts/run.sh
-chmod +x run.sh
-
-# Run with local file
-./run.sh
-
-# Run with specific path
-./run.sh /path/to/napari_mcp_server.py
-```
-
-### Windows
-
-```powershell
-# Download and run our Windows script
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/royerlab/napari-mcp/main/scripts/run.bat" -OutFile "run.bat"
-
-# Run with local file
-.\run.bat
-
-# Run with specific path
-.\run.bat C:\path\to\napari_mcp_server.py
-```
+Scripts are unnecessary for normal use. Configure your AI app and it will start the server automatically. Use scripts only for debugging.
 
 ## Understanding Dependencies
 

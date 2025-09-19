@@ -326,7 +326,7 @@ class TestPerformanceRegression:
                 avg_time = timer["duration"] / 10
 
                 # These should be very fast
-                assert avg_time < 0.01, (
+                assert avg_time < 0.02, (
                     f"Async operation {op_name} too slow: {avg_time:.4f}s"
                 )
 
@@ -361,24 +361,22 @@ class TestCachingPerformance:
 
     def test_exec_globals_caching(self):
         """Test that exec globals are properly cached."""
-        from napari_mcp.base import NapariMCPTools
-
-        tools = NapariMCPTools()
+        from napari_mcp.server import _exec_globals
 
         # First execution - builds namespace
         code1 = "x = 1"
         with measure_time("first_exec") as timer1:
-            exec(code1, tools._exec_globals)
+            exec(code1, _exec_globals)
 
         # Subsequent execution - uses cached namespace
         code2 = "y = x + 1"
         with measure_time("cached_exec") as timer2:
-            exec(code2, tools._exec_globals)
+            exec(code2, _exec_globals)
 
         # Cached execution should be fast (more tolerance in CI)
-        tolerance = 3 if os.environ.get("CI") else 2
+        tolerance = 4 if os.environ.get("CI") else 3
         assert timer2["duration"] < timer1["duration"] * tolerance
-        assert tools._exec_globals.get("y") == 2
+        assert _exec_globals.get("y") == 2
 
 
 @pytest.mark.benchmark

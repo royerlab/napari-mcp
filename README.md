@@ -8,70 +8,46 @@
 
 MCP server for remote control of napari viewers via Model Context Protocol (MCP). Perfect for AI-assisted analysis with Claude Desktop.
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Two Setup Methods)
 
-### Option 1: Install from PyPI (Recommended)
-```bash
-# Install the package
-pip install napari-mcp
+### Method 1: Add MCP JSON Configuration (Recommended)
 
-# Run the server
-napari-mcp
-```
+Add this to your MCP client configuration. Clients will auto-launch the server.
 
-### Option 2: Install from GitHub (Latest)
-```bash
-# Install directly from GitHub
-uv pip install git+https://github.com/royerlab/napari-mcp.git
-
-# Run the server
-napari-mcp
-```
-
-### Option 3: Development Install
-```bash
-# Clone and install
-git clone https://github.com/royerlab/napari-mcp.git
-cd napari-mcp
-uv pip install -e .
-
-# Run the server
-napari-mcp
-```
-
-**Claude Desktop config (After Installation):**
-```json
-{
-  "mcpServers": {
-    "napari": {
-      "command": "napari-mcp"
-    }
-  }
-}
-```
-
-**Alternative config (GitHub install):**
 ```json
 {
   "mcpServers": {
     "napari": {
       "command": "uv",
-      "args": [
-        "run", "--with", "git+https://github.com/royerlab/napari-mcp.git",
-        "napari-mcp"
-      ]
+      "args": ["run", "--with", "napari-mcp", "napari-mcp"]
     }
   }
 }
 ```
 
-**Why this approach?**
-- ✅ **Zero Installation** - No pip install, no virtual environments
-- ✅ **Single File** - Easy to share, version, and deploy
-- ✅ **Auto Dependencies** - uv handles all dependencies automatically
-- ✅ **Direct GitHub Execution** - Run latest version directly from repo without downloading
-- ✅ **Always Up-to-Date** - GitHub URL ensures you get the latest version
-- ✅ **Reproducible** - Same dependencies every time
+See the MCP JSON format standard: [MCP JSON Configuration](https://gofastmcp.com/integrations/mcp-json-configuration).
+
+### Method 2: Napari Plugin Bridge (External Viewer)
+
+1. Install: `pip install napari-mcp`
+2. Open napari → Plugins → MCP Server Control
+3. Click “Start Server” (default port 9999)
+4. Keep the same MCP JSON config as above so your AI app auto-starts and proxies to this external viewer
+
+### Development Install
+```bash
+# Clone and install
+git clone https://github.com/royerlab/napari-mcp.git
+cd napari-mcp
+uv pip install -e .
+```
+
+**Claude Desktop config:** use the MCP JSON in Method 1 above.
+
+**Why uv run?**
+- ✅ **Zero install** - No virtualenv or pip install required
+- ✅ **Always up-to-date** - Pulls the latest published version
+- ✅ **Reproducible** - uv caches and pins environments per command
 
 ## 🤖 Multi-LLM Support
 
@@ -96,20 +72,11 @@ git clone https://github.com/royerlab/napari-mcp.git
 cd napari-mcp
 pip install -e .
 
-# Run
-napari-mcp
+# Run (optional for debugging only)
+napari-mcp --help
 ```
 
-Claude Desktop config for installed version:
-```json
-{
-  "mcpServers": {
-    "napari": {
-      "command": "napari-mcp"
-    }
-  }
-}
-```
+
 
 ### Development Installation
 
@@ -130,6 +97,7 @@ pip install -e ".[test,dev]"
 
 ### Session Information
 - `session_information()` - Get comprehensive session info including viewer state, layers, system details
+- `detect_viewers()` - Detect available local/external viewers
 
 ### Layer Management
 - `list_layers()` - Get all layers and their properties
@@ -154,6 +122,7 @@ pip install -e ".[test,dev]"
 - `screenshot(canvas_only?)` - Capture PNG image as base64
 - `execute_code(code)` - Run Python with access to viewer, napari, numpy
 - `install_packages(packages, ...)` - Install Python packages dynamically
+- `read_output(output_id, start?, end?)` - Retrieve full/stdout/stderr from previous calls
 
 ## ⚠️ **IMPORTANT SECURITY WARNING**
 
@@ -217,14 +186,14 @@ Ask Claude: "Switch to 3D display mode and take a screenshot"
 ## 🧪 Testing
 
 ```bash
-# Run basic tests (fast, no GUI)
-./run_tests.sh
+# Fast suite (skips GUI)
+pytest -q -m "not realgui"
 
-# Run with real GUI tests (requires display)
-./run_realgui_tests.sh
-
-# Run with coverage
+# Full suite with coverage (skips GUI)
 pytest --cov=src --cov-report=html tests/ -m "not realgui"
+
+# Include GUI tests (requires a display)
+pytest -m realgui
 ```
 
 ## 🤝 Contributing
@@ -253,6 +222,7 @@ The server architecture consists of:
 - **Napari Integration**: Manages viewer lifecycle and operations
 - **Qt Event Loop**: Asynchronous GUI event processing
 - **Tool Layer**: Exposes napari functionality as MCP tools
+- **External Bridge (optional)**: Auto-detects and proxies to an existing napari viewer started from the plugin widget
 
 Key design decisions:
 - **Thread-safe**: All napari operations are serialized through locks
@@ -262,7 +232,7 @@ Key design decisions:
 
 ## 📚 Resources
 
-- **[QUICKSTART.md](QUICKSTART.md)** - Get running in 2 minutes
+- **[Quick Start](docs/getting-started/quickstart.md)** - Get running in 2 minutes
 - **[LLM_INTEGRATIONS.md](LLM_INTEGRATIONS.md)** - Complete guide for Claude Desktop, Claude Code, Cursor, ChatGPT
 - **[Model Context Protocol](https://modelcontextprotocol.io/)** - MCP specification
 - **[FastMCP](https://github.com/jlowin/fastmcp)** - Python MCP framework
@@ -275,7 +245,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- [napari team](https://napari.org/team/) for the excellent imaging platform
+- [napari team](https://napari.org/) for the excellent imaging platform
 - [FastMCP](https://github.com/jlowin/fastmcp) for the MCP framework
 - [Anthropic](https://www.anthropic.com/) for Claude and MCP development
 - [astral-sh](https://astral.sh/) for uv dependency management
