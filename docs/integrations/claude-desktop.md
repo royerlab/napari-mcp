@@ -6,19 +6,6 @@ For now, please refer to our [Quick Start Guide](../getting-started/quickstart.m
 
 ## Quick Configuration
 
-```json
-{
-  "mcpServers": {
-    "napari": {
-      "command": "uv",
-      "args": [
-        "run", "--with", "Pillow", "--with", "PyQt6", "--with", "fastmcp",
-        "--with", "imageio", "--with", "napari", "--with", "numpy", "--with", "qtpy",
-        "fastmcp", "run", "/absolute/path/to/napari_mcp_server.py"
-      ]
-    }
-  }
-}
-```
+Use the configuration JSON from the Quick Start guide.
 
 → [Back to Integrations Overview](index.md)

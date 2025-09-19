@@ -49,10 +49,8 @@ Get napari working with AI assistance in 2 minutes:
 ### Option 1: Zero Install (Recommended)
 
 ```bash
-# Download and run in one command
-curl -O https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py
-uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
-  fastmcp run napari_mcp_server.py
+# Run the latest published version without installing
+uv run --with napari-mcp napari-mcp
 ```
 
 ### Option 2: Traditional Installation
@@ -69,35 +67,7 @@ napari-mcp
 
 ### Configure Your AI Assistant
 
-=== "Claude Desktop"
-    ```json
-    {
-      "mcpServers": {
-        "napari": {
-          "command": "uv",
-          "args": [
-            "run", "--with", "Pillow", "--with", "PyQt6", "--with", "fastmcp",
-            "--with", "imageio", "--with", "napari", "--with", "numpy", "--with", "qtpy",
-            "fastmcp", "run", "/absolute/path/to/napari_mcp_server.py"
-          ]
-        }
-      }
-    }
-    ```
-
-=== "Claude Code"
-    ```bash
-    fastmcp install claude-code napari_mcp_server.py \
-        --with napari --with imageio --with Pillow
-    ```
-
-=== "Cursor"
-    ```bash
-    fastmcp install cursor napari_mcp_server.py \
-        --with napari --with imageio --with Pillow
-    ```
-
-**→ See the [Integrations](integrations/index.md) section for complete setup guides**
+See Quick Start for the recommended MCP configuration JSON, and Integrations for tool-specific notes.
 
 ---
 
@@ -129,11 +99,11 @@ The server exposes 20+ MCP tools for complete napari control:
 
 | Category | Tools | Description |
 |----------|-------|-------------|
-| **Session** | `init_viewer`, `close_viewer`, `session_information` | Viewer lifecycle management |
+| **Session** | `detect_viewers`, `init_viewer`, `close_viewer`, `session_information` | Viewer lifecycle management |
 | **Layers** | `add_image`, `add_labels`, `add_points`, `list_layers` | Layer creation and management |
 | **Properties** | `set_layer_properties`, `reorder_layer` | Layer customization |
 | **Navigation** | `set_camera`, `reset_view`, `set_ndisplay` | Viewer navigation |
-| **Utilities** | `screenshot`, `execute_code`, `install_packages` | Advanced functionality |
+| **Utilities** | `screenshot`, `execute_code`, `install_packages`, `read_output` | Advanced functionality |
 
 **→ See the [API Reference](api/index.md) for complete documentation**
 

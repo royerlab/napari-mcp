@@ -1,12 +1,7 @@
 # Cursor Integration
 
-*Coming soon - detailed Cursor setup guide*
+Coming soon - detailed Cursor setup guide.
 
-## Quick Setup
-
-```bash
-fastmcp install cursor napari_mcp_server.py \
-    --with napari --with imageio --with Pillow --with PyQt6
-```
+Tip: If Cursor supports custom MCP servers, use the same JSON from Quick Start.
 
 → [Back to Integrations Overview](index.md)

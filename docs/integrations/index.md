@@ -33,32 +33,13 @@ Connect napari MCP server with your favorite AI assistant or development environ
 ## Quick Setup Overview
 
 === "Claude Desktop (Recommended)"
-    ```json
-    {
-      "mcpServers": {
-        "napari": {
-          "command": "uv",
-          "args": [
-            "run", "--with", "napari", "--with", "fastmcp",
-            "fastmcp", "run", "/path/to/napari_mcp_server.py"
-          ]
-        }
-      }
-    }
-    ```
+Use the configuration JSON shown in Quick Start.
 
 === "Claude Code / Cursor"
-    ```bash
-    fastmcp install claude-code napari_mcp_server.py \
-        --with napari --with imageio --with Pillow
-    ```
+If your IDE supports MCP server entries, use the same JSON as Quick Start. Otherwise, see the IDE-specific docs.
 
 === "ChatGPT (Advanced)"
-    ```bash
-    # Deploy publicly accessible server
-    uv run --with fastmcp --with napari \
-      fastmcp serve napari_mcp_server.py --host 0.0.0.0
-    ```
+Limited support; requires a public MCP endpoint. Not recommended.
 
 ## Integration Benefits by Platform
 

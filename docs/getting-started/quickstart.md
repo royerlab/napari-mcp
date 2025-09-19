@@ -1,82 +1,29 @@
 # Quick Start - 2 Minutes to AI-Controlled Napari
 
-Get napari working with AI assistance in just 2 minutes with zero installation!
+Get napari working with AI assistance in just 2 minutes. No manual server launch required.
 
 !!! success "What You'll Accomplish"
     By the end of this guide:
 
-    - ✅ Napari server running with AI control
-    - ✅ Claude Desktop (or your AI) can control napari
+    - ✅ Claude Desktop (or your AI) starts napari server automatically
+    - ✅ Full control over a live napari viewer
     - ✅ Ready to load images and take screenshots
 
-## Step 1: Run the Server (30 seconds)
+## Step 1: Add MCP Server Entry (30 seconds)
 
-=== "One-Line Command"
-    ```bash
-    curl -O https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py && \
-    uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
-      fastmcp run napari_mcp_server.py
-    ```
-
-=== "Step by Step"
-    ```bash
-    # Download the server file
-    curl -O https://raw.githubusercontent.com/royerlab/napari-mcp/main/src/napari_mcp_server.py
-
-    # Run with all dependencies
-    uv run --with Pillow --with PyQt6 --with fastmcp --with imageio --with napari --with numpy --with qtpy \
-      fastmcp run napari_mcp_server.py
-    ```
-
-!!! info "What This Does"
-    - Downloads the napari MCP server (single Python file)
-    - Automatically installs all required dependencies via `uv`
-    - Starts the server with FastMCP protocol
-    - Opens a napari viewer window
-
-**Expected output:**
-```
-🚀 Starting FastMCP server...
-📡 MCP server running on stdio
-🔬 Napari viewer initialized
-```
-
-## Step 2: Configure Claude Desktop (1 minute)
-
-1. **Open Claude Desktop settings** (⌘+, on macOS, Ctrl+, on Windows/Linux)
-
-2. **Add this configuration:**
+1. Open Claude Desktop settings (⌘+, on macOS; Ctrl+, on Windows/Linux)
+2. Add this configuration:
    ```json
    {
      "mcpServers": {
        "napari": {
          "command": "uv",
-         "args": [
-           "run",
-           "--with", "Pillow",
-           "--with", "PyQt6",
-           "--with", "fastmcp",
-           "--with", "imageio",
-           "--with", "napari",
-           "--with", "numpy",
-           "--with", "qtpy",
-           "fastmcp", "run",
-           "/absolute/path/to/napari_mcp_server.py"
-         ]
+         "args": ["run", "--with", "napari-mcp", "napari-mcp"]
        }
      }
    }
    ```
-
-3. **Update the path:** Replace `/absolute/path/to/napari_mcp_server.py` with your actual file location
-
-   !!! tip "Finding the Absolute Path"
-       ```bash
-       # Get current directory + filename
-       echo "$(pwd)/napari_mcp_server.py"
-       ```
-
-4. **Restart Claude Desktop**
+3. Save and fully restart Claude Desktop
 
 ## Step 3: Test the Connection (30 seconds)
 
@@ -152,10 +99,11 @@ If the tests above work, you're ready to explore:
     - Restart Claude Desktop after making config changes
     - Verify the server is running (you should see terminal output)
 
-!!! failure "Permission denied"
-    **Solution:** Make the file executable:
+!!! failure "uv: command not found"
+    **Solution:** Install uv first:
     ```bash
-    chmod +x napari_mcp_server.py
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    # Restart your terminal
     ```
 
 !!! failure "Napari window doesn't appear"
