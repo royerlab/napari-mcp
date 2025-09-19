@@ -4,28 +4,27 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import contextlib
 import logging
-import math
-import shlex
-import sys
 import threading
-import traceback
 from concurrent.futures import Future
 from functools import wraps
 from io import BytesIO, StringIO
+import contextlib
+import math
+import fastmcp
 from typing import TYPE_CHECKING, Any
 
-import fastmcp
-import napari
 import numpy as np
 from fastmcp import FastMCP
+from napari_mcp.server import NapariMCPTools as _Tools
 
 if TYPE_CHECKING:
     from mcp.types import ImageContent
+    import napari
 else:
     ImageContent = Any
 
+from napari_mcp.server import _parse_bool
 from PIL import Image
 from qtpy.QtCore import QObject, QThread, Signal, Slot
 from qtpy.QtWidgets import QApplication
@@ -88,6 +87,33 @@ class NapariBridgeServer:
         app = QApplication.instance()
         if app and app.thread() != self.qt_bridge.thread():
             self.qt_bridge.moveToThread(app.thread())
+        # Expose this viewer to shared implementation so server/bridge delegate consistently
+        try:
+            from napari_mcp import server as _srv_impl
+
+            _srv_impl._viewer = viewer  # type: ignore[attr-defined]
+            # Disable external proxying inside the bridge to avoid loops
+            async def _no_proxy(*_args, **_kwargs):
+                return None
+
+            async def _no_detect():
+                return (None, None)
+
+            _srv_impl._proxy_to_external = _no_proxy  # type: ignore[attr-defined]
+            _srv_impl._detect_external_viewer = _no_detect  # type: ignore[attr-defined]
+            # Configure shared tools to run GUI ops on the main thread
+            if hasattr(_srv_impl, "set_gui_executor"):
+                _srv_impl.set_gui_executor(self.qt_bridge.run_in_main_thread)
+            # Also disable external session info to prevent recursion
+            async def _no_external_session_info(_port):
+                raise RuntimeError("external session disabled in bridge")
+
+            if hasattr(_srv_impl, "NapariMCPTools"):
+                _srv_impl.NapariMCPTools._external_session_information = (  # type: ignore[attr-defined]
+                    _no_external_session_info
+                )
+        except Exception:
+            pass
         self._setup_tools()
 
     def _run_in_main(self, func):
@@ -137,7 +163,7 @@ class NapariBridgeServer:
                     layer_detail = {
                         "name": layer.name,
                         "type": layer.__class__.__name__,
-                        "visible": bool(getattr(layer, "visible", True)),
+                        "visible": _parse_bool(getattr(layer, "visible", True)),
                         "opacity": float(getattr(layer, "opacity", 1.0)),
                     }
                     if hasattr(layer, "data") and hasattr(layer.data, "shape"):
@@ -156,7 +182,7 @@ class NapariBridgeServer:
                     "bridge_port": self.port,
                 }
 
-            # Run in main thread via Qt bridge
+            # Run in main thread via Qt bridge and avoid any external proxy recursion
             return self.qt_bridge.run_in_main_thread(get_info)
 
         @self.server.tool
@@ -169,7 +195,7 @@ class NapariBridgeServer:
                     entry = {
                         "name": lyr.name,
                         "type": lyr.__class__.__name__,
-                        "visible": bool(getattr(lyr, "visible", True)),
+                        "visible": _parse_bool(getattr(lyr, "visible", True)),
                         "opacity": float(getattr(lyr, "opacity", 1.0)),
                     }
                     if hasattr(lyr, "colormap"):
@@ -268,7 +294,7 @@ class NapariBridgeServer:
                     return {"status": "not_found", "name": name}
                 lyr = self.viewer.layers[name]
                 if visible is not None:
-                    lyr.visible = bool(visible)
+                    lyr.visible = _parse_bool(visible)
                 if opacity is not None:
                     lyr.opacity = float(opacity)
                 if colormap is not None and hasattr(lyr, "colormap"):
@@ -308,11 +334,11 @@ class NapariBridgeServer:
             return self.qt_bridge.run_in_main_thread(set_nd)
 
         @self.server.tool
-        async def screenshot(canvas_only: bool = True) -> ImageContent:
+        async def screenshot(canvas_only: bool | str = True) -> ImageContent:
             """Take a screenshot and return as base64 PNG."""
 
             def take_screenshot():
-                arr = self.viewer.screenshot(canvas_only=canvas_only)
+                arr = self.viewer.screenshot(canvas_only=_parse_bool(canvas_only))
                 if not isinstance(arr, np.ndarray):
                     arr = np.asarray(arr)
                 if arr.dtype != np.uint8:
@@ -332,7 +358,7 @@ class NapariBridgeServer:
         async def timelapse_screenshot(
             axis: int,
             slice_range: str,
-            canvas_only: bool = True,
+            canvas_only: bool | str = True,
             interpolate_to_fit: bool = False,
         ) -> list[ImageContent]:
             """Capture a series of screenshots while sweeping a dims axis with optional downsampling to fit size cap."""
@@ -405,7 +431,7 @@ class NapariBridgeServer:
                 if not idx_list:
                     return idx_list, 0
                 v.dims.set_current_step(int(axis), int(idx_list[0]))
-                arr = v.screenshot(canvas_only=canvas_only)
+                arr = v.screenshot(canvas_only=_parse_bool(canvas_only))
                 if not isinstance(arr, np.ndarray):
                     arr = np.asarray(arr)
                 if arr.dtype != np.uint8:
@@ -477,7 +503,7 @@ class NapariBridgeServer:
             def execute():
                 self._exec_globals.setdefault("__builtins__", __builtins__)
                 self._exec_globals["viewer"] = self.viewer
-                self._exec_globals.setdefault("napari", napari)
+                self._exec_globals.setdefault("napari", None)
                 self._exec_globals.setdefault("np", np)
 
                 stdout_buf = StringIO()
@@ -520,6 +546,7 @@ class NapariBridgeServer:
                         "stderr": stderr_buf.getvalue(),
                     }
                 except Exception:
+                    import traceback
                     tb = traceback.format_exc()
                     return {
                         "status": "error",
@@ -544,92 +571,17 @@ class NapariBridgeServer:
 
             Install packages into the currently running server environment.
             """
-            if not packages or not isinstance(packages, list):
-                return {
-                    "status": "error",
-                    "message": "Parameter 'packages' must be a non-empty list of package names",
-                }
-
-            cmd: list[str] = [
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "--no-input",
-                "--disable-pip-version-check",
-            ]
-            if upgrade:
-                cmd.append("--upgrade")
-            if no_deps:
-                cmd.append("--no-deps")
-            if pre:
-                cmd.append("--pre")
-            if index_url:
-                cmd.extend(["--index-url", index_url])
-            if extra_index_url:
-                cmd.extend(["--extra-index-url", extra_index_url])
-            cmd.extend(packages)
-
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+            # Delegate to shared implementation (no Qt main-thread requirement)
+            return await _Tools.install_packages(
+                packages=packages,
+                upgrade=upgrade,
+                no_deps=no_deps,
+                index_url=index_url,
+                extra_index_url=extra_index_url,
+                pre=pre,
+                line_limit=line_limit,
+                timeout=timeout,
             )
-            try:
-                stdout_b, stderr_b = await asyncio.wait_for(
-                    proc.communicate(), timeout=timeout
-                )
-            except asyncio.TimeoutError:
-                with contextlib.suppress(ProcessLookupError):
-                    proc.kill()
-                stdout_b, stderr_b = b"", f"pip install timed out after {timeout}s".encode()
-
-            stdout = stdout_b.decode(errors="replace")
-            stderr = stderr_b.decode(errors="replace")
-
-            status = "ok" if proc.returncode == 0 else "error"
-            command_str = " ".join(shlex.quote(part) for part in cmd)
-
-            def _truncate(text: str, limit: int) -> tuple[str, bool]:
-                if limit < 0:
-                    return text, False
-                lines = text.splitlines()
-                if len(lines) <= limit:
-                    return text, False
-                return "\n".join(lines[:limit]), True
-
-            response: dict[str, Any] = {
-                "status": status,
-                "returncode": proc.returncode if proc.returncode is not None else -1,
-                "command": command_str,
-            }
-
-            # Handle unlimited output
-            if line_limit == -1:
-                response["warning"] = (
-                    "Unlimited output requested. This may consume a large number "
-                    "of tokens."
-                )
-                response["stdout"] = stdout
-                response["stderr"] = stderr
-                return response
-
-            # Coerce line_limit to int if provided as a string
-            try:
-                limit_int = int(line_limit)
-            except Exception:
-                limit_int = 30
-
-            stdout_trunc, stdout_was_trunc = _truncate(stdout, limit_int)
-            stderr_trunc, stderr_was_trunc = _truncate(stderr, limit_int)
-            response["stdout"] = stdout_trunc
-            response["stderr"] = stderr_trunc
-            if stdout_was_trunc or stderr_was_trunc:
-                response["truncated"] = True
-                response["message"] = (
-                    f"Output truncated to {limit_int} lines."
-                )
-            return response
 
     def _run_server_thread(self):
         """Run the server in a separate thread with its own event loop."""
