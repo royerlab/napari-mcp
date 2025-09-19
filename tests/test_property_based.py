@@ -10,7 +10,7 @@ from hypothesis.extra.numpy import arrays
 
 # Removed offscreen mode - it causes segfaults
 # Use the mock napari from conftest
-from napari_mcp.base import NapariMCPTools
+from napari_mcp.server import NapariMCPTools
 
 
 class TestPropertyBasedLayerOperations:
@@ -33,7 +33,8 @@ class TestPropertyBasedLayerOperations:
         """Test that layer names remain unique after operations."""
         mock_viewer = Mock()
         mock_viewer.layers = []
-        _ = NapariMCPTools(mock_viewer)  # Tools instance not used directly
+        _ = NapariMCPTools()  # Tools instance not used directly
+        _viewer = mock_viewer
 
         # Property: Adding layers should maintain unique names
         added_names = set()
@@ -60,9 +61,12 @@ class TestPropertyBasedLayerOperations:
         # Adjust shape to match dimensions
         shape = shape[:dimensions]
 
+        from napari_mcp.server import _viewer
+        _viewer = None
         mock_viewer = Mock()
         mock_viewer.add_image = Mock()
-        _ = NapariMCPTools(mock_viewer)  # Tools instance not used directly
+        _viewer = mock_viewer
+        _ = NapariMCPTools()  # Tools instance not used directly
 
         # Create random numpy array with given shape
         data = np.random.random(shape)
@@ -226,7 +230,9 @@ class TestPropertyBasedDataTransformations:
     @settings(max_examples=20, deadline=None)
     def test_code_execution_isolation(self, code_snippets):
         """Test that code execution maintains isolated namespaces."""
-        from napari_mcp.base import NapariMCPTools
+        from napari_mcp.server import _viewer
+        _viewer = None
+        from napari_mcp.server import NapariMCPTools
 
         _ = NapariMCPTools()  # Tools instance not used directly
 
