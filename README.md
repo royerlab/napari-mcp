@@ -8,35 +8,12 @@
 
 MCP server for remote control of napari viewers via Model Context Protocol (MCP). Perfect for AI-assisted analysis with Claude Desktop.
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Two Setup Methods)
 
-### Option 1: Install from PyPI (Recommended)
-```bash
-# Install the package
-pip install napari-mcp
+### Method 1: Add MCP JSON Configuration (Recommended)
 
-# Run the server (stdio transport; perfect for Claude Desktop)
-napari-mcp
-```
+Add this to your MCP client configuration. Clients will auto-launch the server.
 
-### Option 2: Zero-Install with uv
-```bash
-# Run the latest published version without installing
-uv run --with napari-mcp napari-mcp
-```
-
-### Option 3: Development Install
-```bash
-# Clone and install
-git clone https://github.com/royerlab/napari-mcp.git
-cd napari-mcp
-uv pip install -e .
-
-# Run the server
-napari-mcp
-```
-
-**Claude Desktop config (Installed or Zero-Install):**
 ```json
 {
   "mcpServers": {
@@ -47,6 +24,25 @@ napari-mcp
   }
 }
 ```
+
+See the MCP JSON format standard: [MCP JSON Configuration](https://gofastmcp.com/integrations/mcp-json-configuration).
+
+### Method 2: Napari Plugin Bridge (External Viewer)
+
+1. Install: `pip install napari-mcp`
+2. Open napari → Plugins → MCP Server Control
+3. Click “Start Server” (default port 9999)
+4. Keep the same MCP JSON config as above so your AI app auto-starts and proxies to this external viewer
+
+### Development Install
+```bash
+# Clone and install
+git clone https://github.com/royerlab/napari-mcp.git
+cd napari-mcp
+uv pip install -e .
+```
+
+**Claude Desktop config:** use the MCP JSON in Method 1 above.
 
 **Why uv run?**
 - ✅ **Zero install** - No virtualenv or pip install required
@@ -76,8 +72,8 @@ git clone https://github.com/royerlab/napari-mcp.git
 cd napari-mcp
 pip install -e .
 
-# Run
-napari-mcp
+# Run (optional for debugging only)
+napari-mcp --help
 ```
 
 
@@ -249,7 +245,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- [napari team](https://napari.org/team/) for the excellent imaging platform
+- [napari team](https://napari.org/) for the excellent imaging platform
 - [FastMCP](https://github.com/jlowin/fastmcp) for the MCP framework
 - [Anthropic](https://www.anthropic.com/) for Claude and MCP development
 - [astral-sh](https://astral.sh/) for uv dependency management

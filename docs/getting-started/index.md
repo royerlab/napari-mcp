@@ -4,23 +4,23 @@ Welcome to the Napari MCP Server! This section will help you get up and running 
 
 ## Choose Your Path
 
-We offer multiple ways to get started, depending on your preferences and use case:
+Two simple ways to set up napari MCP:
 
 | Method | Description | Best For | Setup Time |
 |--------|-------------|----------|------------|
-| **[⚡ Quick Start](quickstart.md)** | The fastest way to get napari working with AI - zero installation required! | First-time users, quick demos | ~2 minutes |
-| **[📦 Zero Install Guide](zero-install.md)** | Comprehensive guide to running without any pip install using `uv run --with` | Users who want dependency-free deployment | ~5 minutes |
-| **[🔧 Traditional Installation](installation.md)** | Classic pip install method for development and permanent setups | Developers, long-term projects | ~10 minutes |
+| **[⚡ MCP JSON Config](quickstart.md)** | Add a single JSON entry; your AI app auto-launches the server | Most users | ~2 minutes |
+| **[🔌 Plugin Bridge](installation.md)** | Use napari’s MCP Server Control widget (external viewer) | Users who want to drive an existing napari window | ~5 minutes |
+| **[📦 Zero Install](zero-install.md)** | Details on zero-install and optional manual runs | Advanced/CI | ~5 minutes |
 
 ## What You'll Need
 
 ### Prerequisites
 
-=== "Zero Install Method"
+=== "MCP JSON Config"
     - **[uv](https://docs.astral.sh/uv/)** - Modern Python package manager
     - **Python 3.10+** (managed automatically by uv)
 
-=== "Traditional Method"
+=== "Plugin Bridge"
     - **Python 3.10+**
     - **pip** or **uv**
 

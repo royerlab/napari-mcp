@@ -24,8 +24,9 @@ Get napari working with AI assistance in just 2 minutes. No manual server launch
    }
    ```
 3. Save and fully restart Claude Desktop
+4. Reference: [MCP JSON Configuration](https://gofastmcp.com/integrations/mcp-json-configuration)
 
-## Step 3: Test the Connection (30 seconds)
+## Test the Connection (30 seconds)
 
 Ask Claude Desktop:
 
@@ -85,13 +86,6 @@ If the tests above work, you're ready to explore:
 
 ## ❌ Common Issues
 
-!!! failure "uv: command not found"
-    **Solution:** Install uv first:
-    ```bash
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    # Restart your terminal
-    ```
-
 !!! failure "Claude can't see napari tools"
     **Solutions:**
 
@@ -112,6 +106,15 @@ If the tests above work, you're ready to explore:
     - Check if you're on a remote system (may need X11 forwarding)
     - Try setting: `export QT_QPA_PLATFORM=offscreen` for headless mode
     - Verify Qt dependencies are available
+
+## Optional: Napari Plugin Bridge (External Viewer)
+
+Prefer controlling an existing napari window?
+
+1. `pip install napari-mcp`
+2. Open napari → Plugins → MCP Server Control
+3. Click “Start Server” (default port 9999)
+4. Keep the same MCP JSON config from Step 1; the server will auto-detect and proxy to this external viewer
 
 ## 🆘 Still Need Help?
 
