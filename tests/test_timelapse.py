@@ -108,4 +108,3 @@ async def test_timelapse_screenshot_interpolate_to_fit_enforces_cap(
     finally:
         # Restore original save
         monkeypatch.setattr(PIL.Image.Image, "save", orig_save)
-

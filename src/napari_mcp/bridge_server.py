@@ -4,28 +4,30 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import logging
 import threading
 from concurrent.futures import Future
 from functools import wraps
 from io import BytesIO, StringIO
-import contextlib
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from fastmcp import FastMCP
+
 from napari_mcp.server import NapariMCPTools as _Tools
 
 if TYPE_CHECKING:
-    from mcp.types import ImageContent
     import napari
+    from mcp.types import ImageContent
 else:
     ImageContent = Any
 
-from napari_mcp.server import _parse_bool
 from PIL import Image
 from qtpy.QtCore import QObject, QThread, Signal, Slot
 from qtpy.QtWidgets import QApplication
+
+from napari_mcp.server import _parse_bool
 
 
 class QtBridge(QObject):
@@ -90,6 +92,7 @@ class NapariBridgeServer:
             from napari_mcp import server as _srv_impl
 
             _srv_impl._viewer = viewer  # type: ignore[attr-defined]
+
             # Disable external proxying inside the bridge to avoid loops
             async def _no_proxy(*_args, **_kwargs):
                 return None
@@ -102,12 +105,13 @@ class NapariBridgeServer:
             # Configure shared tools to run GUI ops on the main thread
             if hasattr(_srv_impl, "set_gui_executor"):
                 _srv_impl.set_gui_executor(self.qt_bridge.run_in_main_thread)
+
             # Also disable external session info to prevent recursion
             async def _no_external_session_info(_port):
                 raise RuntimeError("external session disabled in bridge")
 
             if hasattr(_srv_impl, "NapariMCPTools"):
-                _srv_impl.NapariMCPTools._external_session_information = (  # type: ignore[attr-defined]
+                _srv_impl.NapariMCPTools._external_session_information = (  # type: ignore[attr-defined, method-assign]
                     _no_external_session_info
                 )
         except Exception:
@@ -329,6 +333,7 @@ class NapariBridgeServer:
                     }
                 except Exception:
                     import traceback
+
                     tb = traceback.format_exc()
                     return {
                         "status": "error",

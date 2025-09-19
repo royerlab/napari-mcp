@@ -163,7 +163,9 @@ class TestProxyFunctionality:
         # Setup mock client instance
         mock_client_instance = AsyncMock()
         mock_result = Mock()
-        mock_result.content = [Mock(text='{"status": "ok", "result": "test"}', type='text')]
+        mock_result.content = [
+            Mock(text='{"status": "ok", "result": "test"}', type="text")
+        ]
         mock_client_instance.call_tool.return_value = mock_result
 
         # Mock Client class to return our mock instance
@@ -197,7 +199,7 @@ class TestProxyFunctionality:
         mock_client_class.return_value = mock_client
 
         mock_result = Mock()
-        mock_result.content = [Mock(text='{"status": "ok"}', type='text')]
+        mock_result.content = [Mock(text='{"status": "ok"}', type="text")]
         mock_client.call_tool.return_value = mock_result
 
         # Mock context manager
@@ -216,7 +218,7 @@ class TestProxyFunctionality:
         """Test proxy with invalid JSON response."""
         mock_client_instance = AsyncMock()
         mock_result = Mock()
-        mock_result.content = [Mock(text="invalid json", type='text')]
+        mock_result.content = [Mock(text="invalid json", type="text")]
         mock_client_instance.call_tool.return_value = mock_result
 
         mock_client_class.return_value = mock_client_instance

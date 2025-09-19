@@ -12,8 +12,8 @@ except Exception:  # pragma: no cover - fallback path
         __version__ = "0.0.0"
 
 # Import main components
-from .server import NapariMCPTools
 from .bridge_server import NapariBridgeServer
+from .server import NapariMCPTools
 from .server import main as server_main
 from .widget import MCPControlWidget
 

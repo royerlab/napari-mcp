@@ -61,7 +61,6 @@ class TestPropertyBasedLayerOperations:
         # Adjust shape to match dimensions
         shape = shape[:dimensions]
 
-        from napari_mcp.server import _viewer
         _viewer = None
         mock_viewer = Mock()
         mock_viewer.add_image = Mock()
@@ -230,7 +229,6 @@ class TestPropertyBasedDataTransformations:
     @settings(max_examples=20, deadline=None)
     def test_code_execution_isolation(self, code_snippets):
         """Test that code execution maintains isolated namespaces."""
-        from napari_mcp.server import _viewer
         _viewer = None
         from napari_mcp.server import NapariMCPTools
 

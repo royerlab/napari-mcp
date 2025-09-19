@@ -168,9 +168,7 @@ class MCPControlWidget(QWidget):
         """Handle port change."""
         self.port = value
         if self.server and self.server.is_running:
-            self.info_text.append(
-                "Note: Port change will take effect after restart."
-            )
+            self.info_text.append("Note: Port change will take effect after restart.")
         # Always warn the user that the LLM agent must use the same port
         self.info_text.append(
             f"WARNING: Port changed to {self.port}. Make sure your LLM agent "

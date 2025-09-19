@@ -133,7 +133,9 @@ class TestEndToEndIntegration:
         )
 
         with (
-            patch("napari_mcp.server._detect_external_viewer", return_value=(None, None)),
+            patch(
+                "napari_mcp.server._detect_external_viewer", return_value=(None, None)
+            ),
             patch("napari_mcp.server._ensure_viewer", return_value=mock_viewer),
             patch("napari_mcp.server._viewer_lock", asyncio.Lock()),
             patch("napari_mcp.server._process_events"),
@@ -235,7 +237,7 @@ class TestProxyPatterns:
     async def test_add_image_with_path_via_proxy(self, mock_client_class):
         """Test adding image with file path through proxy."""
         pytest.skip(reason="This test is not working")
-        
+
         mock_client = AsyncMock()
         mock_client_class.return_value = mock_client
 

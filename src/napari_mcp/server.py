@@ -7,6 +7,7 @@ as base64.
 """
 
 from __future__ import annotations
+
 import ast
 import asyncio
 import asyncio.subprocess
@@ -31,9 +32,8 @@ import fastmcp
 import napari
 import numpy as np
 from fastmcp import Client, FastMCP
-from qtpy import QtWidgets
 from PIL import Image
- 
+from qtpy import QtWidgets
 
 server = FastMCP(
     "Napari MCP Server",
@@ -192,11 +192,12 @@ async def _proxy_to_external(
         client = Client(f"http://localhost:{_external_port}/mcp")
         async with client:
             result = await client.call_tool(tool_name, params or {})
-            #return result
+            # return result
             if hasattr(result, "content"):
                 content = result.content
                 if content[0].type == "text":
                     import json
+
                     response = (
                         content[0].text
                         if hasattr(content[0], "text")
@@ -347,8 +348,10 @@ def _process_events(cycles: int = 2) -> None:
     for _ in range(max(1, cycles)):
         app.processEvents()
 
+
 # Optional GUI executor for running viewer operations on the main thread
 _GUI_EXECUTOR: Any | None = None
+
 
 def set_gui_executor(executor: Any | None) -> None:
     """Configure an executor that runs a callable on the GUI/main thread.
@@ -358,10 +361,12 @@ def set_gui_executor(executor: Any | None) -> None:
     global _GUI_EXECUTOR
     _GUI_EXECUTOR = executor
 
+
 def _gui_execute(operation):
     if _GUI_EXECUTOR is not None:
         return _GUI_EXECUTOR(operation)
     return operation()
+
 
 async def _qt_event_pump() -> None:
     """Periodically process Qt events so the GUI remains responsive.
@@ -380,9 +385,7 @@ async def _qt_event_pump() -> None:
 
 
 class NapariMCPTools:
-    """
-    Implementation of Napari MCP tools (exactly matching server.py behavior).
-    """
+    """Implementation of Napari MCP tools (exactly matching server.py behavior)."""
 
     @staticmethod
     async def detect_viewers() -> dict[str, Any]:
@@ -467,7 +470,9 @@ class NapariMCPTools:
         async with _viewer_lock:
             # Try external viewer first; fall back to local
             try:
-                return await NapariMCPTools._external_session_information(_external_port)
+                return await NapariMCPTools._external_session_information(
+                    _external_port
+                )
             except Exception:
                 # No external viewer; continue to local viewer
                 pass
@@ -516,9 +521,7 @@ class NapariMCPTools:
 
     @staticmethod
     async def _external_session_information(_external_port: int) -> dict[str, Any]:
-        """
-        Get session information from the external viewer.
-        """
+        """Get session information from the external viewer."""
         test_client = Client(f"http://localhost:{_external_port}/mcp")
         async with test_client:
             result = await test_client.call_tool("session_information")
@@ -532,9 +535,7 @@ class NapariMCPTools:
                         if hasattr(content[0], "text")
                         else str(content[0])
                     )
-                    info_dict = (
-                        json.loads(info) if isinstance(info, str) else info
-                    )
+                    info_dict = json.loads(info) if isinstance(info, str) else info
                     if info_dict.get("session_type") == "napari_bridge_session":
                         return {
                             "status": "ok",
@@ -547,6 +548,11 @@ class NapariMCPTools:
                             ),
                             "port": info_dict.get("bridge_port", _external_port),
                         }
+
+        return {
+            "status": "error",
+            "message": "Failed to get session information from external viewer",
+        }
 
     @staticmethod
     async def close_viewer() -> dict[str, Any]:
@@ -591,7 +597,9 @@ class NapariMCPTools:
             global _viewer, _qt_pump_task, _exec_globals
 
             try:
-                return await NapariMCPTools._external_session_information(_external_port)
+                return await NapariMCPTools._external_session_information(
+                    _external_port
+                )
             except Exception:
                 # No external viewer; continue to local viewer
                 pass
@@ -709,9 +717,10 @@ class NapariMCPTools:
 
         # Local execution
         async with _viewer_lock:
+
             def _build():
                 v = _ensure_viewer()
-                result: list[dict[str, Any]] = []
+                result: list[dict[str, Any]] = []  # type: ignore
                 for lyr in v.layers:
                     entry = {
                         "name": lyr.name,
@@ -720,7 +729,10 @@ class NapariMCPTools:
                         "opacity": float(getattr(lyr, "opacity", 1.0)),
                         "blending": getattr(lyr, "blending", None),
                     }
-                    if hasattr(lyr, "colormap") and getattr(lyr, "colormap", None) is not None:
+                    if (
+                        hasattr(lyr, "colormap")
+                        and getattr(lyr, "colormap", None) is not None
+                    ):
                         entry["colormap"] = getattr(lyr.colormap, "name", None) or str(
                             lyr.colormap
                         )
@@ -744,7 +756,7 @@ class NapariMCPTools:
         name: str | None = None,
         colormap: str | None = None,
         blending: str | None = None,
-        channel_axis: int | str |None = None,
+        channel_axis: int | str | None = None,
     ) -> dict[str, Any]:
         """
         Add an image layer from a file path.
@@ -798,7 +810,11 @@ class NapariMCPTools:
                     channel_axis=channel_axis,
                 )
                 _process_events()
-                return {"status": "ok", "name": layer.name, "shape": list(np.shape(data))}
+                return {
+                    "status": "ok",
+                    "name": layer.name,
+                    "shape": list(np.shape(data)),
+                }
 
             return _gui_execute(_add)
 
@@ -842,12 +858,17 @@ class NapariMCPTools:
         - size: Point size in pixels
         """
         async with _viewer_lock:
+
             def _add():
                 v = _ensure_viewer()
                 arr = np.asarray(points, dtype=float)
                 layer = v.add_points(arr, name=name, size=float(size))
                 _process_events()
-                return {"status": "ok", "name": layer.name, "n_points": int(arr.shape[0])}
+                return {
+                    "status": "ok",
+                    "name": layer.name,
+                    "n_points": int(arr.shape[0]),
+                }
 
             return _gui_execute(_add)
 
@@ -855,6 +876,7 @@ class NapariMCPTools:
     async def remove_layer(name: str) -> dict[str, Any]:
         """Remove a layer by name."""
         async with _viewer_lock:
+
             def _remove():
                 v = _ensure_viewer()
                 if name in v.layers:
@@ -880,6 +902,7 @@ class NapariMCPTools:
     ) -> dict[str, Any]:
         """Set common properties on a layer by name."""
         async with _viewer_lock:
+
             def _set():
                 v = _ensure_viewer()
                 if name not in v.layers:
@@ -924,6 +947,7 @@ class NapariMCPTools:
         - after: move after this layer name
         """
         async with _viewer_lock:
+
             def _reorder():
                 v = _ensure_viewer()
                 if name not in v.layers:
@@ -956,6 +980,7 @@ class NapariMCPTools:
     async def set_active_layer(name: str) -> dict[str, Any]:
         """Set the selected/active layer by name."""
         async with _viewer_lock:
+
             def _set_active():
                 v = _ensure_viewer()
                 if name not in v.layers:
@@ -970,6 +995,7 @@ class NapariMCPTools:
     async def reset_view() -> dict[str, Any]:
         """Reset the camera view to fit data."""
         async with _viewer_lock:
+
             def _reset():
                 v = _ensure_viewer()
                 v.reset_view()
@@ -988,6 +1014,7 @@ class NapariMCPTools:
     ) -> dict[str, Any]:
         """Set camera properties: center, zoom, and/or angle."""
         async with _viewer_lock:
+
             def _set_cam():
                 v = _ensure_viewer()
                 if center is not None:
@@ -1009,6 +1036,7 @@ class NapariMCPTools:
     async def set_ndisplay(ndisplay: int | str) -> dict[str, Any]:
         """Set number of displayed dimensions (2 or 3)."""
         async with _viewer_lock:
+
             def _set():
                 v = _ensure_viewer()
                 v.dims.ndisplay = int(ndisplay)
@@ -1018,9 +1046,12 @@ class NapariMCPTools:
             return _gui_execute(_set)
 
     @staticmethod
-    async def set_dims_current_step(axis: int | str, value: int | str) -> dict[str, Any]:
+    async def set_dims_current_step(
+        axis: int | str, value: int | str
+    ) -> dict[str, Any]:
         """Set the current step (slider position) for a specific axis."""
         async with _viewer_lock:
+
             def _set():
                 v = _ensure_viewer()
                 v.dims.set_current_step(int(axis), int(value))
@@ -1033,6 +1064,7 @@ class NapariMCPTools:
     async def set_grid(enabled: bool | str = True) -> dict[str, Any]:
         """Enable or disable grid view."""
         async with _viewer_lock:
+
             def _set():
                 v = _ensure_viewer()
                 v.grid.enabled = _parse_bool(enabled)
@@ -1063,6 +1095,7 @@ class NapariMCPTools:
 
         # Local execution
         async with _viewer_lock:
+
             def _shot():
                 v = _ensure_viewer()
                 _process_events(3)
@@ -1075,7 +1108,9 @@ class NapariMCPTools:
                 buf = BytesIO()
                 img.save(buf, format="PNG")
                 enc = buf.getvalue()
-                return fastmcp.utilities.types.Image(data=enc, format="png").to_image_content()
+                return fastmcp.utilities.types.Image(
+                    data=enc, format="png"
+                ).to_image_content()
 
             return _gui_execute(_shot)
 
@@ -1173,6 +1208,7 @@ class NapariMCPTools:
 
         # Local execution
         async with _viewer_lock:
+
             def _run_series():
                 v = _ensure_viewer()
 
@@ -1231,7 +1267,7 @@ class NapariMCPTools:
                     )
                     downsample_factor = max(0.05, min(1.0, est_factor))
 
-                images: list[ImageContent] = []
+                images: list[ImageContent] = []  # type: ignore
                 total_b64_len = 0
                 for idx in indices:
                     # Move slider
@@ -1324,7 +1360,9 @@ class NapariMCPTools:
                         # Execute all but last, then eval last expression to
                         # capture a result
                         if len(parsed.body) > 1:
-                            exec_ast = ast.Module(body=parsed.body[:-1], type_ignores=[])
+                            exec_ast = ast.Module(
+                                body=parsed.body[:-1], type_ignores=[]
+                            )
                             exec(
                                 compile(exec_ast, "<mcp-exec>", "exec"),
                                 _exec_globals,
@@ -1377,10 +1415,10 @@ class NapariMCPTools:
                 else:
                     # Truncate stdout and stderr
                     stdout_truncated, stdout_was_truncated = _truncate_output(
-                        stdout_full, line_limit
+                        stdout_full, int(line_limit)
                     )
                     stderr_truncated, stderr_was_truncated = _truncate_output(
-                        stderr_full, line_limit
+                        stderr_full, int(line_limit)
                     )
 
                     response["stdout"] = stdout_truncated
@@ -1428,10 +1466,10 @@ class NapariMCPTools:
                 else:
                     # Truncate stdout and stderr
                     stdout_truncated, stdout_was_truncated = _truncate_output(
-                        stdout_full, line_limit
+                        stdout_full, int(line_limit)
                     )
                     stderr_truncated, stderr_was_truncated = _truncate_output(
-                        stderr_full, line_limit
+                        stderr_full, int(line_limit)
                     )
 
                     response["stdout"] = stdout_truncated
@@ -1496,10 +1534,22 @@ class NapariMCPTools:
             and output_id for retrieving full output if truncated.
         """
         # Try to proxy to external viewer first
-        result = await _proxy_to_external("install_packages", {"packages": packages, "upgrade": upgrade, "no_deps": no_deps, "index_url": index_url, "extra_index_url": extra_index_url, "pre": pre, "line_limit": line_limit, "timeout": timeout})
+        result = await _proxy_to_external(
+            "install_packages",
+            {
+                "packages": packages,
+                "upgrade": upgrade,
+                "no_deps": no_deps,
+                "index_url": index_url,
+                "extra_index_url": extra_index_url,
+                "pre": pre,
+                "line_limit": line_limit,
+                "timeout": timeout,
+            },
+        )
         if result is not None:
             return result
-        
+
         if not packages or not isinstance(packages, list):
             return {
                 "status": "error",
@@ -1533,7 +1583,9 @@ class NapariMCPTools:
             stderr=asyncio.subprocess.PIPE,
         )
         try:
-            stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+            stdout_b, stderr_b = await asyncio.wait_for(
+                proc.communicate(), timeout=timeout
+            )
         except asyncio.TimeoutError:
             with contextlib.suppress(ProcessLookupError):
                 proc.kill()
@@ -1572,8 +1624,12 @@ class NapariMCPTools:
             response["stderr"] = stderr
         else:
             # Truncate stdout and stderr
-            stdout_truncated, stdout_was_truncated = _truncate_output(stdout, line_limit)
-            stderr_truncated, stderr_was_truncated = _truncate_output(stderr, line_limit)
+            stdout_truncated, stdout_was_truncated = _truncate_output(
+                stdout, int(line_limit)
+            )
+            stderr_truncated, stderr_was_truncated = _truncate_output(
+                stderr, int(line_limit)
+            )
 
             response["stdout"] = stdout_truncated
             response["stderr"] = stderr_truncated
@@ -1588,7 +1644,9 @@ class NapariMCPTools:
         return response
 
     @staticmethod
-    async def read_output(output_id: str, start: int | str = 0, end: int | str = -1) -> dict[str, Any]:
+    async def read_output(
+        output_id: str, start: int | str = 0, end: int | str = -1
+    ) -> dict[str, Any]:
         """
         Read stored tool output with optional line range.
 
@@ -1608,7 +1666,10 @@ class NapariMCPTools:
         """
         async with _output_storage_lock:
             if output_id not in _output_storage:
-                return {"status": "error", "message": f"Output ID '{output_id}' not found"}
+                return {
+                    "status": "error",
+                    "message": f"Output ID '{output_id}' not found",
+                }
 
             stored_output = _output_storage[output_id]
 
@@ -1657,6 +1718,7 @@ class NapariMCPTools:
                 "result_repr": stored_output.get("result_repr"),
             }
 
+
 async def detect_viewers() -> dict[str, Any]:
     """
     Detect available viewers (local and external).
@@ -1672,10 +1734,9 @@ async def detect_viewers() -> dict[str, Any]:
 # Removed explicit selection API; the server now auto-detects an external
 # napari-mcp bridge if available and otherwise uses a local viewer.
 
+
 async def _external_session_information(_external_port: int) -> dict[str, Any]:
-    """
-    Get session information from the external viewer.
-    """
+    """Get session information from the external viewer."""
     test_client = Client(f"http://localhost:{_external_port}/mcp")
     async with test_client:
         result = await test_client.call_tool("session_information")
@@ -1685,13 +1746,9 @@ async def _external_session_information(_external_port: int) -> dict[str, Any]:
                 import json
 
                 info = (
-                    content[0].text
-                    if hasattr(content[0], "text")
-                    else str(content[0])
+                    content[0].text if hasattr(content[0], "text") else str(content[0])
                 )
-                info_dict = (
-                    json.loads(info) if isinstance(info, str) else info
-                )
+                info_dict = json.loads(info) if isinstance(info, str) else info
                 if info_dict.get("session_type") == "napari_bridge_session":
                     return {
                         "status": "ok",
@@ -1699,11 +1756,14 @@ async def _external_session_information(_external_port: int) -> dict[str, Any]:
                         "title": info_dict.get("viewer", {}).get(
                             "title", "External Viewer"
                         ),
-                        "layers": info_dict.get("viewer", {}).get(
-                            "layer_names", []
-                        ),
+                        "layers": info_dict.get("viewer", {}).get("layer_names", []),
                         "port": info_dict.get("bridge_port", _external_port),
                     }
+    return {
+        "status": "error",
+        "message": "Failed to get session information from external viewer",
+    }
+
 
 async def init_viewer(
     title: str | None = None,
@@ -1731,7 +1791,9 @@ async def init_viewer(
     dict
         Dictionary containing status, viewer type, and layer info.
     """
-    return await NapariMCPTools.init_viewer(title=title, width=width, height=height, port=port)
+    return await NapariMCPTools.init_viewer(
+        title=title, width=width, height=height, port=port
+    )
 
 
 # Removed explicit GUI control APIs (start_gui/stop_gui/is_gui_running)
@@ -1773,7 +1835,7 @@ async def add_image(
     name: str | None = None,
     colormap: str | None = None,
     blending: str | None = None,
-    channel_axis: int | str |None = None,
+    channel_axis: int | str | None = None,
 ) -> dict[str, Any]:
     """
     Add an image layer from a file path.
@@ -1796,7 +1858,13 @@ async def add_image(
     dict
         Dictionary containing status, layer name, and image shape.
     """
-    return await NapariMCPTools.add_image(path=path, name=name, colormap=colormap, blending=blending, channel_axis=channel_axis)
+    return await NapariMCPTools.add_image(
+        path=path,
+        name=name,
+        colormap=colormap,
+        blending=blending,
+        channel_axis=channel_axis,
+    )
 
 
 async def add_labels(path: str, name: str | None = None) -> dict[str, Any]:
@@ -1836,7 +1904,16 @@ async def set_layer_properties(
     new_name: str | None = None,
 ) -> dict[str, Any]:
     """Set common properties on a layer by name."""
-    return await NapariMCPTools.set_layer_properties(name=name, visible=visible, opacity=opacity, colormap=colormap, blending=blending, contrast_limits=contrast_limits, gamma=gamma, new_name=new_name)
+    return await NapariMCPTools.set_layer_properties(
+        name=name,
+        visible=visible,
+        opacity=opacity,
+        colormap=colormap,
+        blending=blending,
+        contrast_limits=contrast_limits,
+        gamma=gamma,
+        new_name=new_name,
+    )
 
 
 async def reorder_layer(
@@ -1853,7 +1930,9 @@ async def reorder_layer(
     - before: move before this layer name
     - after: move after this layer name
     """
-    return await NapariMCPTools.reorder_layer(name=name, index=index, before=before, after=after)
+    return await NapariMCPTools.reorder_layer(
+        name=name, index=index, before=before, after=after
+    )
 
 
 async def set_active_layer(name: str) -> dict[str, Any]:
@@ -1936,7 +2015,12 @@ async def timelapse_screenshot(
     list[ImageContent]
         List of screenshots as mcp.types.ImageContent objects.
     """
-    return await NapariMCPTools.timelapse_screenshot(axis=axis, slice_range=slice_range, canvas_only=canvas_only, interpolate_to_fit=interpolate_to_fit)
+    return await NapariMCPTools.timelapse_screenshot(
+        axis=axis,
+        slice_range=slice_range,
+        canvas_only=canvas_only,
+        interpolate_to_fit=interpolate_to_fit,
+    )
 
 
 async def execute_code(code: str, line_limit: int | str = 30) -> dict[str, Any]:
@@ -2005,10 +2089,21 @@ async def install_packages(
         Dictionary including status, returncode, stdout, stderr, command,
         and output_id for retrieving full output if truncated.
     """
-    return await NapariMCPTools.install_packages(packages=packages, upgrade=upgrade, no_deps=no_deps, index_url=index_url, extra_index_url=extra_index_url, pre=pre, line_limit=line_limit, timeout=timeout)
+    return await NapariMCPTools.install_packages(
+        packages=packages,
+        upgrade=upgrade,
+        no_deps=no_deps,
+        index_url=index_url,
+        extra_index_url=extra_index_url,
+        pre=pre,
+        line_limit=line_limit,
+        timeout=timeout,
+    )
 
 
-async def read_output(output_id: str, start: int | str = 0, end: int | str = -1) -> dict[str, Any]:
+async def read_output(
+    output_id: str, start: int | str = 0, end: int | str = -1
+) -> dict[str, Any]:
     """
     Read stored tool output with optional line range.
 
