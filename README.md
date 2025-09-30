@@ -33,7 +33,7 @@ Restart your AI app and you're ready! Try asking:
 "Can you call session_information() to show my napari session details?"
 ```
 
-**→ See [Full Documentation](https://napari-mcp.readthedocs.io) for detailed guides**
+**→ See [Full Documentation](https://royerlab.github.io/napari-mcp/) for detailed guides**
 
 ## 🎯 What Can You Do?
 
