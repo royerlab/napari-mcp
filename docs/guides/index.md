@@ -6,6 +6,7 @@ Learn how to effectively use napari MCP server with AI assistants for microscopy
 
 | Guide | Description | Status |
 |-------|-------------|--------|
+| **🔌 napari Plugin** | Use napari-mcp as a plugin for direct session integration | ✅ Available |
 | **🎮 Basic Usage** | Get started with fundamental operations and common tasks | Coming soon |
 | **🚀 Advanced Workflows** | Complex analysis pipelines and automation techniques | Coming soon |
 | **🛡️ Security** | Important security considerations and best practices | Coming soon |
@@ -13,6 +14,7 @@ Learn how to effectively use napari MCP server with AI assistants for microscopy
 
 ### Quick Links
 
+- **[napari Plugin Guide](napari-plugin.md)** - Use as a napari plugin for direct integration (available now)
 - **[Troubleshooting Guide](troubleshooting.md)** - Solutions to common problems (available now)
 - **[Python Integration](../integrations/python.md)** - Custom integrations with OpenAI, Anthropic, etc. (available now)
 - **Basic Usage Guide** - Coming soon

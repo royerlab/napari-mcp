@@ -252,21 +252,48 @@ napari-mcp-install <app> --persistent
 
 ---
 
-## External Viewer Mode (Plugin Bridge)
+## 🔌 Plugin Mode: Direct napari Integration
 
-Connect to an existing napari viewer via the plugin:
+napari-mcp can also be used as a **napari plugin** for direct integration with a running napari session.
 
-1. **Start napari** and open the MCP Server Control widget:
-   - Plugins → MCP Server Control
+!!! tip "When to Use Plugin Mode"
+    - Working with **existing napari workflows** and loaded data
+    - Want to **switch between manual and AI-assisted** analysis
+    - Integrating with other napari plugins
 
-2. **Click "Start Server"** (default port: 9999)
+### Quick Setup
 
-3. **Configure your AI app** with standard CLI installer:
+1. **Start napari** (with or without data):
+   ```bash
+   napari
+   # Or: napari path/to/image.tif
+   ```
+
+2. **Open the MCP Server Control widget**:
+   - In napari: **Plugins → napari-mcp: MCP Server Control**
+
+3. **Start the bridge server**:
+   - Click **"Start Server"** button (default port: 9999)
+   - The widget shows connection URL: `http://localhost:9999/mcp`
+
+4. **Configure your AI app**:
    ```bash
    napari-mcp-install <app>
    ```
+   The installer auto-configures to detect your bridge server.
 
-The server auto-detects the external viewer and proxies requests to it.
+5. **Test the connection**:
+   - Restart your AI app
+   - Ask: "Can you list the layers in my current napari session?"
+
+### How It Works
+
+- **Standalone Mode** (default): MCP server creates its own napari viewer
+- **Plugin Mode**: MCP bridge server connects to **your current napari session**
+
+Plugin mode enables AI assistants to control your active napari instance rather than starting a new viewer.
+
+**→ See [Complete Plugin Guide](../guides/napari-plugin.md) for detailed instructions, use cases, and troubleshooting**
 
 ---
 

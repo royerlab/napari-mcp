@@ -35,6 +35,19 @@ Restart your AI app and you're ready! Try asking:
 
 **→ See [Full Documentation](https://royerlab.github.io/napari-mcp/) for detailed guides**
 
+## 🔌 Using as a napari Plugin
+
+napari-mcp can also be used as a **napari plugin** for direct integration with a running napari session:
+
+1. **Start napari** normally: `napari`
+2. **Open the widget**: Plugins → napari-mcp: MCP Server Control
+3. **Click "Start Server"** to expose your current session to AI assistants
+4. **Connect your AI app** using the standard installer: `napari-mcp-install <app>`
+
+This mode enables AI assistants to control your **current napari session** rather than starting a new viewer. Perfect for integrating with existing workflows!
+
+**→ See [Plugin Guide](https://royerlab.github.io/napari-mcp/guides/napari-plugin/) for detailed instructions**
+
 ## 🎯 What Can You Do?
 
 ### Basic Image Analysis

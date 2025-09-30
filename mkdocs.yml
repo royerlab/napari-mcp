@@ -117,6 +117,7 @@ nav:
       - Complete Reference: api/reference.md
   - User Guide:
       - guides/index.md
+      - napari Plugin: guides/napari-plugin.md
       - Troubleshooting: guides/troubleshooting.md
 
 extra:
