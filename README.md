@@ -8,6 +8,8 @@
 
 MCP server for remote control of napari viewers via Model Context Protocol (MCP). Perfect for AI-assisted microscopy analysis with Claude Desktop and other LLM applications.
 
+https://github.com/user-attachments/assets/d261674c-9875-4671-8c60-a7f49d6f1b84
+
 ## 🚀 Quick Start (3 Steps)
 
 ### 1. Install the Package
@@ -128,6 +130,7 @@ The server exposes 20+ tools for complete napari control:
 ## 🧪 Development Setup
 
 ```bash
+
 # Clone repository
 git clone https://github.com/royerlab/napari-mcp.git
 cd napari-mcp
