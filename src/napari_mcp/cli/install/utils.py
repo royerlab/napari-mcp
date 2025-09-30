@@ -7,7 +7,7 @@ import shutil
 import sys
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from rich.console import Console
 from rich.prompt import Confirm
@@ -53,7 +53,7 @@ def expand_path(path: str) -> Path:
     return Path(path).resolve()
 
 
-def read_json_config(path: Path) -> Dict[str, Any]:
+def read_json_config(path: Path) -> dict[str, Any]:
     """Read JSON configuration file, preserving order.
 
     Parameters
@@ -63,28 +63,28 @@ def read_json_config(path: Path) -> Dict[str, Any]:
 
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         Configuration dictionary, or empty dict if file doesn't exist.
     """
     if not path.exists():
         return {}
 
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f, object_pairs_hook=OrderedDict)
-    except (json.JSONDecodeError, IOError) as e:
+    except (OSError, json.JSONDecodeError) as e:
         console.print(f"[red]Error reading {path}: {e}[/red]")
         return {}
 
 
-def write_json_config(path: Path, config: Dict[str, Any], backup: bool = True) -> bool:
+def write_json_config(path: Path, config: dict[str, Any], backup: bool = True) -> bool:
     """Write JSON configuration file atomically.
 
     Parameters
     ----------
     path : Path
         Path to JSON configuration file.
-    config : Dict[str, Any]
+    config : dict[str, Any]
         Configuration dictionary to write.
     backup : bool
         Whether to create a backup of existing file.
@@ -114,7 +114,7 @@ def write_json_config(path: Path, config: Dict[str, Any], backup: bool = True) -
         # Atomic rename
         temp_path.replace(path)
         return True
-    except (IOError, OSError) as e:
+    except OSError as e:
         console.print(f"[red]Error writing {path}: {e}[/red]")
         # Clean up temp file if it exists
         if temp_path.exists():
@@ -122,7 +122,9 @@ def write_json_config(path: Path, config: Dict[str, Any], backup: bool = True) -
         return False
 
 
-def get_python_executable(persistent: bool = False, python_path: Optional[str] = None) -> Tuple[str, str]:
+def get_python_executable(
+    persistent: bool = False, python_path: str | None = None
+) -> tuple[str, str]:
     """Get the appropriate Python executable and description.
 
     Parameters
@@ -141,7 +143,9 @@ def get_python_executable(persistent: bool = False, python_path: Optional[str] =
         # User specified a custom Python path
         python_path_obj = expand_path(python_path)
         if not python_path_obj.exists():
-            console.print(f"[red]Warning: Python path does not exist: {python_path}[/red]")
+            console.print(
+                f"[red]Warning: Python path does not exist: {python_path}[/red]"
+            )
         return str(python_path_obj), f"custom Python ({python_path_obj})"
 
     if persistent:
@@ -154,9 +158,9 @@ def get_python_executable(persistent: bool = False, python_path: Optional[str] =
 
 def build_server_config(
     persistent: bool = False,
-    python_path: Optional[str] = None,
-    extra_args: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
+    python_path: str | None = None,
+    extra_args: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build the server configuration for napari-mcp.
 
     Parameters
@@ -165,12 +169,12 @@ def build_server_config(
         If True, use Python executable instead of uv.
     python_path : Optional[str]
         Custom Python executable path.
-    extra_args : Optional[Dict[str, Any]]
+    extra_args : Optional[dict[str, Any]]
         Additional configuration fields (e.g., for Gemini CLI).
 
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         Server configuration dictionary.
     """
     command, _ = get_python_executable(persistent, python_path)
@@ -179,14 +183,11 @@ def build_server_config(
         # Ephemeral environment with uv
         config = {
             "command": "uv",
-            "args": ["run", "--with", "napari-mcp", "napari-mcp"]
+            "args": ["run", "--with", "napari-mcp", "napari-mcp"],
         }
     else:
         # Persistent Python environment
-        config = {
-            "command": command,
-            "args": ["-m", "napari_mcp.server"]
-        }
+        config = {"command": command, "args": ["-m", "napari_mcp.server"]}
 
     # Add any extra configuration fields
     if extra_args:
@@ -195,12 +196,14 @@ def build_server_config(
     return config
 
 
-def check_existing_server(config: Dict[str, Any], server_name: str = "napari-mcp") -> bool:
+def check_existing_server(
+    config: dict[str, Any], server_name: str = "napari-mcp"
+) -> bool:
     """Check if napari-mcp server already exists in configuration.
 
     Parameters
     ----------
-    config : Dict[str, Any]
+    config : dict[str, Any]
         Configuration dictionary.
     server_name : str
         Name of the server to check for.
@@ -235,17 +238,16 @@ def prompt_update_existing(app_name: str, config_path: Path) -> bool:
     console.print(f"[dim]Config file: {config_path}[/dim]\n")
 
     return Confirm.ask(
-        "Do you want to update the existing configuration?",
-        default=False
+        "Do you want to update the existing configuration?", default=False
     )
 
 
-def show_installation_summary(installations: Dict[str, Tuple[bool, str]]) -> None:
+def show_installation_summary(installations: dict[str, tuple[bool, str]]) -> None:
     """Show a summary table of installation results.
 
     Parameters
     ----------
-    installations : Dict[str, Tuple[bool, str]]
+    installations : dict[str, tuple[bool, str]]
         Dictionary mapping app names to (success, message) tuples.
     """
     table = Table(title="Installation Summary", show_header=True)
@@ -283,12 +285,16 @@ def validate_python_environment(python_path: str) -> bool:
             [python_path, "-c", "import napari_mcp"],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
 
         if result.returncode != 0:
-            console.print(f"[yellow]Warning: napari-mcp not found in {python_path}[/yellow]")
-            console.print("[dim]You may need to install it: pip install napari-mcp[/dim]")
+            console.print(
+                f"[yellow]Warning: napari-mcp not found in {python_path}[/yellow]"
+            )
+            console.print(
+                "[dim]You may need to install it: pip install napari-mcp[/dim]"
+            )
             return False
 
         return True
@@ -297,7 +303,7 @@ def validate_python_environment(python_path: str) -> bool:
         return False
 
 
-def detect_python_environment() -> Optional[str]:
+def detect_python_environment() -> str | None:
     """Detect the current Python environment type.
 
     Returns

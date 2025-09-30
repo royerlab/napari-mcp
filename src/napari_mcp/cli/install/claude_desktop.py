@@ -1,7 +1,7 @@
 """Claude Desktop installer for napari-mcp."""
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from .base import BaseInstaller
 from .utils import expand_path, get_platform
@@ -33,12 +33,12 @@ class ClaudeDesktopInstaller(BaseInstaller):
 
         return expand_path(path)
 
-    def get_extra_config(self) -> Dict[str, Any]:
+    def get_extra_config(self) -> dict[str, Any]:
         """Get extra configuration for Claude Desktop.
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             Empty dict as Claude Desktop doesn't need extra fields.
         """
         return {}

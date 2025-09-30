@@ -6,237 +6,158 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-MCP server for remote control of napari viewers via Model Context Protocol (MCP). Perfect for AI-assisted analysis with Claude Desktop.
+MCP server for remote control of napari viewers via Model Context Protocol (MCP). Perfect for AI-assisted microscopy analysis with Claude Desktop and other LLM applications.
 
-## 🚀 Quick Start (Two Setup Methods)
+## 🚀 Quick Start (3 Steps)
 
-### Method 1: Add MCP JSON Configuration (Recommended)
-
-Add this to your MCP client configuration. Clients will auto-launch the server.
-
-```json
-{
-  "mcpServers": {
-    "napari": {
-      "command": "uv",
-      "args": ["run", "--with", "napari-mcp", "napari-mcp"]
-    }
-  }
-}
-```
-
-See the MCP JSON format standard: [MCP JSON Configuration](https://gofastmcp.com/integrations/mcp-json-configuration).
-
-### Method 2: Napari Plugin Bridge (External Viewer)
-
-1. Install: `pip install napari-mcp`
-2. Open napari → Plugins → MCP Server Control
-3. Click “Start Server” (default port 9999)
-4. Keep the same MCP JSON config as above so your AI app auto-starts and proxies to this external viewer
-
-### Development Install
-```bash
-# Clone and install
-git clone https://github.com/royerlab/napari-mcp.git
-cd napari-mcp
-uv pip install -e .
-```
-
-**Claude Desktop config:** use the MCP JSON in Method 1 above.
-
-**Why uv run?**
-- ✅ **Zero install** - No virtualenv or pip install required
-- ✅ **Always up-to-date** - Pulls the latest published version
-- ✅ **Reproducible** - uv caches and pins environments per command
-
-## 🤖 Multi-LLM Support
-
-Works with multiple AI assistants and IDEs:
-
-| Application | Status | Setup Method |
-|-------------|--------|--------------|
-| **Claude Desktop** | ✅ Full Support | Manual config (recommended) |
-| **Claude Code** | ✅ Full Support | `fastmcp install claude-code` |
-| **Cursor** | ✅ Full Support | `fastmcp install cursor` |
-| **ChatGPT** | 🟡 Limited | Remote deployment only |
-
-**→ See [LLM_INTEGRATIONS.md](LLM_INTEGRATIONS.md) for complete setup guides**
-
-## 🔧 Alternative Installation Methods
-
-### Traditional Package Installation
+### 1. Install the Package
 
 ```bash
-# Clone and install
-git clone https://github.com/royerlab/napari-mcp.git
-cd napari-mcp
-pip install -e .
-
-# Run (optional for debugging only)
-napari-mcp --help
+pip install napari-mcp
 ```
 
-
-
-### Development Installation
+### 2. Auto-Configure Your AI Application
 
 ```bash
-# With uv (recommended for development)
-uv pip install -e ".[test,dev]"
+# For Claude Desktop
+napari-mcp-install claude-desktop
 
-# With pip
-pip install -e ".[test,dev]"
+# For other applications (Claude Code, Cursor, Cline, etc.)
+napari-mcp-install --help  # See all options
 ```
 
-**Requirements:**
-- Python 3.10+
-- napari 0.5.5+
-- Qt Backend (PyQt6 installed automatically)
+### 3. Restart Your Application & Start Using
+
+Restart your AI app and you're ready! Try asking:
+```
+"Can you call session_information() to show my napari session details?"
+```
+
+**→ See [Full Documentation](https://napari-mcp.readthedocs.io) for detailed guides**
+
+## 🎯 What Can You Do?
+
+### Basic Image Analysis
+```
+"Load the image from ./data/sample.tif and apply a viridis colormap"
+"Create point annotations at coordinates [[100,100], [200,200]]"
+"Take a screenshot and save it"
+```
+
+### Advanced Workflows
+```
+"Execute this code to create a filtered version:
+from scipy import ndimage
+filtered = ndimage.gaussian_filter(viewer.layers[0].data, sigma=2)
+viewer.add_image(filtered, name='filtered')"
+
+"Install scikit-image and segment the cells in this microscopy image"
+```
+
+### 3D/4D Navigation
+```
+"Switch to 3D display mode"
+"Navigate to time point 5, Z-slice 10"
+"Create a rotating animation of this volume"
+```
+
+### Automated Workflows
+Want to automate image processing with Python scripts? Use any LLM (OpenAI, Anthropic, etc.) with napari MCP:
+
+**→ See [Python Integration Examples](docs/examples/README.md)** for batch processing and workflow automation
+
+## 🤖 Supported AI Applications
+
+| Application | Command | Status |
+|-------------|---------|--------|
+| **Claude Desktop** | `napari-mcp-install claude-desktop` | ✅ Full Support |
+| **Claude Code** | `napari-mcp-install claude-code` | ✅ Full Support |
+| **Cursor IDE** | `napari-mcp-install cursor` | ✅ Full Support |
+| **Cline (VS Code)** | `napari-mcp-install cline-vscode` | ✅ Full Support |
+| **Cline (Cursor)** | `napari-mcp-install cline-cursor` | ✅ Full Support |
+| **Gemini CLI** | `napari-mcp-install gemini` | ✅ Full Support |
+| **Codex CLI** | `napari-mcp-install codex` | ✅ Full Support |
+
+**→ See [Integration Guides](docs/integrations/index.md) for application-specific instructions**
 
 ## 🛠 Available MCP Tools
 
-### Session Information
-- `session_information()` - Get comprehensive session info including viewer state, layers, system details
-- `detect_viewers()` - Detect available local/external viewers
+The server exposes 20+ tools for complete napari control:
 
-### Layer Management
-- `list_layers()` - Get all layers and their properties
-- `add_image(path, name?, colormap?, blending?, channel_axis?)` - Add image layer from file
-- `add_labels(path, name?)` - Add segmentation labels from file
-- `add_points(points, name?, size?)` - Add point annotations
-- `remove_layer(name)` - Remove layer by name
-- `set_layer_properties(...)` - Modify layer visibility, opacity, colormap, etc.
-- `reorder_layer(name, index?|before?|after?)` - Change layer order
-- `set_active_layer(name)` - Set selected layer
+### Core Functions
+- **Session Management**: `detect_viewers`, `init_viewer`, `close_viewer`, `session_information`
+- **Layer Operations**: `add_image`, `add_labels`, `add_points`, `list_layers`, `remove_layer`
+- **Viewer Controls**: `set_camera`, `reset_view`, `set_ndisplay`, `set_dims_current_step`
+- **Utilities**: `screenshot`, `execute_code`, `install_packages`
 
-### Viewer Controls
-- `init_viewer(title?, width?, height?)` - Create/configure viewer and start GUI
-- `close_viewer()` - Close viewer window (also stops GUI)
-- `reset_view()` - Reset camera to fit all data
-- `set_camera(center?, zoom?, angle?)` - Position camera
-- `set_ndisplay(2|3)` - Switch between 2D/3D display
-- `set_dims_current_step(axis, value)` - Navigate dimensions (time, Z-stack)
-- `set_grid(enabled?)` - Enable/disable grid view
+**→ See [API Reference](docs/api/index.md) for complete documentation**
 
-### Utilities
-- `screenshot(canvas_only?)` - Capture PNG image as base64
-- `execute_code(code)` - Run Python with access to viewer, napari, numpy
-- `install_packages(packages, ...)` - Install Python packages dynamically
-- `read_output(output_id, start?, end?)` - Retrieve full/stdout/stderr from previous calls
+## ⚠️ Security Notice
 
-## ⚠️ **IMPORTANT SECURITY WARNING**
+!!! warning "Code Execution Capabilities"
+    This server includes powerful tools that allow arbitrary code execution:
 
-**This server includes powerful tools that allow arbitrary code execution:**
+    - **`execute_code()`** - Runs Python code in the server environment
+    - **`install_packages()`** - Installs packages via pip
 
-- **`execute_code()`** - Runs any Python code in the server environment
-- **`install_packages()`** - Installs any Python package via pip
+    **Use only with trusted AI assistants on local networks.**
+    Never expose to public internet without proper sandboxing.
 
-**Security Implications:**
-- ✅ **Safe for local development** with trusted AI assistants like Claude
-- ❌ **NEVER expose to untrusted networks** or public internet
-- ❌ **Do not use in production environments** without proper sandboxing
-- ❌ **Can access your filesystem, network, and install malware**
+## 📖 Documentation
 
-**Recommended Usage:**
-- Use only on `localhost` connections
-- Run in isolated virtual environments
-- Only use with trusted AI assistants
+- **[Quick Start Guide](docs/getting-started/quickstart.md)** - Get running in 3 minutes
+- **[Installation Options](docs/getting-started/installation.md)** - Advanced installation methods
+- **[Integration Guides](docs/integrations/index.md)** - Setup for specific AI applications
+- **[Python Examples](docs/examples/README.md)** - Automate workflows with custom scripts
+- **[Troubleshooting](docs/guides/troubleshooting.md)** - Common issues and solutions
+- **[API Reference](docs/api/index.md)** - Complete tool documentation
 
-## 📖 Usage Examples
-
-### Basic Layer Operations
-
-**Add and manipulate images:**
-```
-Ask Claude: "Add a sample image to napari and set its colormap to 'viridis'"
-```
-
-**Work with annotations:**
-```
-Ask Claude: "Create some point annotations at coordinates [[100,100], [200,200]] and make them size 10"
-```
-
-### Advanced Analysis
-
-**Execute custom code:**
-```
-Ask Claude: "Execute this code to create a synthetic image:
-import numpy as np
-data = np.random.random((512, 512))
-viewer.add_image(data, name='random_noise')"
-```
-
-**Install packages on-demand:**
-```
-Ask Claude: "Install scipy and create a Gaussian filtered version of the current image"
-```
-
-### View Management
-
-**Control the camera:**
-```
-Ask Claude: "Reset the view, then zoom to 2x and center on coordinates [256, 256]"
-```
-
-**Switch display modes:**
-```
-Ask Claude: "Switch to 3D display mode and take a screenshot"
-```
-
-## 🧪 Testing
+## 🧪 Development Setup
 
 ```bash
-# Fast suite (skips GUI)
-pytest -q -m "not realgui"
+# Clone repository
+git clone https://github.com/royerlab/napari-mcp.git
+cd napari-mcp
 
-# Full suite with coverage (skips GUI)
-pytest --cov=src --cov-report=html tests/ -m "not realgui"
+# Install with development dependencies
+pip install -e ".[test,dev]"
 
-# Include GUI tests (requires a display)
-pytest -m realgui
+# Run tests
+pytest -m "not realgui"  # Skip GUI tests
+pytest --cov=src --cov-report=html  # With coverage
 ```
 
 ## 🤝 Contributing
+
+Contributions are welcome! Please:
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes with tests
 4. Run pre-commit hooks: `pre-commit run --all-files`
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
+5. Commit changes (`git commit -m 'Add amazing feature'`)
+6. Push to branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
 
-**Development setup:**
-```bash
-git clone https://github.com/royerlab/napari-mcp.git
-cd napari-mcp
-uv pip install -e ".[test,dev]"
-pre-commit install
-```
-
 ## 📋 Architecture
-
-The server architecture consists of:
 
 - **FastMCP Server**: Handles MCP protocol communication
 - **Napari Integration**: Manages viewer lifecycle and operations
 - **Qt Event Loop**: Asynchronous GUI event processing
 - **Tool Layer**: Exposes napari functionality as MCP tools
-- **External Bridge (optional)**: Auto-detects and proxies to an existing napari viewer started from the plugin widget
+- **External Bridge**: Optional connection to existing napari viewers
 
-Key design decisions:
-- **Thread-safe**: All napari operations are serialized through locks
+Key features:
+- **Thread-safe**: All napari operations are serialized
 - **Non-blocking**: Qt event loop runs asynchronously
 - **Stateful**: Maintains viewer state across tool calls
-- **Extensible**: Easy to add new tools and functionality
+- **Extensible**: Easy to add new tools
 
 ## 📚 Resources
 
-- **[Quick Start](docs/getting-started/quickstart.md)** - Get running in 2 minutes
-- **[LLM_INTEGRATIONS.md](LLM_INTEGRATIONS.md)** - Complete guide for Claude Desktop, Claude Code, Cursor, ChatGPT
+- **[napari](https://napari.org/)** - Multi-dimensional image viewer
 - **[Model Context Protocol](https://modelcontextprotocol.io/)** - MCP specification
 - **[FastMCP](https://github.com/jlowin/fastmcp)** - Python MCP framework
-- **[napari](https://napari.org/)** - Multi-dimensional image viewer
 - **[Claude Desktop](https://claude.ai/download)** - AI assistant with MCP support
 
 ## 📄 License

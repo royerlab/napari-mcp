@@ -2,15 +2,10 @@
 
 import json
 import os
-import platform
 import sys
-import tempfile
 from collections import OrderedDict
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
-
-import pytest
-from rich.console import Console
+from unittest.mock import MagicMock, patch
 
 from napari_mcp.cli.install.utils import (
     build_server_config,
@@ -178,11 +173,13 @@ class TestJSONConfig:
         config_file = tmp_path / "config.json"
         test_config = {"test": "value"}
 
-        with patch("builtins.open", side_effect=IOError("Test error")):
-            with patch("napari_mcp.cli.install.utils.console") as mock_console:
-                result = write_json_config(config_file, test_config)
-                assert result is False
-                mock_console.print.assert_called()
+        with (
+            patch("builtins.open", side_effect=OSError("Test error")),
+            patch("napari_mcp.cli.install.utils.console") as mock_console,
+        ):
+            result = write_json_config(config_file, test_config)
+            assert result is False
+            mock_console.print.assert_called()
 
     def test_write_json_config_unicode(self, tmp_path):
         """Test writing config with Unicode characters."""
@@ -252,6 +249,7 @@ class TestPythonEnvironmentValidation:
     def test_validate_python_environment_exception(self, mock_run):
         """Test validation with subprocess exception."""
         import subprocess
+
         mock_run.side_effect = subprocess.TimeoutExpired("python", 5)
 
         with patch("napari_mcp.cli.install.utils.console") as mock_console:
@@ -284,7 +282,9 @@ class TestServerConfiguration:
     def test_build_server_config_with_extras(self):
         """Test building config with extra fields."""
         extras = {"timeout": 60000, "cwd": "/project"}
-        config = build_server_config(persistent=False, python_path=None, extra_args=extras)
+        config = build_server_config(
+            persistent=False, python_path=None, extra_args=extras
+        )
 
         assert config["command"] == "uv"
         assert config["timeout"] == 60000
@@ -295,7 +295,7 @@ class TestServerConfiguration:
         config = {
             "mcpServers": {
                 "napari-mcp": {"command": "uv"},
-                "other": {"command": "python"}
+                "other": {"command": "python"},
             }
         }
         assert check_existing_server(config, "napari-mcp") is True
@@ -361,7 +361,7 @@ class TestInstallationSummary:
         """Test summary with all successful installations."""
         results = {
             "Claude Desktop": (True, "Installed successfully"),
-            "Claude Code": (True, "Installed successfully")
+            "Claude Code": (True, "Installed successfully"),
         }
         show_installation_summary(results)
 
@@ -375,7 +375,7 @@ class TestInstallationSummary:
         """Test summary with some failures."""
         results = {
             "Claude Desktop": (True, "Installed successfully"),
-            "Claude Code": (False, "Failed to install")
+            "Claude Code": (False, "Failed to install"),
         }
         show_installation_summary(results)
 

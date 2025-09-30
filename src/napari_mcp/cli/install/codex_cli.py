@@ -1,7 +1,7 @@
 """Codex CLI installer for napari-mcp."""
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from rich.console import Console
 
@@ -29,12 +29,12 @@ class CodexCLIInstaller(BaseInstaller):
         # Codex CLI uses ~/.codex/config.toml for configuration
         return expand_path("~/.codex/config.toml")
 
-    def get_extra_config(self) -> Dict[str, Any]:
+    def get_extra_config(self) -> dict[str, Any]:
         """Get extra configuration for Codex CLI.
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             Empty dict as extras are handled in TOML format.
         """
         return {}
@@ -47,14 +47,18 @@ class CodexCLIInstaller(BaseInstaller):
         try:
             import toml
         except ImportError:
-            console.print("[red]Error: toml package is required for Codex CLI configuration[/red]")
+            console.print(
+                "[red]Error: toml package is required for Codex CLI configuration[/red]"
+            )
             console.print("[yellow]Install it with: pip install toml[/yellow]")
             return False, "Missing toml package"
 
         try:
             # Get configuration path
             config_path = self.get_config_path()
-            console.print(f"\n[bold cyan]Installing napari-mcp for Codex CLI[/bold cyan]")
+            console.print(
+                "\n[bold cyan]Installing napari-mcp for Codex CLI[/bold cyan]"
+            )
             console.print(f"[dim]Config file: {config_path}[/dim]")
 
             # Validate environment
@@ -63,7 +67,7 @@ class CodexCLIInstaller(BaseInstaller):
 
             # Read existing configuration or create new
             if config_path.exists():
-                with open(config_path, 'r') as f:
+                with open(config_path) as f:
                     config = toml.load(f)
             else:
                 config = {}
@@ -74,29 +78,30 @@ class CodexCLIInstaller(BaseInstaller):
 
             # Check for existing installation
             server_name = "napari_mcp"  # Use underscore for TOML convention
-            if server_name in config.get("mcp_servers", {}):
-                if not self.force:
-                    from .utils import prompt_update_existing
-                    if not prompt_update_existing("Codex CLI", config_path):
-                        return False, "User cancelled update"
+            if server_name in config.get("mcp_servers", {}) and not self.force:
+                from .utils import prompt_update_existing
+
+                if not prompt_update_existing("Codex CLI", config_path):
+                    return False, "User cancelled update"
 
             # Build server configuration for TOML format
             if self.persistent or self.python_path:
                 from .utils import get_python_executable
+
                 command, _ = get_python_executable(self.persistent, self.python_path)
                 server_config = {
                     "command": command,
-                    "args": ["-m", "napari_mcp.server"]
+                    "args": ["-m", "napari_mcp.server"],
                 }
             else:
                 # Use uv for ephemeral environment
                 server_config = {
                     "command": "uv",
-                    "args": ["run", "--with", "napari-mcp", "napari-mcp"]
+                    "args": ["run", "--with", "napari-mcp", "napari-mcp"],
                 }
 
             # Show what will be installed
-            console.print(f"\n[cyan]Configuration to install:[/cyan]")
+            console.print("\n[cyan]Configuration to install:[/cyan]")
             console.print(f"  Server name: {server_name}")
             console.print(f"  Command: {server_config['command']}")
 
@@ -112,10 +117,12 @@ class CodexCLIInstaller(BaseInstaller):
             config_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Write TOML configuration
-            with open(config_path, 'w') as f:
+            with open(config_path, "w") as f:
                 toml.dump(config, f)
 
-            console.print(f"\n[green]✓ Successfully installed napari-mcp for Codex CLI[/green]")
+            console.print(
+                "\n[green]✓ Successfully installed napari-mcp for Codex CLI[/green]"
+            )
             self.show_post_install_message()
             return True, "Installation successful"
 
@@ -131,7 +138,9 @@ class CodexCLIInstaller(BaseInstaller):
         try:
             import toml
         except ImportError:
-            console.print("[red]Error: toml package is required for Codex CLI configuration[/red]")
+            console.print(
+                "[red]Error: toml package is required for Codex CLI configuration[/red]"
+            )
             console.print("[yellow]Install it with: pip install toml[/yellow]")
             return False, "Missing toml package"
 
@@ -143,7 +152,7 @@ class CodexCLIInstaller(BaseInstaller):
                 return False, f"Configuration file not found: {config_path}"
 
             # Read configuration
-            with open(config_path, 'r') as f:
+            with open(config_path) as f:
                 config = toml.load(f)
 
             # Check if server exists
@@ -152,7 +161,9 @@ class CodexCLIInstaller(BaseInstaller):
                 return False, f"Server '{server_name}' not found in configuration"
 
             if self.dry_run:
-                console.print(f"\n[yellow]DRY RUN - Would remove '{server_name}' from {config_path}[/yellow]")
+                console.print(
+                    f"\n[yellow]DRY RUN - Would remove '{server_name}' from {config_path}[/yellow]"
+                )
                 return True, "Dry run completed"
 
             # Remove server
@@ -163,10 +174,12 @@ class CodexCLIInstaller(BaseInstaller):
                 del config["mcp_servers"]
 
             # Write TOML configuration
-            with open(config_path, 'w') as f:
+            with open(config_path, "w") as f:
                 toml.dump(config, f)
 
-            console.print(f"\n[green]✓ Successfully uninstalled napari-mcp from Codex CLI[/green]")
+            console.print(
+                "\n[green]✓ Successfully uninstalled napari-mcp from Codex CLI[/green]"
+            )
             return True, "Uninstallation successful"
 
         except Exception as e:
@@ -175,13 +188,15 @@ class CodexCLIInstaller(BaseInstaller):
 
     def show_post_install_message(self) -> None:
         """Show post-installation instructions."""
-        console.print(f"\n[bold]Next steps:[/bold]")
-        console.print(f"1. Start Codex CLI in your terminal: codex")
-        console.print(f"2. The napari-mcp server will be available automatically")
-        console.print(f"3. Use napari tools for image visualization and analysis")
+        console.print("\n[bold]Next steps:[/bold]")
+        console.print("1. Start Codex CLI in your terminal: codex")
+        console.print("2. The napari-mcp server will be available automatically")
+        console.print("3. Use napari tools for image visualization and analysis")
 
         if self.persistent:
-            console.print(f"\n[dim]Note: Using persistent Python environment[/dim]")
-            console.print(f"[dim]Make sure napari-mcp is installed: pip install napari-mcp[/dim]")
+            console.print("\n[dim]Note: Using persistent Python environment[/dim]")
+            console.print(
+                "[dim]Make sure napari-mcp is installed: pip install napari-mcp[/dim]"
+            )
 
-        console.print(f"\n[dim]Tip: Codex CLI uses TOML format for configuration[/dim]")
+        console.print("\n[dim]Tip: Codex CLI uses TOML format for configuration[/dim]")

@@ -1,7 +1,7 @@
 """Gemini CLI installer for napari-mcp."""
 
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from rich.console import Console
 from rich.prompt import Confirm
@@ -19,12 +19,12 @@ class GeminiCLIInstaller(BaseInstaller):
         self,
         server_name: str = "napari-mcp",
         persistent: bool = False,
-        python_path: Optional[str] = None,
+        python_path: str | None = None,
         force: bool = False,
         backup: bool = True,
         dry_run: bool = False,
         global_install: bool = False,
-        project_dir: Optional[str] = None,
+        project_dir: str | None = None,
     ):
         """Initialize the Gemini CLI installer.
 
@@ -83,12 +83,14 @@ class GeminiCLIInstaller(BaseInstaller):
             # Confirm project directory with user
             if not self.force and not self.dry_run:
                 console.print(f"\n[cyan]Project directory: {base_path}[/cyan]")
-                if not Confirm.ask("Install napari-mcp for this project?", default=True):
+                if not Confirm.ask(
+                    "Install napari-mcp for this project?", default=True
+                ):
                     raise ValueError("User cancelled installation")
 
             return config_path
 
-    def get_extra_config(self) -> Dict[str, Any]:
+    def get_extra_config(self) -> dict[str, Any]:
         """Get extra configuration for Gemini CLI.
 
         Returns
@@ -105,17 +107,23 @@ class GeminiCLIInstaller(BaseInstaller):
 
     def show_post_install_message(self) -> None:
         """Show post-installation instructions."""
-        console.print(f"\n[bold]Next steps:[/bold]")
-        console.print(f"1. Start Gemini CLI in your terminal")
-        console.print(f"2. Run '/mcp refresh' command to reload servers")
-        console.print(f"3. The napari-mcp server will be available")
+        console.print("\n[bold]Next steps:[/bold]")
+        console.print("1. Start Gemini CLI in your terminal")
+        console.print("2. Run '/mcp refresh' command to reload servers")
+        console.print("3. The napari-mcp server will be available")
 
         if self.persistent:
-            console.print(f"\n[dim]Note: Using persistent Python environment[/dim]")
-            console.print(f"[dim]Make sure napari-mcp is installed: pip install napari-mcp[/dim]")
+            console.print("\n[dim]Note: Using persistent Python environment[/dim]")
+            console.print(
+                "[dim]Make sure napari-mcp is installed: pip install napari-mcp[/dim]"
+            )
 
         if not self.global_install:
-            console.print(f"\n[dim]Note: Installation is project-specific[/dim]")
-            console.print(f"[dim]The server will only be available in this project[/dim]")
+            console.print("\n[dim]Note: Installation is project-specific[/dim]")
+            console.print(
+                "[dim]The server will only be available in this project[/dim]"
+            )
 
-        console.print(f"\n[dim]Tip: Set 'trust': true to bypass tool confirmations (use with caution)[/dim]")
+        console.print(
+            "\n[dim]Tip: Set 'trust': true to bypass tool confirmations (use with caution)[/dim]"
+        )

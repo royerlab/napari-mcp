@@ -1,13 +1,7 @@
 """Tests for platform-specific installers."""
 
-import json
-import platform
-import sys
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
-
-import pytest
-import toml
+from unittest.mock import mock_open, patch
 
 from napari_mcp.cli.install.claude_code import ClaudeCodeInstaller
 from napari_mcp.cli.install.claude_desktop import ClaudeDesktopInstaller
@@ -205,7 +199,9 @@ class TestCodexCLIInstaller:
     @patch("pathlib.Path.mkdir")
     @patch("toml.load")
     @patch("toml.dump")
-    def test_install_toml_format(self, mock_dump, mock_load, mock_mkdir, mock_exists, mock_file):
+    def test_install_toml_format(
+        self, mock_dump, mock_load, mock_mkdir, mock_exists, mock_file
+    ):
         """Test Codex installer uses TOML format."""
         mock_exists.return_value = False
         installer = CodexCLIInstaller()
@@ -235,7 +231,7 @@ class TestCodexCLIInstaller:
         existing_config = {
             "mcp_servers": {
                 "napari_mcp": {"command": "uv"},
-                "other": {"command": "python"}
+                "other": {"command": "python"},
             }
         }
         mock_load.return_value = existing_config
@@ -327,10 +323,7 @@ class TestInstallerIntegration:
         mock_write.return_value = True
 
         installer = ClaudeDesktopInstaller(
-            persistent=False,
-            force=True,
-            backup=True,
-            dry_run=False
+            persistent=False, force=True, backup=True, dry_run=False
         )
 
         with patch.object(installer, "validate_environment") as mock_validate:
@@ -345,19 +338,24 @@ class TestInstallerIntegration:
     @patch("napari_mcp.cli.install.base.write_json_config")
     @patch("napari_mcp.cli.install.base.build_server_config")
     @patch("napari_mcp.cli.install.base.get_python_executable")
-    def test_cursor_project_install(self, mock_get_exe, mock_build, mock_write, mock_read, mock_validate_env):
+    def test_cursor_project_install(
+        self, mock_get_exe, mock_build, mock_write, mock_read, mock_validate_env
+    ):
         """Test project-specific installation for Cursor."""
         mock_read.return_value = {}
         mock_write.return_value = True
         mock_get_exe.return_value = ("/usr/bin/python3", "custom Python")
-        mock_build.return_value = {"command": "/usr/bin/python3", "args": ["-m", "napari_mcp.server"]}
+        mock_build.return_value = {
+            "command": "/usr/bin/python3",
+            "args": ["-m", "napari_mcp.server"],
+        }
         mock_validate_env.return_value = True
 
         with patch("napari_mcp.cli.install.cursor.Confirm.ask", return_value=True):
             installer = CursorInstaller(
                 project_dir="/my/project",
                 persistent=True,
-                python_path="/usr/bin/python3"
+                python_path="/usr/bin/python3",
             )
 
             success, message = installer.install()

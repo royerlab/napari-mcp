@@ -8,73 +8,82 @@ Two simple ways to set up napari MCP:
 
 | Method | Description | Best For | Setup Time |
 |--------|-------------|----------|------------|
-| **[⚡ MCP JSON Config](quickstart.md)** | Add a single JSON entry; your AI app auto-launches the server | Most users | ~2 minutes |
-| **[🔌 Plugin Bridge](installation.md)** | Use napari’s MCP Server Control widget (external viewer) | Users who want to drive an existing napari window | ~5 minutes |
-| **[📦 Zero Install](zero-install.md)** | Details on zero-install and optional manual runs | Advanced/CI | ~5 minutes |
+| **[⚡ Quick Start](quickstart.md)** | CLI installer automatically configures your AI app | Most users | ~3 minutes |
+| **[🛠️ Advanced Installation](installation.md)** | Manual configuration and development setup | Advanced users, developers | ~10 minutes |
 
 ## What You'll Need
 
-### Prerequisites
+### For Quick Start (Recommended)
+- **Python 3.10+**
+- **pip** (comes with Python)
 
-=== "MCP JSON Config"
-    - **[uv](https://docs.astral.sh/uv/)** - Modern Python package manager
-    - **Python 3.10+** (managed automatically by uv)
+### For Advanced Installation
+- **Python 3.10+**
+- **pip** or **uv**
+- **Git** (for development install)
 
-=== "Plugin Bridge"
-    - **Python 3.10+**
-    - **pip** or **uv**
+## Installation Overview
 
-### Installing uv (if needed)
+### Quick Start Method (Recommended)
 
-!!! tip "Installing uv"
-    === "macOS/Linux"
-        ```bash
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        ```
+```bash
+# 1. Install package
+pip install napari-mcp
 
-    === "Windows"
-        ```powershell
-        powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-        ```
+# 2. Auto-configure your application
+napari-mcp-install claude-desktop  # or claude-code, cursor, etc.
 
-    === "With pip"
-        ```bash
-        pip install uv
-        ```
+# 3. Restart application and start using!
+```
+
+### Advanced Method
+
+For manual configuration, zero-install with uv, or development setup:
+- **[Zero Install](zero-install.md)** - Use `uv` without permanent installation
+- **[Manual Configuration](installation.md)** - Detailed setup for all platforms
+- **Development Setup** - Clone repository and install in editable mode
 
 ## Expected Timeline
 
 | Method | Setup Time | Use Case |
 |--------|------------|----------|
-| **Quick Start** | ~2 minutes | Demo, first try |
-| **Zero Install** | ~5 minutes | Production use without installation |
-| **Traditional** | ~10 minutes | Development, permanent setup |
+| **Quick Start (CLI)** | ~3 minutes | First-time users, quick demo |
+| **Manual Config** | ~5 minutes | Custom configurations |
+| **Zero Install** | ~2 minutes | Testing, CI/CD pipelines |
+| **Development** | ~10 minutes | Contributing, plugin development |
 
-## Common Success Indicators
+## Success Indicators
 
 After following any guide, you should see:
 
-- ✅ **FastMCP banner** in terminal output
-- ✅ **Napari window** opens automatically
-- ✅ **"Starting MCP server"** message
-- ✅ **Claude Desktop** (or your AI tool) can call `session_information()`
+- ✅ **No errors** during installation/configuration
+- ✅ **Napari window** opens when AI app requests it
+- ✅ **Your AI app** can call `session_information()` successfully
+- ✅ **Screenshot tool** works and returns images
 
-## Support Matrix
+## Supported AI Applications
 
-| Feature | Quick Start | Zero Install | Traditional |
-|---------|-------------|--------------|-------------|
-| **AI Integration** | ✅ Full | ✅ Full | ✅ Full |
-| **All MCP Tools** | ✅ All 20+ | ✅ All 20+ | ✅ All 20+ |
-| **Setup Complexity** | 🟢 Minimal | 🟡 Medium | 🔴 Complex |
-| **Dependency Management** | 🟢 Automatic | 🟢 Automatic | 🔴 Manual |
-| **Development Use** | 🔴 Limited | 🟡 Good | 🟢 Excellent |
+The CLI installer supports:
+
+| Application | Command | Platform |
+|-------------|---------|----------|
+| **Claude Desktop** | `napari-mcp-install claude-desktop` | macOS, Windows, Linux |
+| **Claude Code** | `napari-mcp-install claude-code` | macOS, Windows, Linux |
+| **Cursor IDE** | `napari-mcp-install cursor` | macOS, Windows, Linux |
+| **Cline (VS Code)** | `napari-mcp-install cline-vscode` | macOS, Windows, Linux |
+| **Cline (Cursor)** | `napari-mcp-install cline-cursor` | macOS, Windows, Linux |
+| **Gemini CLI** | `napari-mcp-install gemini` | macOS, Windows, Linux |
+| **Codex CLI** | `napari-mcp-install codex` | macOS, Windows, Linux |
+| **All** | `napari-mcp-install all` | Install for all apps |
+
+**→ See [Integration Guides](../integrations/index.md) for app-specific details**
 
 ## Need Help?
 
 If you run into issues:
 
-1. **Check prerequisites** - Ensure uv or Python is installed
-2. **Verify paths** - Use absolute paths in configurations
+1. **Check prerequisites** - Ensure Python 3.10+ and pip are installed
+2. **Verify installation** - Run `napari-mcp-install --help`
 3. **Restart AI apps** - Claude Desktop, Cursor, etc. after config changes
 4. **Check logs** - Look for error messages in terminal output
 

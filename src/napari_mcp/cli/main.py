@@ -1,18 +1,16 @@
 """Main CLI entry point for napari-mcp installer."""
 
-from pathlib import Path
-from typing import Optional
+from typing import Annotated
 
 import typer
 from rich.console import Console
 from rich.table import Table
-from typing_extensions import Annotated
 
 from .install import (
     ClaudeCodeInstaller,
     ClaudeDesktopInstaller,
-    ClineVSCodeInstaller,
     ClineCursorInstaller,
+    ClineVSCodeInstaller,
     CodexCLIInstaller,
     CursorInstaller,
     GeminiCLIInstaller,
@@ -39,12 +37,16 @@ def version_callback(value: bool):
 @app.callback()
 def main(
     version: Annotated[
-        Optional[bool],
-        typer.Option("--version", callback=version_callback, is_eager=True, help="Show version and exit"),
+        bool | None,
+        typer.Option(
+            "--version",
+            callback=version_callback,
+            is_eager=True,
+            help="Show version and exit",
+        ),
     ] = None,
 ):
     """napari-mcp installer - Easy setup for LLM applications."""
-    pass
 
 
 @app.command("claude-desktop")
@@ -54,7 +56,7 @@ def install_claude_desktop(
         typer.Option("--persistent", help="Use Python path instead of uv run"),
     ] = False,
     python_path: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--python-path", help="Custom Python executable path"),
     ] = None,
     force: Annotated[
@@ -90,7 +92,7 @@ def install_claude_code(
         typer.Option("--persistent", help="Use Python path instead of uv run"),
     ] = False,
     python_path: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--python-path", help="Custom Python executable path"),
     ] = None,
     force: Annotated[
@@ -126,7 +128,7 @@ def install_cursor(
         typer.Option("--persistent", help="Use Python path instead of uv run"),
     ] = False,
     python_path: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--python-path", help="Custom Python executable path"),
     ] = None,
     force: Annotated[
@@ -146,7 +148,7 @@ def install_cursor(
         typer.Option("--global", help="Install globally instead of project-specific"),
     ] = False,
     project_dir: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--project", help="Project directory for installation"),
     ] = None,
 ):
@@ -172,7 +174,7 @@ def install_cline_vscode(
         typer.Option("--persistent", help="Use Python path instead of uv run"),
     ] = False,
     python_path: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--python-path", help="Custom Python executable path"),
     ] = None,
     force: Annotated[
@@ -208,7 +210,7 @@ def install_cline_cursor(
         typer.Option("--persistent", help="Use Python path instead of uv run"),
     ] = False,
     python_path: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--python-path", help="Custom Python executable path"),
     ] = None,
     force: Annotated[
@@ -237,8 +239,6 @@ def install_cline_cursor(
         raise typer.Exit(1)
 
 
-
-
 @app.command("codex")
 def install_codex(
     persistent: Annotated[
@@ -246,7 +246,7 @@ def install_codex(
         typer.Option("--persistent", help="Use Python path instead of uv run"),
     ] = False,
     python_path: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--python-path", help="Custom Python executable path"),
     ] = None,
     force: Annotated[
@@ -282,7 +282,7 @@ def install_gemini(
         typer.Option("--persistent", help="Use Python path instead of uv run"),
     ] = False,
     python_path: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--python-path", help="Custom Python executable path"),
     ] = None,
     force: Annotated[
@@ -302,7 +302,7 @@ def install_gemini(
         typer.Option("--global", help="Install globally instead of project-specific"),
     ] = False,
     project_dir: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--project", help="Project directory for installation"),
     ] = None,
 ):
@@ -328,7 +328,7 @@ def install_all(
         typer.Option("--persistent", help="Use Python path instead of uv run"),
     ] = False,
     python_path: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--python-path", help="Custom Python executable path"),
     ] = None,
     force: Annotated[
@@ -345,7 +345,9 @@ def install_all(
     ] = False,
 ):
     """Install napari-mcp for all supported applications."""
-    console.print("[bold cyan]Installing napari-mcp for all supported applications...[/bold cyan]\n")
+    console.print(
+        "[bold cyan]Installing napari-mcp for all supported applications...[/bold cyan]\n"
+    )
 
     results = {}
 
@@ -362,7 +364,9 @@ def install_all(
 
     for app_key, installer_class in installers:
         try:
-            console.print(f"[cyan]Installing for {get_app_display_name(app_key)}...[/cyan]")
+            console.print(
+                f"[cyan]Installing for {get_app_display_name(app_key)}...[/cyan]"
+            )
 
             # Special handling for project-specific installers
             if app_key in ["cursor", "gemini"]:
@@ -401,7 +405,9 @@ def install_all(
 def uninstall(
     app_name: Annotated[
         str,
-        typer.Argument(help="Application to uninstall from (claude-desktop, claude-code, cursor, cline, gemini, all)"),
+        typer.Argument(
+            help="Application to uninstall from (claude-desktop, claude-code, cursor, cline, gemini, all)"
+        ),
     ],
     force: Annotated[
         bool,
@@ -428,12 +434,16 @@ def uninstall(
     }
 
     if app_name == "all":
-        console.print("[bold cyan]Uninstalling napari-mcp from all applications...[/bold cyan]\n")
+        console.print(
+            "[bold cyan]Uninstalling napari-mcp from all applications...[/bold cyan]\n"
+        )
         results = {}
 
         for app_key, installer_class in app_map.items():
             try:
-                console.print(f"[cyan]Uninstalling from {get_app_display_name(app_key)}...[/cyan]")
+                console.print(
+                    f"[cyan]Uninstalling from {get_app_display_name(app_key)}...[/cyan]"
+                )
 
                 # Special handling for project-specific installers
                 if app_key in ["cursor", "gemini"]:
@@ -482,7 +492,9 @@ def uninstall(
             raise typer.Exit(1)
     else:
         console.print(f"[red]Unknown application: {app_name}[/red]")
-        console.print("Available: claude-desktop, claude-code, cursor, cline-vscode, cline-cursor, gemini, codex, all")
+        console.print(
+            "Available: claude-desktop, claude-code, cursor, cline-vscode, cline-cursor, gemini, codex, all"
+        )
         raise typer.Exit(1)
 
 
@@ -514,7 +526,7 @@ def list_installations():
             if app_key in ["cursor", "gemini"]:
                 installer = installer_class(
                     force=True,  # Skip prompts in list command
-                    global_install=True
+                    global_install=True,
                 )
             else:
                 installer = installer_class(force=True)  # Skip prompts in list command
@@ -527,10 +539,14 @@ def list_installations():
                 if app_key == "codex":
                     try:
                         import toml
-                        with open(config_path, 'r') as f:
+
+                        with open(config_path) as f:
                             config = toml.load(f)
                         # Check for napari_mcp in mcp_servers
-                        if "mcp_servers" in config and "napari_mcp" in config["mcp_servers"]:
+                        if (
+                            "mcp_servers" in config
+                            and "napari_mcp" in config["mcp_servers"]
+                        ):
                             status = "[green]✓[/green]"
                             details = "Installed"
                         else:
@@ -564,7 +580,9 @@ def list_installations():
             )
 
     console.print(table)
-    console.print("\n[dim]Legend: ✓ Installed | ○ Partial | − Not configured | ✗ Error[/dim]")
+    console.print(
+        "\n[dim]Legend: ✓ Installed | ○ Partial | − Not configured | ✗ Error[/dim]"
+    )
 
 
 if __name__ == "__main__":

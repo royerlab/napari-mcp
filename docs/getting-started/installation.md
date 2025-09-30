@@ -1,259 +1,385 @@
-# Traditional Installation
+# Advanced Installation
 
-Complete guide to installing napari MCP server using traditional Python package management.
+Advanced installation options for napari MCP server including manual configuration, development setup, and zero-install approaches.
 
-!!! info "Alternative Methods Available"
-    If you prefer zero-installation approaches, see our [Zero Install Guide](zero-install.md) or [Quick Start](quickstart.md).
+!!! tip "Quick Setup Available"
+    Most users should use the **[Quick Start Guide](quickstart.md)** with the automated CLI installer. This guide is for advanced users who need manual configuration or development setups.
 
-## Method 1: Development Installation
+## CLI Installer (Recommended)
 
-Perfect for developers who want to modify the code or contribute to the project.
-
-### Prerequisites
-
-- **Python 3.10+**
-- **Git** (for cloning the repository)
-- **pip** or **uv** (package managers)
-
-### Step-by-Step Installation
+The easiest way is using the automated installer:
 
 ```bash
-# Clone the repository
+pip install napari-mcp
+napari-mcp-install <application>
+```
+
+**→ See [Quick Start](quickstart.md) for step-by-step instructions**
+
+---
+
+## Manual Configuration
+
+For users who prefer manual setup or need custom configurations.
+
+### Configuration File Locations
+
+The CLI installer auto-detects these locations. For manual setup, you need to know where each application stores its MCP config:
+
+#### Claude Desktop
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+#### Claude Code
+- **All platforms**: `~/.claude.json`
+
+#### Cursor
+- **Global**: `~/.cursor/mcp.json`
+- **Project**: `.cursor/mcp.json` (in project root)
+
+#### Cline (VS Code)
+- **macOS**: `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+- **Windows**: `%APPDATA%/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+- **Linux**: `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+
+*Note: For VS Code Insiders, replace "Code" with "Code - Insiders"*
+
+#### Cline (Cursor)
+- **macOS**: `~/Library/Application Support/Cursor/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+- **Windows**: `%APPDATA%/Cursor/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+- **Linux**: `~/.config/Cursor/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+
+#### Gemini CLI
+- **Global**: `~/.gemini/settings.json`
+- **Project**: `.gemini/settings.json` (in project root)
+
+#### Codex CLI
+- **All platforms**: `~/.codex/config.toml` (TOML format)
+
+### Standard Configuration (JSON)
+
+Most applications use this JSON format:
+
+```json
+{
+  "mcpServers": {
+    "napari-mcp": {
+      "command": "uv",
+      "args": ["run", "--with", "napari-mcp", "napari-mcp"]
+    }
+  }
+}
+```
+
+This uses `uv` for zero-install execution (no permanent installation required).
+
+### Using Persistent Python Environment
+
+If you have napari-mcp installed in your Python environment:
+
+```json
+{
+  "mcpServers": {
+    "napari-mcp": {
+      "command": "python",
+      "args": ["-m", "napari_mcp.server"]
+    }
+  }
+}
+```
+
+Or with a specific Python path:
+
+```json
+{
+  "mcpServers": {
+    "napari-mcp": {
+      "command": "/path/to/your/python",
+      "args": ["-m", "napari_mcp.server"]
+    }
+  }
+}
+```
+
+### Application-Specific Configuration
+
+#### Gemini CLI (Extended)
+
+```json
+{
+  "mcpServers": {
+    "napari-mcp": {
+      "command": "uv",
+      "args": ["run", "--with", "napari-mcp", "napari-mcp"],
+      "cwd": ".",
+      "timeout": 600000,
+      "trust": false
+    }
+  }
+}
+```
+
+#### Cline (Tool Permissions)
+
+```json
+{
+  "mcpServers": {
+    "napari-mcp": {
+      "command": "uv",
+      "args": ["run", "--with", "napari-mcp", "napari-mcp"],
+      "alwaysAllow": ["screenshot", "list_layers"],
+      "disabled": false
+    }
+  }
+}
+```
+
+#### Codex CLI (TOML Format)
+
+```toml
+[mcp_servers.napari_mcp]
+command = "uv"
+args = ["run", "--with", "napari-mcp", "napari-mcp"]
+```
+
+---
+
+## Zero Install with uv
+
+Run napari MCP without permanent installation using `uv`:
+
+```bash
+# Direct execution (for testing)
+uv run --with napari-mcp napari-mcp
+```
+
+The configuration files use `uv` automatically. See **[Zero Install Guide](zero-install.md)** for details.
+
+---
+
+## Development Installation
+
+For contributors and plugin developers:
+
+### Clone and Install
+
+```bash
+# Clone repository
 git clone https://github.com/royerlab/napari-mcp.git
 cd napari-mcp
 
-# Install in development mode with all dependencies
+# Install in editable mode with dev dependencies
 pip install -e ".[test,dev]"
 
 # Or with uv (recommended)
 uv pip install -e ".[test,dev]"
 ```
 
-### Verify Installation (optional)
+### Configure for Development
 
 ```bash
-# Check if the command is available
-napari-mcp --help
+# Configure to use your development installation
+napari-mcp-install claude-desktop --persistent
+
+# This will use your local Python with the editable installation
 ```
 
-## Method 2: PyPI Installation (When Available)
-
-Once published to PyPI, you can install directly:
+### Run Tests
 
 ```bash
-# Install from PyPI (future)
-pip install napari-mcp
+# Fast tests (skip GUI)
+pytest -m "not realgui"
 
-# Or with uv
-uv pip install napari-mcp
+# With coverage
+pytest --cov=src --cov-report=html -m "not realgui"
+
+# Include GUI tests (requires display)
+pytest -m realgui
 ```
 
-## Method 3: Direct Source Installation
-
-Install directly from the source without cloning:
+### Development Tools
 
 ```bash
-# Install from GitHub
-pip install git+https://github.com/royerlab/napari-mcp.git
+# Install pre-commit hooks
+pre-commit install
 
-# With specific branch or tag
-pip install git+https://github.com/royerlab/napari-mcp.git@main
+# Run linting
+ruff check src/ tests/
+
+# Format code
+ruff format src/ tests/
 ```
 
-## Configure Your AI Assistant (preferred)
-
-After installation, you do not need to start the server manually. Add the MCP server entry shown in Quick Start and your AI app will start it automatically.
-
-### Python Script
-
-```python
-#!/usr/bin/env python
-"""Run napari MCP server."""
-
-from napari_mcp_server import main
-
-if __name__ == "__main__":
-    main()
-```
-
-## Claude Desktop Configuration
-
-Use the same configuration referenced in Quick Start.
+---
 
 ## Virtual Environment Setup
 
 ### Using venv
 
 ```bash
-# Create virtual environment
+# Create environment
 python -m venv napari-mcp-env
 
-# Activate (Linux/macOS)
+# Activate (macOS/Linux)
 source napari-mcp-env/bin/activate
 
 # Activate (Windows)
 napari-mcp-env\Scripts\activate
 
 # Install
-pip install -e ".[test,dev]"
+pip install napari-mcp
+
+# Configure
+napari-mcp-install <app> --persistent
 ```
 
 ### Using conda
 
 ```bash
-# Create conda environment
+# Create environment
 conda create -n napari-mcp python=3.11
 
 # Activate
 conda activate napari-mcp
 
 # Install
-pip install -e ".[test,dev]"
+pip install napari-mcp
+
+# Configure
+napari-mcp-install <app> --persistent
 ```
-
-## Dependencies Explained
-
-### Core Dependencies
-
-The package installs these automatically:
-
-- **fastmcp** - MCP protocol framework
-- **napari** - Multi-dimensional image viewer
-- **PyQt6** - GUI backend
-- **imageio** - Image I/O operations
-- **Pillow** - Image processing
-- **numpy** - Numerical computing
-- **qtpy** - Qt abstraction
-
-### Optional Dependencies
-
-Install additional packages for enhanced functionality:
-
-```bash
-# Scientific computing
-pip install scipy scikit-image
-
-# Plotting
-pip install matplotlib seaborn
-
-# Additional formats
-pip install tifffile imageio-ffmpeg
-```
-
-## Troubleshooting Installation
-
-### Common Issues
-
-!!! failure "Python version conflicts"
-    **Problem:** `ERROR: This package requires Python >=3.10`
-
-    **Solution:** Upgrade Python or use pyenv:
-    ```bash
-    pyenv install 3.11
-    pyenv local 3.11
-    ```
-
-!!! failure "Qt backend issues"
-    **Problem:** `qt.qpa.plugin: Could not find the Qt platform plugin`
-
-    **Solutions:**
-    - Install system Qt libraries
-    - Set environment variable: `export QT_QPA_PLATFORM=offscreen`
-    - Try different Qt backend: `pip install PyQt5` instead
-
-!!! failure "Permission errors"
-    **Problem:** `Permission denied` when installing
-
-    **Solution:** Use user install:
-    ```bash
-    pip install --user -e .
-    ```
-
-!!! failure "Dependency conflicts"
-    **Problem:** Package version conflicts
-
-    **Solution:** Use virtual environment or update conflicting packages
-
-### Debug Installation
-
-```bash
-# Check Python version
-python --version
-
-# Check pip version
-pip --version
-
-# List installed packages
-pip list | grep -E "(napari|fastmcp|PyQt)"
-
-# Check napari installation
-python -c "import napari; print(napari.__version__)"
-
-# Test import
-python -c "import napari_mcp; print('Import successful')"
-```
-
-## Development Setup
-
-For contributors and developers:
-
-### Full Development Environment
-
-```bash
-# Clone with development focus
-git clone https://github.com/royerlab/napari-mcp.git
-cd napari-mcp
-
-# Install with all development tools
-uv pip install -e ".[test,dev]"
-
-# Install pre-commit hooks
-pre-commit install
-
-# Run tests
-pytest tests/
-
-# Run linting
-ruff check src/ tests/
-```
-
-### IDE Configuration
-
-#### VS Code
-Add to `.vscode/settings.json`:
-```json
-{
-  "python.defaultInterpreterPath": "./venv/bin/python",
-  "python.testing.pytestEnabled": true,
-  "python.testing.pytestArgs": ["tests/"]
-}
-```
-
-#### PyCharm
-- Set interpreter to your virtual environment
-- Mark `src/` as Sources Root
-- Configure run configuration for `napari_mcp_server:main`
-
-## Comparison with Zero Install
-
-| Aspect | Traditional Install | Zero Install |
-|--------|-------------------|--------------|
-| **Setup Time** | 5-10 minutes | 30 seconds |
-| **Disk Usage** | Permanent | Temporary |
-| **Development** | Excellent | Limited |
-| **Customization** | Full control | Limited |
-| **Updates** | Manual `git pull` | Automatic |
-| **Dependencies** | Manual management | Automatic |
-
-## Next Steps
-
-After successful installation:
-
-1. **Configure your AI assistant** - See [Integrations](../integrations/index.md)
-2. **Test basic functionality** - Try loading an image
-3. **Explore advanced features** - Code execution, package installation
-4. **Join the community** - Contribute to development
 
 ---
 
-**Installation complete!** 🎉 You're ready to start using napari with AI assistance.
+## External Viewer Mode (Plugin Bridge)
+
+Connect to an existing napari viewer via the plugin:
+
+1. **Start napari** and open the MCP Server Control widget:
+   - Plugins → MCP Server Control
+
+2. **Click "Start Server"** (default port: 9999)
+
+3. **Configure your AI app** with standard CLI installer:
+   ```bash
+   napari-mcp-install <app>
+   ```
+
+The server auto-detects the external viewer and proxies requests to it.
+
+---
+
+## Environment Variables
+
+Advanced configuration via environment variables:
+
+```bash
+# Qt platform (for headless systems)
+export QT_QPA_PLATFORM=offscreen
+
+# MCP bridge port (for external viewer)
+export NAPARI_MCP_BRIDGE_PORT=9999
+
+# Output limits
+export NAPARI_MCP_MAX_OUTPUT_ITEMS=2000
+
+# Logging
+export MCP_LOG_LEVEL=INFO
+```
+
+Add to your config:
+
+```json
+{
+  "mcpServers": {
+    "napari-mcp": {
+      "command": "uv",
+      "args": ["run", "--with", "napari-mcp", "napari-mcp"],
+      "env": {
+        "QT_QPA_PLATFORM": "offscreen",
+        "NAPARI_MCP_BRIDGE_PORT": "9999"
+      }
+    }
+  }
+}
+```
+
+---
+
+## Platform-Specific Notes
+
+### macOS
+- Permissions: Grant terminal access in System Preferences
+- Python path: Use `which python3` to find interpreter
+- M1/M2: Ensure native ARM Python for best performance
+
+### Windows
+- Path format: Use forward slashes in JSON: `"C:/Python/python.exe"`
+- Environment variables: Access with `%VAR%` syntax
+- PowerShell: May need execution policy changes
+
+### Linux
+- Display: X11 or Wayland required for GUI (or use offscreen mode)
+- Permissions: Ensure config directories are writable
+- Headless: Use `QT_QPA_PLATFORM=offscreen` for servers
+
+---
+
+## Troubleshooting
+
+Common installation issues and solutions:
+
+### Command Not Found
+
+```bash
+# Verify installation
+pip list | grep napari-mcp
+
+# Check PATH
+which napari-mcp-install
+
+# Reinstall
+pip install --force-reinstall napari-mcp
+```
+
+### Configuration Not Applied
+
+```bash
+# Verify config created
+napari-mcp-install list
+
+# Check file syntax
+python -m json.tool < config-file.json
+
+# Force reinstall
+napari-mcp-install <app> --force
+```
+
+### Python Environment Issues
+
+```bash
+# Check Python version
+python --version  # Should be 3.10+
+
+# Verify napari-mcp is accessible
+python -c "import napari_mcp; print('OK')"
+
+# Use specific Python
+napari-mcp-install <app> --python-path $(which python)
+```
+
+**→ See [Troubleshooting Guide](../guides/troubleshooting.md) for comprehensive help**
+
+---
+
+## Next Steps
+
+- **[Quick Start](quickstart.md)** - If you haven't tried the automated installer
+- **[Integration Guides](../integrations/index.md)** - Application-specific setup
+- **[API Reference](../api/index.md)** - Available tools and functions
+- **[Troubleshooting](../guides/troubleshooting.md)** - Common issues
+
+---
+
+**For most users, the [Quick Start Guide](quickstart.md) with automated CLI installer is the recommended approach!**

@@ -14,6 +14,7 @@ Learn how to effectively use napari MCP server with AI assistants for microscopy
 ### Quick Links
 
 - **[Troubleshooting Guide](troubleshooting.md)** - Solutions to common problems (available now)
+- **[Python Integration](../integrations/python.md)** - Custom integrations with OpenAI, Anthropic, etc. (available now)
 - **Basic Usage Guide** - Coming soon
 - **Advanced Workflows** - Coming soon
 - **Security Guide** - Coming soon
@@ -30,7 +31,7 @@ Learn how to effectively use napari MCP server with AI assistants for microscopy
 - Multi-dimensional data handling (3D, 4D, time series)
 - Custom analysis with code execution
 - Package installation and environment management
-- Automated processing pipelines
+- Automated processing pipelines with Python scripts ([see examples](../integrations/python.md))
 
 ### Security Considerations
 - Understanding code execution risks
@@ -83,7 +84,7 @@ Before diving into these guides, ensure you have:
 === "Data Science & AI"
     - **Computer vision** - Develop and test image processing algorithms
     - **Machine learning** - Prepare training data, validate model outputs
-    - **Automated analysis** - Create reproducible processing pipelines
+    - **Automated analysis** - Create reproducible processing pipelines ([Python examples](../integrations/python.md))
     - **Interactive exploration** - Use AI to guide data discovery
 
 ## Community and Support

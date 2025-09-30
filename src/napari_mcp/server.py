@@ -31,6 +31,7 @@ else:
 import fastmcp
 import napari
 import numpy as np
+import typer
 from fastmcp import Client, FastMCP
 from PIL import Image
 from qtpy import QtWidgets
@@ -2124,9 +2125,54 @@ async def read_output(
     return await NapariMCPTools.read_output(output_id=output_id, start=start, end=end)
 
 
-def main() -> None:
+app = typer.Typer(
+    name="napari-mcp",
+    help="Napari MCP Server - Control napari viewers via Model Context Protocol",
+    add_completion=False,
+)
+
+
+@app.command()
+def run() -> None:
     """Run the MCP server."""
     server.run()
+
+
+@app.command()
+def install() -> None:
+    """
+    Install napari-mcp in various AI clients.
+
+    NOTE: This command is deprecated. Use 'napari-mcp-install' instead.
+    """
+    from rich.console import Console
+
+    console = Console()
+    console.print(
+        "\n[bold yellow]⚠️  Deprecated Command[/bold yellow]\n",
+        style="yellow",
+    )
+    console.print(
+        "The 'napari-mcp install' command has been replaced by 'napari-mcp-install'.",
+    )
+    console.print("\n[bold green]To install napari-mcp:[/bold green]")
+    console.print("  • Run: [bold cyan]napari-mcp-install --help[/bold cyan]")
+    console.print(
+        "  • Or: [bold cyan]napari-mcp-install claude-desktop[/bold cyan] (for example)\n"
+    )
+
+    console.print("[yellow]Please use 'napari-mcp-install' instead.[/yellow]\n")
+
+    raise typer.Exit(1)
+
+
+def main() -> None:
+    """Entry point that defaults to running the server."""
+    # If no arguments provided, default to running the server
+    if len(sys.argv) == 1:
+        server.run()
+    else:
+        app()
 
 
 # Register tools with the FastMCP server without replacing the callables

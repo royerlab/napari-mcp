@@ -1,12 +1,12 @@
 """Installation commands for various LLM applications."""
 
-from .claude_desktop import ClaudeDesktopInstaller
 from .claude_code import ClaudeCodeInstaller
-from .cursor import CursorInstaller
-from .cline_vscode import ClineVSCodeInstaller
+from .claude_desktop import ClaudeDesktopInstaller
 from .cline_cursor import ClineCursorInstaller
-from .gemini_cli import GeminiCLIInstaller
+from .cline_vscode import ClineVSCodeInstaller
 from .codex_cli import CodexCLIInstaller
+from .cursor import CursorInstaller
+from .gemini_cli import GeminiCLIInstaller
 
 __all__ = [
     "ClaudeDesktopInstaller",

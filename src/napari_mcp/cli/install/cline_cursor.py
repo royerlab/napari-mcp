@@ -1,7 +1,7 @@
 """Cline in Cursor IDE installer for napari-mcp."""
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from rich.console import Console
 
@@ -41,12 +41,12 @@ class ClineCursorInstaller(BaseInstaller):
 
         return expand_path(path)
 
-    def get_extra_config(self) -> Dict[str, Any]:
+    def get_extra_config(self) -> dict[str, Any]:
         """Get extra configuration for Cline in Cursor.
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             Additional configuration for Cline.
         """
         # Cline supports additional fields for tool permissions
@@ -57,16 +57,24 @@ class ClineCursorInstaller(BaseInstaller):
 
     def show_post_install_message(self) -> None:
         """Show post-installation instructions."""
-        console.print(f"\n[bold]Next steps:[/bold]")
-        console.print(f"1. Open Cursor IDE")
-        console.print(f"2. Open the Cline extension")
-        console.print(f"3. Click the MCP Servers icon to verify the installation")
-        console.print(f"4. The napari-mcp server will be available")
+        console.print("\n[bold]Next steps:[/bold]")
+        console.print("1. Open Cursor IDE")
+        console.print("2. Open the Cline extension")
+        console.print("3. Click the MCP Servers icon to verify the installation")
+        console.print("4. The napari-mcp server will be available")
 
         if self.persistent:
-            console.print(f"\n[dim]Note: Using persistent Python environment[/dim]")
-            console.print(f"[dim]Make sure napari-mcp is installed: pip install napari-mcp[/dim]")
+            console.print("\n[dim]Note: Using persistent Python environment[/dim]")
+            console.print(
+                "[dim]Make sure napari-mcp is installed: pip install napari-mcp[/dim]"
+            )
 
-        console.print(f"\n[dim]Tip: You can configure tool permissions in the Cline MCP settings[/dim]")
-        console.print(f"\n[yellow]Note: This configures Cline extension in Cursor IDE[/yellow]")
-        console.print(f"[yellow]For Cursor's native MCP support, use: napari-mcp-install cursor[/yellow]")
+        console.print(
+            "\n[dim]Tip: You can configure tool permissions in the Cline MCP settings[/dim]"
+        )
+        console.print(
+            "\n[yellow]Note: This configures Cline extension in Cursor IDE[/yellow]"
+        )
+        console.print(
+            "[yellow]For Cursor's native MCP support, use: napari-mcp-install cursor[/yellow]"
+        )

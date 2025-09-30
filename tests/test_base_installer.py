@@ -1,9 +1,7 @@
 """Tests for base installer class."""
 
-import json
-import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -46,7 +44,7 @@ class TestBaseInstaller:
             python_path="/custom/python",
             force=True,
             backup=False,
-            dry_run=True
+            dry_run=True,
         )
 
         assert installer.server_name == "custom-server"
@@ -93,7 +91,9 @@ class TestBaseInstaller:
     @patch("napari_mcp.cli.install.base.validate_python_environment")
     @patch("napari_mcp.cli.install.base.get_python_executable")
     @patch("napari_mcp.cli.install.base.console")
-    def test_validate_environment_missing_package(self, mock_console, mock_get_exe, mock_validate):
+    def test_validate_environment_missing_package(
+        self, mock_console, mock_get_exe, mock_validate
+    ):
         """Test validation failure with missing napari-mcp."""
         mock_get_exe.return_value = ("/usr/bin/python3", "persistent Python")
         mock_validate.return_value = False
@@ -124,7 +124,7 @@ class TestBaseInstaller:
         mock_get_exe.return_value = ("uv", "ephemeral uv")
         mock_build_config.return_value = {
             "command": "uv",
-            "args": ["run", "--with", "napari-mcp", "napari-mcp"]
+            "args": ["run", "--with", "napari-mcp", "napari-mcp"],
         }
 
         installer = ConcreteInstaller(app_key="test-app")
@@ -144,7 +144,14 @@ class TestBaseInstaller:
     @patch("napari_mcp.cli.install.base.get_python_executable")
     @patch("napari_mcp.cli.install.base.console")
     def test_install_existing_update(
-        self, mock_console, mock_get_exe, mock_build, mock_prompt, mock_check, mock_write, mock_read
+        self,
+        mock_console,
+        mock_get_exe,
+        mock_build,
+        mock_prompt,
+        mock_check,
+        mock_write,
+        mock_read,
     ):
         """Test updating existing configuration."""
         existing_config = {
@@ -216,14 +223,12 @@ class TestBaseInstaller:
     @patch("napari_mcp.cli.install.base.write_json_config")
     @patch("napari_mcp.cli.install.base.check_existing_server")
     @patch("napari_mcp.cli.install.base.console")
-    def test_uninstall_success(
-        self, mock_console, mock_check, mock_write, mock_read
-    ):
+    def test_uninstall_success(self, mock_console, mock_check, mock_write, mock_read):
         """Test successful uninstallation."""
         config = {
             "mcpServers": {
                 "napari-mcp": {"command": "uv"},
-                "other": {"command": "python"}
+                "other": {"command": "python"},
             }
         }
         mock_read.return_value = config
@@ -316,14 +321,12 @@ class TestInstallerIntegration:
     @patch("napari_mcp.cli.install.base.read_json_config")
     @patch("napari_mcp.cli.install.base.write_json_config")
     @patch("napari_mcp.cli.install.base.build_server_config")
-    def test_install_preserves_other_servers(
-        self, mock_build, mock_write, mock_read
-    ):
+    def test_install_preserves_other_servers(self, mock_build, mock_write, mock_read):
         """Test that installation preserves other server configurations."""
         existing_config = {
             "mcpServers": {
                 "other-server": {"command": "other"},
-                "another": {"command": "another"}
+                "another": {"command": "another"},
             }
         }
         mock_read.return_value = existing_config
@@ -366,7 +369,7 @@ class TestInstallerIntegration:
         mock_build.return_value = {
             "command": "uv",
             "args": ["run"],
-            "timeout": 60000  # From get_extra_config
+            "timeout": 60000,  # From get_extra_config
         }
 
         installer = ConcreteInstaller(app_key="test-app")

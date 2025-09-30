@@ -1,7 +1,7 @@
 """Cursor installer for napari-mcp."""
 
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from rich.console import Console
 from rich.prompt import Confirm
@@ -19,12 +19,12 @@ class CursorInstaller(BaseInstaller):
         self,
         server_name: str = "napari-mcp",
         persistent: bool = False,
-        python_path: Optional[str] = None,
+        python_path: str | None = None,
         force: bool = False,
         backup: bool = True,
         dry_run: bool = False,
         global_install: bool = False,
-        project_dir: Optional[str] = None,
+        project_dir: str | None = None,
     ):
         """Initialize the Cursor installer.
 
@@ -83,17 +83,19 @@ class CursorInstaller(BaseInstaller):
             # Confirm project directory with user
             if not self.force and not self.dry_run:
                 console.print(f"\n[cyan]Project directory: {base_path}[/cyan]")
-                if not Confirm.ask("Install napari-mcp for this project?", default=True):
+                if not Confirm.ask(
+                    "Install napari-mcp for this project?", default=True
+                ):
                     raise ValueError("User cancelled installation")
 
             return config_path
 
-    def get_extra_config(self) -> Dict[str, Any]:
+    def get_extra_config(self) -> dict[str, Any]:
         """Get extra configuration for Cursor.
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             Empty dict as Cursor doesn't need extra fields.
         """
         return {}
@@ -103,5 +105,7 @@ class CursorInstaller(BaseInstaller):
         super().show_post_install_message()
 
         if not self.global_install:
-            console.print(f"\n[dim]Note: Installation is project-specific[/dim]")
-            console.print(f"[dim]The server will only be available in this project[/dim]")
+            console.print("\n[dim]Note: Installation is project-specific[/dim]")
+            console.print(
+                "[dim]The server will only be available in this project[/dim]"
+            )

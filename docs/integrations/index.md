@@ -1,75 +1,127 @@
 # LLM Application Integrations
 
-Connect napari MCP server with your favorite AI assistant or development environment.
+Connect napari MCP server with your favorite AI assistant or development environment using our automated CLI installer.
+
+## 🚀 Quick Installation
+
+All integrations use the same simple command:
+
+```bash
+# Install napari-mcp
+pip install napari-mcp
+
+# Auto-configure your application
+napari-mcp-install <application-name>
+```
 
 ## Supported Platforms
 
-| Platform | Status | Setup Method | Features |
-|----------|--------|--------------|----------|
-| **🤖 Claude Desktop** | ✅ Full Support | Manual config | All 20+ MCP tools, visual napari control |
-| **💻 Claude Code** | ✅ Full Support | FastMCP CLI | IDE integration, code context awareness |
-| **📝 Cursor** | ✅ Full Support | FastMCP CLI | AI-powered coding, project integration |
-| **💬 ChatGPT** | 🟡 Limited | Remote deployment | Deep Research mode only |
-
-### Quick Links
-
-- **[Claude Desktop Setup](claude-desktop.md)** - Most popular choice
-- **[Claude Code Setup](claude-code.md)** - Perfect for development
-- **[Cursor Setup](cursor.md)** - AI-enhanced coding
-- **[ChatGPT Setup](chatgpt.md)** - Research workflows
+| Platform | Command | Status | Guide |
+|----------|---------|--------|-------|
+| **Claude Desktop** | `napari-mcp-install claude-desktop` | ✅ Full Support | [Setup →](claude-desktop.md) |
+| **Claude Code** | `napari-mcp-install claude-code` | ✅ Full Support | [Setup →](claude-code.md) |
+| **Cursor IDE** | `napari-mcp-install cursor` | ✅ Full Support | [Setup →](cursor.md) |
+| **Cline** | `napari-mcp-install cline-vscode` or `cline-cursor` | ✅ Full Support | [Setup →](cline.md) |
+| **Gemini / Codex** | `napari-mcp-install gemini` or `codex` | ✅ Full Support | [Setup →](other-llms.md) |
+| **Python** | Custom script | ✅ Full Support | [Guide →](python.md) |
+| **ChatGPT** | N/A | ❌ Not Supported | [Why? →](chatgpt.md) |
 
 ## Feature Comparison
 
-| Feature | Claude Desktop | Claude Code | Cursor | ChatGPT |
-|---------|----------------|-------------|--------|---------|
-| **Visual napari window** | ✅ Full | ✅ Full | ✅ Full | ❌ Server only |
-| **All MCP tools** | ✅ 20+ tools | ✅ 20+ tools | ✅ 20+ tools | 🟡 Limited |
-| **File system access** | ✅ Full | ✅ Full | ✅ Full | ❌ Remote only |
-| **Code execution** | ✅ Yes | ✅ Yes | ✅ Yes | ❌ No |
-| **Package installation** | ✅ Yes | ✅ Yes | ✅ Yes | ❌ No |
-| **Setup complexity** | 🟢 Easy | 🟢 Easy | 🟢 Easy | 🔴 Complex |
-| **Best for** | General use | Development | AI coding | Research |
+| Feature | Claude Desktop | Claude Code | Cursor | Cline | Gemini/Codex |
+|---------|----------------|-------------|--------|-------|--------------|
+| **Visual napari window** | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full |
+| **All MCP tools** | ✅ 20+ tools | ✅ 20+ tools | ✅ 20+ tools | ✅ 20+ tools | ✅ 20+ tools |
+| **File system access** | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full |
+| **Code execution** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Package installation** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Setup complexity** | 🟢 Easy | 🟢 Easy | 🟢 Easy | 🟢 Easy | 🟢 Easy |
+| **Best for** | General use | Development | AI coding | VS Code users | Advanced users |
 
-## Quick Setup Overview
+## Installation Workflow
 
-=== "Claude Desktop (Recommended)"
-Use the configuration JSON shown in Quick Start.
+### Step 1: Install Package
 
-=== "Claude Code / Cursor"
-If your IDE supports MCP server entries, use the same JSON as Quick Start. Otherwise, see the IDE-specific docs.
+```bash
+pip install napari-mcp
+```
 
-=== "ChatGPT (Advanced)"
-Limited support; requires a public MCP endpoint. Not recommended.
+### Step 2: Auto-Configure
 
-## Integration Benefits by Platform
+```bash
+# For your specific application
+napari-mcp-install <app-name>
 
-### Claude Desktop
-- **Zero configuration complexity** - Just edit a JSON file
-- **Perfect for research** - Full napari visual interface
-- **Immediate availability** - Works as soon as server starts
-- **Best documentation** - Most comprehensive setup guides
+# See all options
+napari-mcp-install --help
 
-### Claude Code
-- **Development focused** - Perfect for napari plugin development
-- **Code context awareness** - AI knows your current code
-- **File system integration** - Easy image loading from workspace
-- **Live development** - Test changes immediately
+# Preview changes before applying
+napari-mcp-install <app-name> --dry-run
+```
 
-### Cursor
-- **AI-enhanced coding** - Next-level development experience
-- **Project awareness** - Understands your entire codebase
-- **Smart completions** - AI suggests napari operations
-- **Workspace integration** - Seamless file and project handling
+### Step 3: Restart & Test
 
-### ChatGPT
-- **Research workflows** - Designed for deep data analysis
-- **Public accessibility** - Can be shared with team members
-- **Advanced queries** - Complex multi-step analysis
-- **Limited but specialized** - Focus on search/fetch patterns
+1. Completely restart your application
+2. Ask: `"Can you call session_information() to show my napari session?"`
+3. Success! ✅
+
+## Installation Options
+
+The CLI installer supports several options:
+
+```bash
+# Use your Python environment instead of uv
+napari-mcp-install claude-desktop --persistent
+
+# Custom Python path
+napari-mcp-install claude-desktop --python-path /path/to/python
+
+# Preview changes only
+napari-mcp-install claude-desktop --dry-run
+
+# Force update without prompts
+napari-mcp-install claude-desktop --force
+
+# Install for all applications
+napari-mcp-install all
+```
+
+## Management Commands
+
+```bash
+# List all installations
+napari-mcp-install list
+
+# Uninstall from an application
+napari-mcp-install uninstall claude-desktop
+
+# Uninstall from all
+napari-mcp-install uninstall all
+```
+
+## Platform-Specific Guides
+
+Choose your application for detailed setup instructions:
+
+### 🖥️ Desktop Applications
+
+- **[Claude Desktop](claude-desktop.md)** - Most popular choice for general use
+- **[Claude Code](claude-code.md)** - CLI integration for development workflows
+
+### 💻 IDE Integrations
+
+- **[Cursor IDE](cursor.md)** - AI-powered coding with napari
+- **[Cline](cline.md)** - VS Code and Cursor extensions
+
+### 🌐 Other Platforms
+
+- **[Gemini CLI & Codex](other-llms.md)** - Google Gemini and OpenAI Codex setup
+- **[Python Integration](python.md)** - Custom scripts for workflow automation
+- **[ChatGPT](chatgpt.md)** - Why ChatGPT doesn't work and what to use instead
 
 ## Common Configuration
 
-All platforms support these environment variables:
+All platforms support environment variables for advanced configuration:
 
 ```bash
 export QT_QPA_PLATFORM=offscreen  # For headless servers
@@ -77,18 +129,59 @@ export NAPARI_ASYNC=1             # Enable async operations
 export MCP_LOG_LEVEL=INFO         # Debug MCP communication
 ```
 
+## Troubleshooting
+
+### CLI Installer Issues
+
+!!! failure "napari-mcp-install: command not found"
+    ```bash
+    # Reinstall package
+    pip install --force-reinstall napari-mcp
+
+    # Verify
+    napari-mcp-install --version
+    ```
+
+!!! failure "Configuration not detected"
+    ```bash
+    # List what would be configured
+    napari-mcp-install <app> --dry-run
+
+    # Check current installations
+    napari-mcp-install list
+    ```
+
+!!! failure "Permission errors"
+    ```bash
+    # Check config locations
+    napari-mcp-install list
+
+    # Fix permissions (macOS/Linux)
+    chmod 644 <config-file-path>
+    ```
+
+### Application-Specific Issues
+
+Each integration guide has troubleshooting sections for platform-specific problems:
+
+- **Claude Desktop** - Config file location, restart issues
+- **Claude Code** - CLI configuration, environment setup
+- **Cursor** - Project vs global installation
+- **Cline** - Extension detection, VS Code variants
+- **Gemini/Codex** - TOML config, API setup
+
+**→ See [Troubleshooting Guide](../guides/troubleshooting.md) for comprehensive help**
+
+## Advanced: Python Scripting
+
+For batch processing or custom pipelines, see **[Python Scripts](python.md)** to use napari MCP with any LLM in your own code.
+
 ## Next Steps
 
 1. **Choose your platform** based on your primary use case
 2. **Follow the specific setup guide** for detailed instructions
 3. **Test the integration** with our provided examples
 4. **Explore advanced features** once basic setup works
-
-## Need Help?
-
-- **Setup issues?** Check our [Troubleshooting Guide](../guides/troubleshooting.md)
-- **Feature requests?** Open an [issue on GitHub](https://github.com/royerlab/napari-mcp/issues)
-- **Integration problems?** See platform-specific troubleshooting in each guide
 
 ---
 
