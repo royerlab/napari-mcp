@@ -2344,6 +2344,7 @@ dependencies = [
     { name = "pyqt6" },
     { name = "qtpy" },
     { name = "rich" },
+    { name = "toml" },
     { name = "typer" },
 ]
 
@@ -2368,6 +2369,7 @@ all = [
     { name = "ruff" },
     { name = "tox" },
     { name = "types-pillow" },
+    { name = "types-toml" },
 ]
 dev = [
     { name = "bandit" },
@@ -2376,6 +2378,7 @@ dev = [
     { name = "pre-commit" },
     { name = "ruff" },
     { name = "types-pillow" },
+    { name = "types-toml" },
 ]
 test = [
     { name = "hypothesis" },
@@ -2440,9 +2443,11 @@ requires-dist = [
     { name = "qtpy", specifier = ">=2.4.1" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12.10" },
+    { name = "toml", specifier = ">=0.10.2" },
     { name = "tox", marker = "extra == 'test'" },
     { name = "typer", specifier = ">=0.9.0" },
     { name = "types-pillow", marker = "extra == 'dev'", specifier = ">=10.0.0" },
+    { name = "types-toml", marker = "extra == 'dev'", specifier = ">=0.10.8.20240310" },
 ]
 provides-extras = ["test", "dev", "all"]
 
@@ -4777,6 +4782,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/11/9e/636e3e433c24da41dd639e0520db60750dbf5e938d023b83af8097382ea3/tifffile-2025.6.11.tar.gz", hash = "sha256:0ece4c2e7a10656957d568a093b07513c0728d30c1bd8cc12725901fffdb7143", size = 370125, upload-time = "2025-06-12T04:49:38.839Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3a/d8/1ba8f32bfc9cb69e37edeca93738e883f478fbe84ae401f72c0d8d507841/tifffile-2025.6.11-py3-none-any.whl", hash = "sha256:32effb78b10b3a283eb92d4ebf844ae7e93e151458b0412f38518b4e6d2d7542", size = 230800, upload-time = "2025-06-12T04:49:37.458Z" },
+]
+
+[[package]]
+name = "toml"
+version = "0.10.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/be/ba/1f744cdc819428fc6b5084ec34d9b30660f6f9daaf70eead706e3203ec3c/toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f", size = 22253, upload-time = "2020-11-01T01:40:22.204Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b", size = 16588, upload-time = "2020-11-01T01:40:20.672Z" },
 ]
 
 [[package]]

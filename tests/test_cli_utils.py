@@ -270,7 +270,8 @@ class TestServerConfiguration:
     def test_build_server_config_python(self):
         """Test building server config for Python path."""
         config = build_server_config(persistent=False, python_path="/usr/bin/python3")
-        assert config["command"] == "/usr/bin/python3"
+        # The path may resolve to version-specific binary (e.g., python3.12)
+        assert "python3" in config["command"]
         assert config["args"] == ["-m", "napari_mcp.server"]
 
     def test_build_server_config_persistent(self):

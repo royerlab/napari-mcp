@@ -413,7 +413,7 @@ Simply download, set your API key, and run!
 - **[Download Examples](../examples/README.md)** - Get the working code
 - **[API Reference](../api/index.md)** - Explore all available tools
 - **[ChatGPT Integration](../integrations/chatgpt.md)** - Why desktop apps don't work
-- **[Troubleshooting](troubleshooting.md)** - Common issues
+- **[Troubleshooting](../guides/troubleshooting.md)** - Common issues
 
 ---
 
