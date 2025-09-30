@@ -62,7 +62,7 @@ class TestPathExpansion:
 
         result = expand_path("~/test/file.json")
         mock_expanduser.assert_called_once_with("~/test/file.json")
-        assert "test/file.json" in str(result)
+        assert "test/file.json" in result.as_posix()
 
     @patch("os.path.expanduser")
     @patch("os.path.expandvars")
@@ -222,7 +222,8 @@ class TestPythonExecutable:
         """Test warning for non-existent custom path."""
         with patch("napari_mcp.cli.install.utils.console") as mock_console:
             command, desc = get_python_executable(python_path="/nonexistent/python")
-            assert command == "/nonexistent/python"
+            # Path may be resolved differently on Windows vs Unix
+            assert "nonexistent" in command and "python" in command
             mock_console.print.assert_called()
 
 
@@ -398,7 +399,7 @@ class TestEdgeCases:
         """Test path with multiple environment variables."""
         with patch.dict(os.environ, {"HOME": "/home/user", "PROJ": "myproject"}):
             result = expand_path("$HOME/$PROJ/config.json")
-            assert "/home/user/myproject/config.json" in str(result)
+            assert "/home/user/myproject/config.json" in result.as_posix()
 
     def test_write_json_config_readonly_directory(self, tmp_path):
         """Test writing to read-only directory."""

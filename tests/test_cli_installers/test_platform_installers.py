@@ -21,7 +21,7 @@ class TestClaudeDesktopInstaller:
         mock_platform.return_value = "macos"
         installer = ClaudeDesktopInstaller()
         path = installer.get_config_path()
-        assert "Library/Application Support/Claude" in str(path)
+        assert "Library/Application Support/Claude" in path.as_posix()
         assert path.name == "claude_desktop_config.json"
 
     @patch("napari_mcp.cli.install.claude_desktop.get_platform")
@@ -40,7 +40,7 @@ class TestClaudeDesktopInstaller:
         mock_platform.return_value = "linux"
         installer = ClaudeDesktopInstaller()
         path = installer.get_config_path()
-        assert ".config/Claude" in str(path)
+        assert ".config/Claude" in path.as_posix()
         assert path.name == "claude_desktop_config.json"
 
     def test_no_extra_config(self):
@@ -72,14 +72,14 @@ class TestCursorInstaller:
         """Test global Cursor configuration path."""
         installer = CursorInstaller(global_install=True)
         path = installer.get_config_path()
-        assert ".cursor/mcp.json" in str(path)
+        assert ".cursor/mcp.json" in path.as_posix()
 
     def test_project_config_path(self):
         """Test project-specific configuration path."""
         with patch("napari_mcp.cli.install.cursor.Confirm.ask", return_value=True):
             installer = CursorInstaller(project_dir="/my/project")
             path = installer.get_config_path()
-            assert "/my/project" in str(path)
+            assert "/my/project" in path.as_posix()
             assert "mcp.json" in str(path)
 
     def test_default_project_config(self):
@@ -104,7 +104,7 @@ class TestClineInstallers:
         mock_platform.return_value = "macos"
         installer = ClineVSCodeInstaller()
         path = installer.get_config_path()
-        assert "Application Support/Code/User/globalStorage" in str(path)
+        assert "Application Support/Code/User/globalStorage" in path.as_posix()
         assert "saoudrizwan.claude-dev" in str(path)
         assert path.name == "cline_mcp_settings.json"
 
@@ -131,7 +131,7 @@ class TestClineInstallers:
         mock_platform.return_value = "macos"
         installer = ClineCursorInstaller()
         path = installer.get_config_path()
-        assert "Application Support/Cursor/User/globalStorage" in str(path)
+        assert "Application Support/Cursor/User/globalStorage" in path.as_posix()
         assert "saoudrizwan.claude-dev" in str(path)
 
     def test_cline_extra_config(self):
@@ -153,14 +153,14 @@ class TestGeminiCLIInstaller:
         """Test global Gemini configuration."""
         installer = GeminiCLIInstaller(global_install=True)
         path = installer.get_config_path()
-        assert ".gemini/settings.json" in str(path)
+        assert ".gemini/settings.json" in path.as_posix()
 
     def test_project_config_path(self):
         """Test project-specific Gemini configuration."""
         with patch("napari_mcp.cli.install.gemini_cli.Confirm.ask", return_value=True):
             installer = GeminiCLIInstaller(project_dir="/my/project")
             path = installer.get_config_path()
-            assert "/my/project" in str(path)
+            assert "/my/project" in path.as_posix()
             assert "settings.json" in str(path)
 
     def test_default_project_config(self):
@@ -186,7 +186,7 @@ class TestCodexCLIInstaller:
         """Test Codex configuration path."""
         installer = CodexCLIInstaller()
         path = installer.get_config_path()
-        assert ".codex/config.toml" in str(path)
+        assert ".codex/config.toml" in path.as_posix()
         assert path.suffix == ".toml"
 
     def test_no_extra_config(self):
@@ -259,14 +259,14 @@ class TestInstallerEdgeCases:
         with patch("napari_mcp.cli.install.cursor.Confirm.ask", return_value=True):
             installer = CursorInstaller(project_dir="/home/test/myproject")
             path = installer.get_config_path()
-            assert "/home/test/myproject" in str(path)
+            assert "/home/test/myproject" in path.as_posix()
 
     def test_gemini_installer_path_expansion(self):
         """Test Gemini installer expands paths correctly."""
         with patch("napari_mcp.cli.install.gemini_cli.Confirm.ask", return_value=True):
             installer = GeminiCLIInstaller(project_dir="/home/test/myproject")
             path = installer.get_config_path()
-            assert "/home/test/myproject" in str(path)
+            assert "/home/test/myproject" in path.as_posix()
 
     @patch("napari_mcp.cli.install.utils.get_platform")
     def test_platform_specific_paths_all_platforms(self, mock_platform):
