@@ -104,7 +104,11 @@ nav:
       - Claude Desktop: integrations/claude-desktop.md
       - Claude Code: integrations/claude-code.md
       - Cursor: integrations/cursor.md
+      - Cline: integrations/cline.md
+      - Other LLMs: integrations/other-llms.md
       - ChatGPT: integrations/chatgpt.md
+      - Advanced:
+        - Python Scripts: integrations/python.md
   - API Reference:
       - api/index.md
       - Session & Viewer: api/viewer-controls.md
@@ -140,5 +144,4 @@ extra_css:
   - stylesheets/extra.css
 
 copyright: >
-  Copyright &copy; 2024-2025 Ilan Theodoro and contributors –
-  <a href="#__consent">Change cookie settings</a>
+  Copyright &copy; 2025 Ilan Theodoro

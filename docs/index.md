@@ -17,16 +17,14 @@
 
 Napari MCP Server bridges the powerful [napari](https://napari.org/) multi-dimensional image viewer with AI assistants like Claude Desktop, enabling natural language control of microscopy workflows.
 
-!!! tip "Zero Installation Required!"
-    Run immediately without any pip install - just download and execute with `uv`!
-
 ### Key Features
 
 === "🤖 AI Integration"
     - **Claude Desktop** - Full MCP tool access
     - **Claude Code** - IDE integration for development
     - **Cursor** - AI-powered coding with napari
-    - **ChatGPT** - Limited research functionality
+    - **Cline** - VS Code and Cursor extensions
+    - **More** - Gemini CLI, Codex CLI support
 
 === "🔬 Napari Control"
     - **Viewer Management** - Create, configure, and control viewers
@@ -39,35 +37,41 @@ Napari MCP Server bridges the powerful [napari](https://napari.org/) multi-dimen
     - **Package Installation** - Install packages dynamically via pip
     - **Session Management** - Persistent state across operations
     - **Async Operations** - Non-blocking GUI event loop
+    - **Workflow Automation** - Python scripts for batch processing ([examples](examples/README.md))
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (3 Minutes)
 
-Get napari working with AI assistance in 2 minutes:
+Get napari working with AI assistance in just 3 minutes:
 
-### Option 1: Zero Install (Recommended)
-
-```bash
-# Run the latest published version without installing
-uv run --with napari-mcp napari-mcp
-```
-
-### Option 2: Traditional Installation
+### Step 1: Install the Package
 
 ```bash
-# Clone and install
-git clone https://github.com/royerlab/napari-mcp.git
-cd napari-mcp
-pip install -e .
-
-# Run
-napari-mcp
+pip install napari-mcp
 ```
 
-### Configure Your AI Assistant
+### Step 2: Auto-Configure Your Application
 
-See Quick Start for the recommended MCP configuration JSON, and Integrations for tool-specific notes.
+```bash
+# For Claude Desktop
+napari-mcp-install claude-desktop
+
+# For other applications
+napari-mcp-install claude-code    # Claude Code CLI
+napari-mcp-install cursor         # Cursor IDE
+napari-mcp-install cline-vscode   # Cline in VS Code
+napari-mcp-install --help         # See all options
+```
+
+### Step 3: Restart & Test
+
+Restart your AI application and try:
+```
+"Can you call session_information() to show my napari session?"
+```
+
+**That's it! 🎉** See the [Quick Start Guide](getting-started/quickstart.md) for more details.
 
 ---
 
@@ -101,11 +105,27 @@ The server exposes 20+ MCP tools for complete napari control:
 |----------|-------|-------------|
 | **Session** | `detect_viewers`, `init_viewer`, `close_viewer`, `session_information` | Viewer lifecycle management |
 | **Layers** | `add_image`, `add_labels`, `add_points`, `list_layers` | Layer creation and management |
-| **Properties** | `set_layer_properties`, `reorder_layer` | Layer customization |
-| **Navigation** | `set_camera`, `reset_view`, `set_ndisplay` | Viewer navigation |
-| **Utilities** | `screenshot`, `execute_code`, `install_packages`, `read_output` | Advanced functionality |
+| **Properties** | `set_layer_properties`, `reorder_layer`, `set_active_layer` | Layer customization |
+| **Navigation** | `set_camera`, `reset_view`, `set_ndisplay`, `set_dims_current_step` | Viewer navigation |
+| **Utilities** | `screenshot`, `timelapse_screenshot`, `execute_code`, `install_packages` | Advanced functionality |
 
 **→ See the [API Reference](api/index.md) for complete documentation**
+
+---
+
+## 🤖 Supported Applications
+
+| Application | Command | Status |
+|-------------|---------|--------|
+| **Claude Desktop** | `napari-mcp-install claude-desktop` | ✅ Full Support |
+| **Claude Code** | `napari-mcp-install claude-code` | ✅ Full Support |
+| **Cursor IDE** | `napari-mcp-install cursor` | ✅ Full Support |
+| **Cline (VS Code)** | `napari-mcp-install cline-vscode` | ✅ Full Support |
+| **Cline (Cursor)** | `napari-mcp-install cline-cursor` | ✅ Full Support |
+| **Gemini CLI** | `napari-mcp-install gemini` | ✅ Full Support |
+| **Codex CLI** | `napari-mcp-install codex` | ✅ Full Support |
+
+**→ See [Integration Guides](integrations/index.md) for application-specific setup**
 
 ---
 
@@ -140,25 +160,23 @@ The server exposes 20+ MCP tools for complete napari control:
 
 ---
 
-## 🚦 Getting Started Paths
-
-Choose your path based on your needs:
-
-### 🚀 Choose Your Path
+## 🚦 Choose Your Path
 
 | Getting Started | Description |
 |-----------------|-------------|
-| **[⚡ Quick Start](getting-started/quickstart.md)** | Get running in 2 minutes with zero installation |
-| **[📦 Zero Install](getting-started/zero-install.md)** | Run directly with uv - no pip install needed |
+| **[⚡ Quick Start](getting-started/quickstart.md)** | Get running in 3 minutes with CLI installer |
+| **[🛠️ Installation Options](getting-started/installation.md)** | Advanced installation and manual configuration |
 | **[🤖 Integrations](integrations/index.md)** | Set up with Claude Desktop, Cursor, or other AI tools |
+| **[🐍 Python Automation](integrations/python.md)** | Build custom workflows with OpenAI, Anthropic, or any LLM |
 | **[📚 API Reference](api/index.md)** | Complete documentation of all available tools |
+| **[🔧 Troubleshooting](guides/troubleshooting.md)** | Common issues and solutions |
 
 ---
 
 ## 🎉 Ready to Start?
 
-1. **Choose your setup method** - Zero install or traditional
-2. **Configure your AI assistant** - Claude Desktop, Cursor, etc.
+1. **Install the package** - `pip install napari-mcp`
+2. **Configure your AI app** - `napari-mcp-install <app-name>`
 3. **Start exploring** - Load images, analyze data, take screenshots
 4. **Share your workflows** - Document and reproduce your analysis
 

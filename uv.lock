@@ -2343,6 +2343,9 @@ dependencies = [
     { name = "pillow" },
     { name = "pyqt6" },
     { name = "qtpy" },
+    { name = "rich" },
+    { name = "toml" },
+    { name = "typer" },
 ]
 
 [package.optional-dependencies]
@@ -2366,6 +2369,7 @@ all = [
     { name = "ruff" },
     { name = "tox" },
     { name = "types-pillow" },
+    { name = "types-toml" },
 ]
 dev = [
     { name = "bandit" },
@@ -2374,6 +2378,7 @@ dev = [
     { name = "pre-commit" },
     { name = "ruff" },
     { name = "types-pillow" },
+    { name = "types-toml" },
 ]
 test = [
     { name = "hypothesis" },
@@ -2395,6 +2400,7 @@ test = [
 dev = [
     { name = "black" },
     { name = "ruff" },
+    { name = "types-toml" },
 ]
 testing = [
     { name = "hypothesis" },
@@ -2435,9 +2441,13 @@ requires-dist = [
     { name = "pytest-timeout", marker = "extra == 'test'", specifier = ">=2.2.0" },
     { name = "pytest-xdist", marker = "extra == 'test'", specifier = ">=3.5.0" },
     { name = "qtpy", specifier = ">=2.4.1" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12.10" },
+    { name = "toml", specifier = ">=0.10.2" },
     { name = "tox", marker = "extra == 'test'" },
+    { name = "typer", specifier = ">=0.9.0" },
     { name = "types-pillow", marker = "extra == 'dev'", specifier = ">=10.0.0" },
+    { name = "types-toml", marker = "extra == 'dev'", specifier = ">=0.10.8.20240310" },
 ]
 provides-extras = ["test", "dev", "all"]
 
@@ -2445,6 +2455,7 @@ provides-extras = ["test", "dev", "all"]
 dev = [
     { name = "black", specifier = ">=24.0.0" },
     { name = "ruff", specifier = ">=0.12.10" },
+    { name = "types-toml", specifier = ">=0.10.8.20240310" },
 ]
 testing = [
     { name = "hypothesis", specifier = ">=6.100.0" },
@@ -4774,6 +4785,15 @@ wheels = [
 ]
 
 [[package]]
+name = "toml"
+version = "0.10.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/be/ba/1f744cdc819428fc6b5084ec34d9b30660f6f9daaf70eead706e3203ec3c/toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f", size = 22253, upload-time = "2020-11-01T01:40:22.204Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b", size = 16588, upload-time = "2020-11-01T01:40:20.672Z" },
+]
+
+[[package]]
 name = "tomli"
 version = "2.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -4914,6 +4934,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/18/4a/4495264dddaa600d65d68bcedb64dcccf9d9da61adff51f7d2ffd8e4c9ce/types-Pillow-10.2.0.20240822.tar.gz", hash = "sha256:559fb52a2ef991c326e4a0d20accb3bb63a7ba8d40eb493e0ecb0310ba52f0d3", size = 35389, upload-time = "2024-08-22T02:32:48.15Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/66/23/e81a5354859831fcf54d488d33b80ba6133ea84f874a9c0ec40a4881e133/types_Pillow-10.2.0.20240822-py3-none-any.whl", hash = "sha256:d9dab025aba07aeb12fd50a6799d4eac52a9603488eca09d7662543983f16c5d", size = 54354, upload-time = "2024-08-22T02:32:46.664Z" },
+]
+
+[[package]]
+name = "types-toml"
+version = "0.10.8.20240310"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/86/47/3e4c75042792bff8e90d7991aa5c51812cc668828cc6cce711e97f63a607/types-toml-0.10.8.20240310.tar.gz", hash = "sha256:3d41501302972436a6b8b239c850b26689657e25281b48ff0ec06345b8830331", size = 4392, upload-time = "2024-03-10T02:18:37.518Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/da/a2/d32ab58c0b216912638b140ab2170ee4b8644067c293b170e19fba340ccc/types_toml-0.10.8.20240310-py3-none-any.whl", hash = "sha256:627b47775d25fa29977d9c70dc0cbab3f314f32c8d8d0c012f2ef5de7aaec05d", size = 4777, upload-time = "2024-03-10T02:18:36.568Z" },
 ]
 
 [[package]]

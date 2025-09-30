@@ -10,6 +10,7 @@ src_file = Path("src/napari_mcp/server.py")
 # Function categories for organization
 function_categories = {
     "session": [
+        "detect_viewers",
         "init_viewer",
         "close_viewer",
         "session_information",
@@ -31,7 +32,13 @@ function_categories = {
         "set_dims_current_step",
         "set_grid",
     ],
-    "utilities": ["screenshot", "execute_code", "install_packages"],
+    "utilities": [
+        "screenshot",
+        "timelapse_screenshot",
+        "execute_code",
+        "install_packages",
+        "read_output",
+    ],
 }
 
 # Generate main API reference page
@@ -40,10 +47,10 @@ with mkdocs_gen_files.open("api/reference.md", "w") as f:
     print("", file=f)
     print("Auto-generated documentation for all napari MCP server functions.", file=f)
     print("", file=f)
-    print('!!! info "Module Documentation"', file=f)
+    print('!!! info "Documentation Structure"', file=f)
     print(
-        "    This page contains the complete API reference extracted from the "
-        "source code.",
+        "    This page shows both the **MCP tool interface** (what you call from AI assistants) "
+        "and the **implementation** (NapariMCPTools class methods).",
         file=f,
     )
     print(
@@ -52,11 +59,33 @@ with mkdocs_gen_files.open("api/reference.md", "w") as f:
         file=f,
     )
     print("", file=f)
+
+    # Show the wrapper functions (MCP tool interface)
+    print("## MCP Tool Interface (server.py wrappers)", file=f)
+    print("", file=f)
+    print("These are the functions exposed as MCP tools:", file=f)
+    print("", file=f)
     print("::: napari_mcp.server", file=f)
     print("    options:", file=f)
     print("      members_order: source", file=f)
     print("      show_root_toc_entry: false", file=f)
-    print("      show_source: false", file=f)
+    print("      show_source: true", file=f)
+    print("      filters:", file=f)
+    print("        - '!^_'", file=f)
+    print("        - '!^NapariMCPTools$'", file=f)
+    print("", file=f)
+
+    # Show the implementation class
+    print("## Implementation (NapariMCPTools class)", file=f)
+    print("", file=f)
+    print("The actual implementation behind the MCP tools:", file=f)
+    print("", file=f)
+    print("::: napari_mcp.server.NapariMCPTools", file=f)
+    print("    options:", file=f)
+    print("      members_order: source", file=f)
+    print("      show_root_toc_entry: false", file=f)
+    print("      show_source: true", file=f)
+    print("      heading_level: 3", file=f)
 
 # Generate category-specific pages
 category_titles = {
@@ -78,8 +107,8 @@ category_descriptions = {
         "Functions for controlling the camera, navigation, and display settings."
     ),
     "utilities": (
-        "Advanced utility functions for screenshots, code execution, and "
-        "package management."
+        "Advanced utility functions for screenshots, timelapse capture, code execution, "
+        "package management, and output retrieval."
     ),
 }
 
@@ -97,10 +126,24 @@ for category, functions in function_categories.items():
         for func in functions:
             print(f"## {func}", file=f)
             print("", file=f)
+
+            # Show the wrapper function (MCP tool interface)
+            print("### MCP Tool Interface", file=f)
+            print("", file=f)
             print(f"::: napari_mcp.server.{func}", file=f)
             print("    options:", file=f)
             print("      show_root_toc_entry: false", file=f)
             print("      show_source: true", file=f)
+            print("", file=f)
+
+            # Show the actual implementation (NapariMCPTools class method)
+            print("### Implementation", file=f)
+            print("", file=f)
+            print(f"::: napari_mcp.server.NapariMCPTools.{func}", file=f)
+            print("    options:", file=f)
+            print("      show_root_toc_entry: false", file=f)
+            print("      show_source: true", file=f)
+            print("      heading_level: 4", file=f)
             print("", file=f)
 
 # Generate navigation file
@@ -125,12 +168,12 @@ For a single page with all functions, see the [Complete API Reference](reference
 
 | Category | Functions | Description |
 |----------|-----------|-------------|
-| **Session** | 3 functions | Viewer creation and session info |
+| **Session** | 4 functions | Viewer creation, detection, and session info |
 | **Layers** | 8 functions | Image, label, point layers with full control |
 | **Navigation** | 5 functions | Camera, dimensions, display modes |
-| **Utilities** | 3 functions | Screenshots, code execution, packages |
+| **Utilities** | 5 functions | Screenshots, timelapse, code execution, packages |
 
-**Total: 21+ MCP tools available**
+**Total: 22 MCP tools available**
 """
 
 with mkdocs_gen_files.open("api/index.md", "w") as f:

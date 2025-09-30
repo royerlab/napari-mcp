@@ -1,34 +1,76 @@
-# Quick Start - 2 Minutes to AI-Controlled Napari
+# Quick Start - 3 Minutes to AI-Controlled Napari
 
-Get napari working with AI assistance in just 2 minutes. No manual server launch required.
+Get napari working with AI assistance in just 3 minutes using our automated CLI installer.
 
 !!! success "What You'll Accomplish"
     By the end of this guide:
 
-    - ✅ Claude Desktop (or your AI) starts napari server automatically
+    - ✅ napari-mcp installed and configured
+    - ✅ Your AI application automatically launches the server
     - ✅ Full control over a live napari viewer
-    - ✅ Ready to load images and take screenshots
+    - ✅ Ready to load images and analyze data
 
-## Step 1: Add MCP Server Entry (30 seconds)
+## Step 1: Install the Package (30 seconds)
 
-1. Open Claude Desktop settings (⌘+, on macOS; Ctrl+, on Windows/Linux)
-2. Add this configuration:
-   ```json
-   {
-     "mcpServers": {
-       "napari": {
-         "command": "uv",
-         "args": ["run", "--with", "napari-mcp", "napari-mcp"]
-       }
-     }
-   }
-   ```
-3. Save and fully restart Claude Desktop
-4. Reference: [MCP JSON Configuration](https://gofastmcp.com/integrations/mcp-json-configuration)
+```bash
+pip install napari-mcp
+```
 
-## Test the Connection (30 seconds)
+This installs:
+- The napari MCP server
+- CLI installer tool (`napari-mcp-install`)
+- All required dependencies
 
-Ask Claude Desktop:
+## Step 2: Auto-Configure Your Application (1 minute)
+
+The CLI installer automatically configures your AI application with the correct settings.
+
+### For Claude Desktop
+
+```bash
+napari-mcp-install claude-desktop
+```
+
+### For Other Applications
+
+```bash
+# Claude Code CLI
+napari-mcp-install claude-code
+
+# Cursor IDE
+napari-mcp-install cursor
+
+# Cline in VS Code
+napari-mcp-install cline-vscode
+
+# See all options
+napari-mcp-install --help
+```
+
+!!! tip "What the Installer Does"
+    - Detects your application's config file location
+    - Adds napari-mcp server configuration
+    - Creates a backup of existing config
+    - Validates Python environment
+    - Shows you exactly what changed
+
+### Installer Options
+
+```bash
+# Preview changes without applying
+napari-mcp-install claude-desktop --dry-run
+
+# Use your Python environment instead of uv
+napari-mcp-install claude-desktop --persistent
+
+# Install for all supported applications at once
+napari-mcp-install all
+```
+
+## Step 3: Restart & Test (30 seconds)
+
+1. **Restart your AI application** (completely quit and reopen)
+2. **Test the connection** by asking your AI:
 
 !!! example "Test Commands"
     === "Basic Connection"
@@ -36,7 +78,7 @@ Ask Claude Desktop:
         Can you call session_information() to tell me about my napari session?
         ```
 
-        **Expected response:** Information about your napari viewer including layers, camera settings, etc.
+        **Expected response:** Information about your napari viewer including system details, viewer state, and available features.
 
     === "Visual Test"
         ```
@@ -47,80 +89,166 @@ Ask Claude Desktop:
 
     === "Interactive Test"
         ```
-        Add some random sample data to napari and change the colormap to 'viridis'
+        Create some random sample data and display it with a viridis colormap
         ```
+
+        **Expected response:** Napari window showing colored image data
 
 ## 🎉 Success! What's Next?
 
-If the tests above work, you're ready to explore:
+If the tests above work, you're ready to explore. Here are some immediate things to try:
 
-### Immediate Things to Try
+### Basic Operations
 
-=== "Basic Operations"
+=== "Image Loading"
     ```
     "Load an image from this path: /path/to/your/image.tif"
-    "Create annotation points at coordinates [[100,100], [200,200]]"
-    "Reset the view and zoom to 2x"
-    "Switch to 3D display mode"
+    "Apply a magma colormap and adjust the contrast"
     ```
 
-=== "Advanced Features"
+=== "Annotations"
     ```
-    "Execute this code: print(f'Napari version: {napari.__version__}')"
-    "Install scikit-image and create a filtered version of the current image"
-    "Take a screenshot and describe what you see in the napari viewer"
+    "Create point annotations at coordinates [[100,100], [200,200], [150,150]]"
+    "Add a labels layer from this segmentation file"
+    ```
+
+=== "Navigation"
+    ```
+    "Reset the view and zoom to 2x"
+    "Switch to 3D display mode"
+    "Navigate to Z-slice 15"
+    ```
+
+### Advanced Features
+
+=== "Code Execution"
+    ```
+    "Execute this code to create synthetic data:
+    import numpy as np
+    data = np.random.random((512, 512))
+    viewer.add_image(data, name='noise', colormap='gray')"
+    ```
+
+=== "Package Installation"
+    ```
+    "Install scikit-image and create a Gaussian filtered version of the current image"
     ```
 
 === "Analysis Workflows"
     ```
-    "Create a synthetic image with Gaussian noise and add it to napari"
-    "Apply different colormaps to compare visualization of the data"
-    "Navigate through different time points if this is a time series"
+    "Take multiple screenshots while stepping through the Z-dimension"
+    "Create an animation of this time-lapse data"
     ```
 
-### Learning More
+## 📚 Learning More
 
 - **[User Guide](../guides/index.md)** - Learn common workflows and best practices
 - **[API Reference](../api/index.md)** - Complete documentation of all available tools
-- **[Integrations](../integrations/index.md)** - Setup with other AI assistants
+- **[Integrations](../integrations/index.md)** - Application-specific guides
+
+## ⚙️ Advanced Configuration
+
+### Manual Configuration (Optional)
+
+If you prefer to configure manually or need custom settings, the CLI installer creates this JSON:
+
+```json
+{
+  "mcpServers": {
+    "napari-mcp": {
+      "command": "uv",
+      "args": ["run", "--with", "napari-mcp", "napari-mcp"]
+    }
+  }
+}
+```
+
+**Config file locations:**
+- **Claude Desktop (macOS)**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Claude Desktop (Windows)**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Claude Desktop (Linux)**: `~/.config/Claude/claude_desktop_config.json`
+- **Claude Code**: `~/.claude.json`
+- **Cursor**: `~/.cursor/mcp.json` or `.cursor/mcp.json` (project-specific)
+
+**→ See [Installation Guide](installation.md) for all config locations and formats**
+
+### Using Your Python Environment
+
+If you want to use an existing Python environment instead of uv:
+
+```bash
+# Install in your environment first
+pip install napari-mcp
+
+# Configure to use your Python
+napari-mcp-install claude-desktop --persistent
+```
+
+This will use your Python interpreter directly: `python -m napari_mcp.server`
+
+### External Viewer Mode (Plugin Bridge)
+
+Prefer controlling an existing napari window?
+
+1. Open napari → Plugins → **MCP Server Control**
+2. Click **Start Server** (default port 9999)
+3. Use the same CLI installer command (it will auto-detect and proxy to the external viewer)
 
 ## ❌ Common Issues
 
-!!! failure "Claude can't see napari tools"
+!!! failure "napari-mcp-install: command not found"
+    **Solution:** The package wasn't installed correctly.
+    ```bash
+    # Reinstall
+    pip install --force-reinstall napari-mcp
+
+    # Verify
+    napari-mcp-install --version
+    ```
+
+!!! failure "AI can't see napari tools"
     **Solutions:**
 
-    - Double-check the file path in your config is absolute
-    - Restart Claude Desktop after making config changes
-    - Verify the server is running (you should see terminal output)
-
-!!! failure "uv: command not found"
-    **Solution:** Install uv first:
-    ```bash
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    # Restart your terminal
-    ```
+    1. Restart your AI application completely
+    2. Check config was created: `napari-mcp-install list`
+    3. Run with `--dry-run` to see what would be configured
+    4. Check for error messages in the application's logs
 
 !!! failure "Napari window doesn't appear"
     **Solutions:**
 
-    - Check if you're on a remote system (may need X11 forwarding)
+    - On remote systems: May need X11 forwarding or use offscreen mode
+    - Check Qt installation: `python -c "from PyQt6.QtWidgets import QApplication; print('OK')"`
     - Try setting: `export QT_QPA_PLATFORM=offscreen` for headless mode
-    - Verify Qt dependencies are available
 
-## Optional: Napari Plugin Bridge (External Viewer)
+!!! failure "Permission errors"
+    **Solution:**
+    ```bash
+    # Check file permissions
+    napari-mcp-install list  # Shows config locations
 
-Prefer controlling an existing napari window?
+    # Fix permissions if needed (macOS/Linux)
+    chmod 644 ~/.config/Claude/claude_desktop_config.json
+    ```
 
-1. `pip install napari-mcp`
-2. Open napari → Plugins → MCP Server Control
-3. Click “Start Server” (default port 9999)
-4. Keep the same MCP JSON config from Step 1; the server will auto-detect and proxy to this external viewer
+## 🛠️ Management Commands
+
+```bash
+# List all installations
+napari-mcp-install list
+
+# Uninstall from an application
+napari-mcp-install uninstall claude-desktop
+
+# Uninstall from all applications
+napari-mcp-install uninstall all
+```
 
 ## 🆘 Still Need Help?
 
 - **[Troubleshooting Guide](../guides/troubleshooting.md)** - Comprehensive problem solving
 - **[GitHub Issues](https://github.com/royerlab/napari-mcp/issues)** - Report bugs or ask questions
-- **[Zero Install Guide](zero-install.md)** - More detailed setup instructions
+- **[Installation Guide](installation.md)** - More detailed setup instructions
 
 ---
 

@@ -2,6 +2,151 @@
 
 Common issues and solutions when using napari MCP server with AI assistants.
 
+## 🛠️ CLI Installer Issues
+
+The `napari-mcp-install` CLI tool automates configuration. Here are common issues and solutions.
+
+### Installation Problems
+
+!!! failure "napari-mcp-install: command not found"
+    **Problem:** The CLI installer command isn't available after installation.
+
+    **Solutions:**
+    ```bash
+    # Reinstall the package
+    pip install --force-reinstall napari-mcp
+
+    # Verify installation
+    pip list | grep napari-mcp
+
+    # Check if it's in your PATH
+    which napari-mcp-install
+
+    # Try running with python -m
+    python -m napari_mcp.cli.main --help
+    ```
+
+!!! failure "ImportError when running installer"
+    **Problem:** Missing dependencies (typer, rich).
+
+    **Solution:**
+    ```bash
+    # Reinstall with all dependencies
+    pip install --upgrade napari-mcp
+
+    # Or install dependencies manually
+    pip install typer rich
+    ```
+
+### Configuration Issues
+
+!!! failure "Configuration file not created"
+    **Problem:** Installer runs but config file doesn't exist.
+
+    **Solutions:**
+    1. **Check what would be created:**
+       ```bash
+       napari-mcp-install <app> --dry-run
+       ```
+
+    2. **Verify installer detected correct path:**
+       ```bash
+       napari-mcp-install list
+       ```
+
+    3. **Check permissions:**
+       ```bash
+       # macOS - Claude Desktop example
+       ls -la ~/Library/Application\ Support/Claude/
+
+       # Fix if needed
+       chmod 755 ~/Library/Application\ Support/Claude/
+       ```
+
+    4. **Create directory manually:**
+       ```bash
+       # macOS - Claude Desktop
+       mkdir -p ~/Library/Application\ Support/Claude
+
+       # Linux - Claude Desktop
+       mkdir -p ~/.config/Claude
+
+       # Then retry
+       napari-mcp-install claude-desktop
+       ```
+
+!!! failure "Config exists but server not configured"
+    **Problem:** Config file exists but napari-mcp entry is missing.
+
+    **Solution:**
+    ```bash
+    # Check current status
+    napari-mcp-install list
+
+    # Force reinstall
+    napari-mcp-install <app> --force
+
+    # Or manually check/edit config
+    cat ~/.config/Claude/claude_desktop_config.json
+    ```
+
+### Permission Errors
+
+!!! failure "Permission denied writing config"
+    **Problem:** Can't write to configuration file.
+
+    **Solutions:**
+    ```bash
+    # Check file permissions
+    napari-mcp-install list  # Shows config paths
+
+    # Fix permissions (macOS/Linux)
+    chmod 644 <config-file-path>
+
+    # Check directory permissions
+    ls -la <directory-path>
+    chmod 755 <directory-path>
+    ```
+
+### Python Environment Issues
+
+!!! failure "napari-mcp not found in Python environment"
+    **Problem:** Using `--persistent` but napari-mcp isn't installed in that environment.
+
+    **Solutions:**
+    ```bash
+    # Check which Python
+    which python
+
+    # Install in current environment
+    pip install napari-mcp
+
+    # Then configure
+    napari-mcp-install <app> --persistent
+
+    # Or specify exact Python path
+    napari-mcp-install <app> --python-path /full/path/to/python
+    ```
+
+### Verification Commands
+
+```bash
+# List all installations and their status
+napari-mcp-install list
+
+# Preview what would be installed
+napari-mcp-install <app> --dry-run
+
+# Check installer version
+napari-mcp-install --version
+
+# Get help
+napari-mcp-install --help
+napari-mcp-install <command> --help
+```
+
+---
+
 ## 🚨 Common Setup Issues
 
 ### Server Won't Start
