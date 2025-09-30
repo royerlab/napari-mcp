@@ -4,7 +4,7 @@
 [![codecov](https://codecov.io/gh/royerlab/napari-mcp/graph/badge.svg?token=E1WY58V877)](https://codecov.io/gh/royerlab/napari-mcp)
 [![PyPI version](https://badge.fury.io/py/napari-mcp.svg)](https://badge.fury.io/py/napari-mcp)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 MCP server for remote control of napari viewers via Model Context Protocol (MCP). Perfect for AI-assisted microscopy analysis with Claude Desktop and other LLM applications.
 
@@ -162,7 +162,7 @@ Key features:
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+BSD-3-Clause License - see [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 

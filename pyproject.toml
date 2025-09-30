@@ -4,7 +4,7 @@ dynamic = ["version"]
 description = "MCP server for remote control of napari viewers via Model Context Protocol"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = { text = "BSD-3-Clause" }
 authors = [{ name = "Ilan Theodoro", email = "ilan.silva@czbiohub.org" }]
 maintainers = [{ name = "Ilan Theodoro", email = "ilan.silva@czbiohub.org" }]
 keywords = ["napari", "mcp", "microscopy", "image-analysis", "ai", "claude"]
@@ -13,7 +13,7 @@ classifiers = [
   "Framework :: napari",
   "Intended Audience :: Science/Research",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
+  "License :: OSI Approved :: BSD License",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
@@ -40,7 +40,7 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/royerlab/napari-mcp"
 Repository = "https://github.com/royerlab/napari-mcp"
-Documentation = "https://github.com/royerlab/napari-mcp#readme"
+Documentation = "https://royerlab.github.io/napari-mcp/"
 "Bug Tracker" = "https://github.com/royerlab/napari-mcp/issues"
 Changelog = "https://github.com/royerlab/napari-mcp/blob/main/CHANGELOG.md"
 

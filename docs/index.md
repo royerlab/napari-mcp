@@ -8,7 +8,7 @@
   <a href="https://codecov.io/gh/royerlab/napari-mcp"><img src="https://img.shields.io/codecov/c/github/royerlab/napari-mcp" alt="Coverage"></a>
   <a href="https://pypi.org/project/napari-mcp/"><img src="https://img.shields.io/pypi/v/napari-mcp" alt="PyPI version"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+"></a>
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="https://opensource.org/licenses/BSD-3-Clause"><img src="https://img.shields.io/badge/License-BSD_3--Clause-blue.svg" alt="License: BSD-3-Clause"></a>
 </p>
 
 ---
