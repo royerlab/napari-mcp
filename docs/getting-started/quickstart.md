@@ -28,20 +28,20 @@ The CLI installer automatically configures your AI application with the correct 
 ### For Claude Desktop
 
 ```bash
-napari-mcp-install claude-desktop
+napari-mcp-install install claude-desktop
 ```
 
 ### For Other Applications
 
 ```bash
 # Claude Code CLI
-napari-mcp-install claude-code
+napari-mcp-install install claude-code
 
 # Cursor IDE
-napari-mcp-install cursor
+napari-mcp-install install cursor
 
 # Cline in VS Code
-napari-mcp-install cline-vscode
+napari-mcp-install install cline-vscode
 
 # See all options
 napari-mcp-install --help
@@ -58,13 +58,13 @@ napari-mcp-install --help
 
 ```bash
 # Preview changes without applying
-napari-mcp-install claude-desktop --dry-run
+napari-mcp-install install claude-desktop --dry-run
 
 # Use your Python environment instead of uv
-napari-mcp-install claude-desktop --persistent
+napari-mcp-install install claude-desktop --persistent
 
 # Install for all supported applications at once
-napari-mcp-install all
+napari-mcp-install install all
 ```
 
 ## Step 3: Restart & Test (30 seconds)
@@ -181,7 +181,7 @@ If you want to use an existing Python environment instead of uv:
 pip install napari-mcp
 
 # Configure to use your Python
-napari-mcp-install claude-desktop --persistent
+napari-mcp-install install claude-desktop --persistent
 ```
 
 This will use your Python interpreter directly: `python -m napari_mcp.server`

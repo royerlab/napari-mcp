@@ -13,13 +13,18 @@ except Exception:  # pragma: no cover - fallback path
 
 # Import main components
 from .bridge_server import NapariBridgeServer
-from .server import NapariMCPTools
+from .server import create_server
 from .server import main as server_main
+from .state import ServerState, StartupMode
+from .viewer_protocol import ViewerProtocol
 from .widget import MCPControlWidget
 
 __all__ = [
-    "NapariMCPTools",
     "NapariBridgeServer",
     "MCPControlWidget",
+    "ServerState",
+    "StartupMode",
+    "ViewerProtocol",
+    "create_server",
     "server_main",
 ]

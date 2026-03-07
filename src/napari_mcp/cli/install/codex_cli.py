@@ -1,5 +1,6 @@
 """Codex CLI installer for napari-mcp."""
 
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -7,6 +8,14 @@ from rich.console import Console
 
 from .base import BaseInstaller
 from .utils import expand_path
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib  # type: ignore[no-redef]
 
 console = Console()
 
@@ -44,14 +53,7 @@ class CodexCLIInstaller(BaseInstaller):
 
         Override to handle TOML format instead of JSON.
         """
-        try:
-            import toml
-        except ImportError:
-            console.print(
-                "[red]Error: toml package is required for Codex CLI configuration[/red]"
-            )
-            console.print("[yellow]Install it with: pip install toml[/yellow]")
-            return False, "Missing toml package"
+        import toml as toml_writer
 
         try:
             # Get configuration path
@@ -67,8 +69,8 @@ class CodexCLIInstaller(BaseInstaller):
 
             # Read existing configuration or create new
             if config_path.exists():
-                with open(config_path) as f:
-                    config = toml.load(f)
+                with open(config_path, "rb") as f:
+                    config = tomllib.load(f)
             else:
                 config = {}
 
@@ -118,10 +120,10 @@ class CodexCLIInstaller(BaseInstaller):
 
             # Write TOML configuration
             with open(config_path, "w") as f:
-                toml.dump(config, f)
+                toml_writer.dump(config, f)
 
             console.print(
-                "\n[green]✓ Successfully installed napari-mcp for Codex CLI[/green]"
+                "\n[green]\u2713 Successfully installed napari-mcp for Codex CLI[/green]"
             )
             self.show_post_install_message()
             return True, "Installation successful"
@@ -135,14 +137,7 @@ class CodexCLIInstaller(BaseInstaller):
 
         Override to handle TOML format instead of JSON.
         """
-        try:
-            import toml
-        except ImportError:
-            console.print(
-                "[red]Error: toml package is required for Codex CLI configuration[/red]"
-            )
-            console.print("[yellow]Install it with: pip install toml[/yellow]")
-            return False, "Missing toml package"
+        import toml as toml_writer
 
         try:
             # Get configuration path
@@ -152,8 +147,8 @@ class CodexCLIInstaller(BaseInstaller):
                 return False, f"Configuration file not found: {config_path}"
 
             # Read configuration
-            with open(config_path) as f:
-                config = toml.load(f)
+            with open(config_path, "rb") as f:
+                config = tomllib.load(f)
 
             # Check if server exists
             server_name = "napari_mcp"
@@ -175,10 +170,10 @@ class CodexCLIInstaller(BaseInstaller):
 
             # Write TOML configuration
             with open(config_path, "w") as f:
-                toml.dump(config, f)
+                toml_writer.dump(config, f)
 
             console.print(
-                "\n[green]✓ Successfully uninstalled napari-mcp from Codex CLI[/green]"
+                "\n[green]\u2713 Successfully uninstalled napari-mcp from Codex CLI[/green]"
             )
             return True, "Uninstallation successful"
 

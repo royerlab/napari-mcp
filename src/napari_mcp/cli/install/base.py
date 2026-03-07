@@ -191,11 +191,10 @@ class BaseInstaller(ABC):
             config = read_json_config(config_path)
 
             # Check if server exists
-            if (
-                not check_existing_server(config, self.server_name)
-                and not self.force
-                and not prompt_update_existing(self.app_name, config_path)
-            ):
+            if not check_existing_server(config, self.server_name):
+                console.print(
+                    f"[yellow]napari-mcp server '{self.server_name}' not found in {self.app_name} configuration[/yellow]"
+                )
                 return False, f"Server '{self.server_name}' not found in configuration"
 
             if self.dry_run:

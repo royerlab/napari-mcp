@@ -6,7 +6,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from napari_mcp.cli.main import app
+from napari_mcp.cli.main import (
+    InstallTarget,
+    _get_installer_class,
+    app,
+)
 
 
 @pytest.fixture
@@ -39,8 +43,14 @@ class TestCLICommands:
         result = cli_runner.invoke(app, ["--help"])
         assert result.exit_code == 0
         assert "napari-mcp-install" in result.stdout
+        assert "install" in result.stdout
+
+    def test_install_help(self, cli_runner):
+        """Test install subcommand help."""
+        result = cli_runner.invoke(app, ["install", "--help"])
+        assert result.exit_code == 0
         assert "claude-desktop" in result.stdout
-        assert "claude-code" in result.stdout
+        assert "cursor" in result.stdout
 
     @patch("napari_mcp.cli.main.ClaudeDesktopInstaller")
     def test_claude_desktop_install(
@@ -49,7 +59,7 @@ class TestCLICommands:
         """Test claude-desktop installation command."""
         mock_installer_class.return_value = mock_installer
 
-        result = cli_runner.invoke(app, ["claude-desktop"])
+        result = cli_runner.invoke(app, ["install", "claude-desktop"])
         assert result.exit_code == 0
         mock_installer.install.assert_called_once()
 
@@ -58,9 +68,14 @@ class TestCLICommands:
         self, mock_installer_class, cli_runner
     ):
         """Test claude-desktop installation with options."""
+        mock = MagicMock()
+        mock.install.return_value = (True, "Success")
+        mock_installer_class.return_value = mock
+
         _ = cli_runner.invoke(
             app,
             [
+                "install",
                 "claude-desktop",
                 "--persistent",
                 "--python-path",
@@ -86,7 +101,7 @@ class TestCLICommands:
         """Test claude-code installation command."""
         mock_installer_class.return_value = mock_installer
 
-        result = cli_runner.invoke(app, ["claude-code"])
+        result = cli_runner.invoke(app, ["install", "claude-code"])
         assert result.exit_code == 0
         mock_installer.install.assert_called_once()
 
@@ -97,7 +112,7 @@ class TestCLICommands:
         """Test cursor global installation."""
         mock_installer_class.return_value = mock_installer
 
-        result = cli_runner.invoke(app, ["cursor", "--global"])
+        result = cli_runner.invoke(app, ["install", "cursor", "--global"])
         assert result.exit_code == 0
 
         call_kwargs = mock_installer_class.call_args[1]
@@ -110,7 +125,9 @@ class TestCLICommands:
         """Test cursor project-specific installation."""
         mock_installer_class.return_value = mock_installer
 
-        result = cli_runner.invoke(app, ["cursor", "--project", "/path/to/project"])
+        result = cli_runner.invoke(
+            app, ["install", "cursor", "--project", "/path/to/project"]
+        )
         assert result.exit_code == 0
 
         call_kwargs = mock_installer_class.call_args[1]
@@ -123,7 +140,7 @@ class TestCLICommands:
         """Test cline-vscode installation."""
         mock_installer_class.return_value = mock_installer
 
-        result = cli_runner.invoke(app, ["cline-vscode"])
+        result = cli_runner.invoke(app, ["install", "cline-vscode"])
         assert result.exit_code == 0
         mock_installer.install.assert_called_once()
 
@@ -134,7 +151,7 @@ class TestCLICommands:
         """Test cline-cursor installation."""
         mock_installer_class.return_value = mock_installer
 
-        result = cli_runner.invoke(app, ["cline-cursor"])
+        result = cli_runner.invoke(app, ["install", "cline-cursor"])
         assert result.exit_code == 0
         mock_installer.install.assert_called_once()
 
@@ -143,7 +160,7 @@ class TestCLICommands:
         """Test gemini installation."""
         mock_installer_class.return_value = mock_installer
 
-        result = cli_runner.invoke(app, ["gemini", "--global"])
+        result = cli_runner.invoke(app, ["install", "gemini", "--global"])
         assert result.exit_code == 0
 
         call_kwargs = mock_installer_class.call_args[1]
@@ -154,7 +171,7 @@ class TestCLICommands:
         """Test codex installation."""
         mock_installer_class.return_value = mock_installer
 
-        result = cli_runner.invoke(app, ["codex"])
+        result = cli_runner.invoke(app, ["install", "codex"])
         assert result.exit_code == 0
         mock_installer.install.assert_called_once()
 
@@ -165,7 +182,7 @@ class TestCLICommands:
         mock.install.return_value = (False, "Installation failed")
         mock_installer_class.return_value = mock
 
-        result = cli_runner.invoke(app, ["claude-desktop"])
+        result = cli_runner.invoke(app, ["install", "claude-desktop"])
         assert result.exit_code == 1
 
 
@@ -191,7 +208,6 @@ class TestInstallAllCommand:
         cli_runner,
     ):
         """Test successful installation for all applications."""
-        # Setup all mocks to return success
         for mock_class in [
             mock_claude_desktop,
             mock_claude_code,
@@ -205,7 +221,7 @@ class TestInstallAllCommand:
             mock_instance.install.return_value = (True, "Success")
             mock_class.return_value = mock_instance
 
-        result = cli_runner.invoke(app, ["all"])
+        result = cli_runner.invoke(app, ["install", "all"])
         assert result.exit_code == 0
         assert "Installing napari-mcp for all supported applications" in result.stdout
 
@@ -215,17 +231,14 @@ class TestInstallAllCommand:
         self, mock_claude_code, mock_claude_desktop, cli_runner
     ):
         """Test partial failure in install-all."""
-        # Claude Desktop succeeds
         mock_desktop = MagicMock()
         mock_desktop.install.return_value = (True, "Success")
         mock_claude_desktop.return_value = mock_desktop
 
-        # Claude Code fails
         mock_code = MagicMock()
         mock_code.install.return_value = (False, "Failed")
         mock_claude_code.return_value = mock_code
 
-        # Mock other installers to prevent actual instantiation
         with (
             patch("napari_mcp.cli.main.CursorInstaller"),
             patch("napari_mcp.cli.main.ClineVSCodeInstaller"),
@@ -233,7 +246,7 @@ class TestInstallAllCommand:
             patch("napari_mcp.cli.main.GeminiCLIInstaller"),
             patch("napari_mcp.cli.main.CodexCLIInstaller"),
         ):
-            result = cli_runner.invoke(app, ["all"])
+            result = cli_runner.invoke(app, ["install", "all"])
             assert result.exit_code == 1
 
 
@@ -254,6 +267,10 @@ class TestUninstallCommand:
     @patch("napari_mcp.cli.main.ClaudeDesktopInstaller")
     def test_uninstall_with_options(self, mock_installer_class, cli_runner):
         """Test uninstall with options."""
+        mock = MagicMock()
+        mock.uninstall.return_value = (True, "Success")
+        mock_installer_class.return_value = mock
+
         _ = cli_runner.invoke(
             app, ["uninstall", "claude-desktop", "--force", "--no-backup", "--dry-run"]
         )
@@ -266,20 +283,17 @@ class TestUninstallCommand:
     def test_uninstall_invalid_app(self, cli_runner):
         """Test uninstall with invalid application name."""
         result = cli_runner.invoke(app, ["uninstall", "invalid-app"])
-        assert result.exit_code == 1
-        assert "Unknown application: invalid-app" in result.stdout
+        assert result.exit_code != 0
 
     @patch("napari_mcp.cli.main.ClaudeDesktopInstaller")
     @patch("napari_mcp.cli.main.ClaudeCodeInstaller")
     def test_uninstall_all(self, mock_claude_code, mock_claude_desktop, cli_runner):
         """Test uninstalling from all applications."""
-        # Setup mocks
         for mock_class in [mock_claude_desktop, mock_claude_code]:
             mock_instance = MagicMock()
             mock_instance.uninstall.return_value = (True, "Success")
             mock_class.return_value = mock_instance
 
-        # Mock other installers
         with (
             patch("napari_mcp.cli.main.CursorInstaller"),
             patch("napari_mcp.cli.main.ClineVSCodeInstaller"),
@@ -300,7 +314,6 @@ class TestListCommand:
         self, mock_claude_code, mock_claude_desktop, cli_runner
     ):
         """Test listing installations."""
-        # Setup mock config paths
         mock_desktop = MagicMock()
         mock_desktop.get_config_path.return_value = Path(
             "/mock/claude-desktop/config.json"
@@ -311,7 +324,6 @@ class TestListCommand:
         mock_code.get_config_path.return_value = Path("/mock/claude-code/config.json")
         mock_claude_code.return_value = mock_code
 
-        # Mock other installers
         with (
             patch("napari_mcp.cli.main.CursorInstaller"),
             patch("napari_mcp.cli.main.ClineVSCodeInstaller"),
@@ -323,40 +335,6 @@ class TestListCommand:
             assert result.exit_code == 0
             assert "napari-mcp Installation Status" in result.stdout
 
-    @patch("napari_mcp.cli.main.CodexCLIInstaller")
-    @patch("toml.load")
-    @patch("pathlib.Path.exists")
-    def test_list_codex_toml_config(
-        self, mock_exists, mock_toml_load, mock_codex, cli_runner
-    ):
-        """Test listing with Codex TOML configuration."""
-        mock_exists.return_value = True
-        mock_toml_load.return_value = {
-            "mcp_servers": {
-                "napari_mcp": {
-                    "command": "uv",
-                    "args": ["run", "--with", "napari-mcp", "napari-mcp"],
-                }
-            }
-        }
-
-        mock_instance = MagicMock()
-        mock_instance.get_config_path.return_value = Path("/mock/.codex/config.toml")
-        mock_codex.return_value = mock_instance
-
-        # Mock other installers
-        with (
-            patch("napari_mcp.cli.main.ClaudeDesktopInstaller"),
-            patch("napari_mcp.cli.main.ClaudeCodeInstaller"),
-            patch("napari_mcp.cli.main.CursorInstaller"),
-            patch("napari_mcp.cli.main.ClineVSCodeInstaller"),
-            patch("napari_mcp.cli.main.ClineCursorInstaller"),
-            patch("napari_mcp.cli.main.GeminiCLIInstaller"),
-            patch("builtins.open", create=True),
-        ):
-            result = cli_runner.invoke(app, ["list"])
-            assert result.exit_code == 0
-
 
 class TestErrorHandling:
     """Test error handling in CLI commands."""
@@ -366,9 +344,7 @@ class TestErrorHandling:
         """Test handling of installer exceptions."""
         mock_installer_class.side_effect = Exception("Test exception")
 
-        # The all command catches exceptions
-        result = cli_runner.invoke(app, ["all"])
-        # Should still complete but with error status
+        result = cli_runner.invoke(app, ["install", "all"])
         assert result.exit_code == 1
 
     @patch("napari_mcp.cli.main.ClaudeDesktopInstaller")
@@ -378,9 +354,28 @@ class TestErrorHandling:
         mock.install.return_value = (True, "Dry run successful")
         mock_installer_class.return_value = mock
 
-        result = cli_runner.invoke(app, ["claude-desktop", "--dry-run"])
+        result = cli_runner.invoke(app, ["install", "claude-desktop", "--dry-run"])
         assert result.exit_code == 0
 
-        # Verify dry_run was passed
         call_kwargs = mock_installer_class.call_args[1]
         assert call_kwargs["dry_run"] is True
+
+
+class TestInstallTarget:
+    """Test the InstallTarget enum and installer class lookup."""
+
+    def test_install_target_enum_values(self):
+        assert InstallTarget.CLAUDE_DESKTOP.value == "claude-desktop"
+        assert InstallTarget.CODEX.value == "codex"
+        assert InstallTarget.ALL.value == "all"
+
+    def test_installer_class_lookup(self):
+        cls = _get_installer_class(InstallTarget.CLAUDE_DESKTOP)
+        assert cls.__name__ == "ClaudeDesktopInstaller"
+
+    def test_all_targets_have_installer_classes(self):
+        for target in InstallTarget:
+            if target == InstallTarget.ALL:
+                continue
+            cls = _get_installer_class(target)
+            assert cls is not None, f"No installer class for {target.value}"

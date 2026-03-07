@@ -7,6 +7,8 @@ from collections import OrderedDict
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from napari_mcp.cli.install.utils import (
     build_server_config,
     check_existing_server,
@@ -123,14 +125,15 @@ class TestJSONConfig:
         assert list(result.keys()) == ["z", "a", "m"]
 
     def test_read_json_config_invalid_json(self, tmp_path):
-        """Test reading invalid JSON returns empty dict."""
+        """Test reading invalid JSON raises an error."""
         config_file = tmp_path / "config.json"
         config_file.write_text("invalid json{")
 
-        with patch("napari_mcp.cli.install.utils.console") as mock_console:
-            result = read_json_config(config_file)
-            assert result == {}
-            mock_console.print.assert_called()
+        with (
+            patch("napari_mcp.cli.install.utils.console"),
+            pytest.raises(json.JSONDecodeError),
+        ):
+            read_json_config(config_file)
 
     def test_write_json_config_create_parent(self, tmp_path):
         """Test writing config creates parent directories."""
@@ -423,15 +426,18 @@ class TestEdgeCases:
             config_file.parent.chmod(0o755)
 
     def test_read_json_config_permission_denied(self, tmp_path):
-        """Test reading config with permission denied."""
+        """Test reading config with permission denied raises an error."""
         config_file = tmp_path / "config.json"
         config_file.write_text('{"test": "value"}')
         config_file.chmod(0o000)
 
         try:
             with patch("napari_mcp.cli.install.utils.console"):
-                result = read_json_config(config_file)
-                # Might succeed on some systems
-                assert isinstance(result, dict)
+                try:
+                    result = read_json_config(config_file)
+                    # Might succeed on some systems (e.g., root)
+                    assert isinstance(result, dict)
+                except PermissionError:
+                    pass  # Expected on most systems
         finally:
             config_file.chmod(0o644)

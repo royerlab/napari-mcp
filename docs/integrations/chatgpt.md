@@ -28,7 +28,7 @@ OpenAI's Codex CLI **does support MCP** and works with napari-mcp:
 
 ```bash
 pip install napari-mcp
-napari-mcp-install codex
+napari-mcp-install install codex
 ```
 
 **→ See [Other LLMs Guide](other-llms.md#codex-cli) for setup instructions**
@@ -39,7 +39,7 @@ Cursor IDE supports MCP and uses OpenAI models under the hood:
 
 ```bash
 pip install napari-mcp
-napari-mcp-install cursor --global
+napari-mcp-install install cursor --global
 ```
 
 **→ See [Cursor Integration Guide](cursor.md) for complete setup**
@@ -50,7 +50,7 @@ While not OpenAI, Claude Desktop has excellent MCP support and is the most popul
 
 ```bash
 pip install napari-mcp
-napari-mcp-install claude-desktop
+napari-mcp-install install claude-desktop
 ```
 
 **→ See [Claude Desktop Integration Guide](claude-desktop.md) for setup**
@@ -125,7 +125,7 @@ Choose one of the supported options:
 pip install napari-mcp
 
 # 2. Configure Codex CLI
-napari-mcp-install codex
+napari-mcp-install install codex
 
 # 3. Use with Codex
 # (Codex will now have access to napari MCP tools)
@@ -138,7 +138,7 @@ napari-mcp-install codex
 pip install napari-mcp
 
 # 2. Configure Cursor
-napari-mcp-install cursor --global
+napari-mcp-install install cursor --global
 
 # 3. Open Cursor IDE
 # (Cursor AI will now have napari MCP access)
@@ -151,7 +151,7 @@ napari-mcp-install cursor --global
 pip install napari-mcp
 
 # 2. Configure Claude Desktop
-napari-mcp-install claude-desktop
+napari-mcp-install install claude-desktop
 
 # 3. Restart Claude Desktop
 # (Claude will now have napari MCP access)

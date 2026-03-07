@@ -40,7 +40,7 @@ The CLI installer handles everything:
 pip install napari-mcp
 
 # Auto-configure your application
-napari-mcp-install claude-desktop  # or claude-code, cursor, etc.
+napari-mcp-install install claude-desktop  # or claude-code, cursor, etc.
 ```
 
 This creates a configuration file with:
@@ -167,7 +167,7 @@ The CLI installer supports both zero-install and persistent modes:
 ### Zero Install (Default)
 
 ```bash
-napari-mcp-install claude-desktop
+napari-mcp-install install claude-desktop
 ```
 
 Creates configuration using `uv run` (zero-install mode).
@@ -179,7 +179,7 @@ Creates configuration using `uv run` (zero-install mode).
 pip install napari-mcp
 
 # Then configure with persistent mode
-napari-mcp-install claude-desktop --persistent
+napari-mcp-install install claude-desktop --persistent
 ```
 
 This uses your Python environment instead of uv:

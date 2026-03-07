@@ -12,7 +12,6 @@ import ast
 import asyncio
 import asyncio.subprocess
 import contextlib
-import datetime
 import logging
 import math
 import os
@@ -29,61 +28,31 @@ else:
 
 
 import fastmcp
-import napari
 import numpy as np
 import typer
-from fastmcp import Client, FastMCP
-from PIL import Image
-from qtpy import QtWidgets
+from fastmcp import FastMCP
 
-server = FastMCP(
-    "Napari MCP Server",
-    # -- deprecated --
-    # dependencies=["napari", "Pillow", "imageio", "numpy", "qtpy", "PyQt6"],
+from napari_mcp.output import truncate_output
+from napari_mcp.qt_helpers import (
+    connect_window_destroyed_signal,
+    ensure_qt_app,
+    ensure_viewer,
+    process_events,
+    qt_event_pump,
 )
-
-
-# Global GUI singletons (created lazily)
-_qt_app: Any | None = None
-_viewer: Any | None = None
-_viewer_lock: asyncio.Lock = asyncio.Lock()
-_exec_globals: dict[str, Any] = {}
-_qt_pump_task: asyncio.Task | None = None
-_window_close_connected: bool = False
-# Note: _external_client is kept for test compatibility but not used
-# - we create fresh clients for each call
-_external_client: Any = None
-_external_port: int = int(os.environ.get("NAPARI_MCP_BRIDGE_PORT", "9999"))
+from napari_mcp.state import ServerState, StartupMode
 
 # Module logger
 logger = logging.getLogger(__name__)
 
-# Output storage for tool results
-_output_storage: dict[str, dict[str, Any]] = {}
-_output_storage_lock: asyncio.Lock = asyncio.Lock()
-_next_output_id: int = 1
-# Maximum number of output items to retain; set NAPARI_MCP_MAX_OUTPUT_ITEMS<=0 for unlimited
-try:
-    _MAX_OUTPUT_ITEMS: int = int(os.environ.get("NAPARI_MCP_MAX_OUTPUT_ITEMS", "1000"))
-except Exception:
-    _MAX_OUTPUT_ITEMS = 1000
+
+# ---------------------------------------------------------------------------
+# Pure utility (no state)
+# ---------------------------------------------------------------------------
 
 
 def _parse_bool(value: bool | str | None, default: bool = False) -> bool:
-    """Parse a boolean value from various input types.
-
-    Parameters
-    ----------
-    value : bool | str | None
-        Value to parse. Strings like "true", "1", "yes", "on" are considered True.
-    default : bool
-        Default value if input is None.
-
-    Returns
-    -------
-    bool
-        Parsed boolean value.
-    """
+    """Parse a boolean value from various input types."""
     if value is None:
         return default
     if isinstance(value, bool):
@@ -93,354 +62,102 @@ def _parse_bool(value: bool | str | None, default: bool = False) -> bool:
     return bool(value)
 
 
-def _truncate_output(output: str, line_limit: int) -> tuple[str, bool]:
-    """Truncate output to specified line limit.
+# Keep old name available for external imports
+_truncate_output = truncate_output
+
+
+# ---------------------------------------------------------------------------
+# Module-level state singleton (for backward compat + test access)
+# ---------------------------------------------------------------------------
+
+_state: ServerState | None = None
+
+
+def get_state() -> ServerState:
+    """Return the current module-level ServerState singleton."""
+    if _state is None:
+        raise RuntimeError("Server state not initialised. Call create_server() first.")
+    return _state
+
+
+# ---------------------------------------------------------------------------
+# Server factory
+# ---------------------------------------------------------------------------
+
+
+def create_server(state: ServerState | None = None) -> FastMCP:
+    """Create a FastMCP server with all tools bound to *state*.
 
     Parameters
     ----------
-    output : str
-        The output text to truncate.
-    line_limit : int
-        Maximum number of lines to return. If -1, return all lines.
+    state : ServerState, optional
+        The server state instance. If None, creates a default STANDALONE state.
 
     Returns
     -------
-    tuple[str, bool]
-        Tuple of (truncated_output, was_truncated).
+    FastMCP
+        Fully configured MCP server with all napari tools registered.
     """
-    # Normalize/validate line_limit
-    try:
-        line_limit = int(line_limit)
-    except Exception:
-        line_limit = 30
-    if line_limit < -1:
-        line_limit = -1
-    if line_limit == -1:
-        return output, False
+    global _state
 
-    lines = output.splitlines(keepends=True)
-    if len(lines) <= line_limit:
-        return output, False
+    if state is None:
+        state = ServerState()
+    _state = state
 
-    truncated = "".join(lines[:line_limit])
-    return truncated, True
+    server = FastMCP("Napari MCP Server")
 
+    # Dict to collect raw async functions before @server.tool() wraps them.
+    # Used at the end to expose backward-compatible module-level names.
+    _raw_tools: dict[str, Any] = {}
 
-async def _store_output(
-    tool_name: str,
-    stdout: str = "",
-    stderr: str = "",
-    result_repr: str | None = None,
-    **metadata: Any,
-) -> str:
-    """Store tool output and return a unique ID.
+    def _register(fn: Any) -> Any:
+        """Register fn in _raw_tools, then pass to @server.tool()."""
+        _raw_tools[fn.__name__] = fn
+        return server.tool()(fn)
 
-    Parameters
-    ----------
-    tool_name : str
-        Name of the tool that generated the output.
-    stdout : str
-        Standard output content.
-    stderr : str
-        Standard error content.
-    result_repr : str, optional
-        String representation of the result.
-    **metadata : Any
-        Additional metadata to store with the output.
+    # ------------------------------------------------------------------
+    # Tool definitions (closures over *state*)
+    # ------------------------------------------------------------------
 
-    Returns
-    -------
-    str
-        Unique output ID for later retrieval.
-    """
-    global _next_output_id
-
-    async with _output_storage_lock:
-        output_id = str(_next_output_id)
-        _next_output_id += 1
-
-        _output_storage[output_id] = {
-            "tool_name": tool_name,
-            # ISO8601 UTC timestamp for interoperability
-            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "stdout": stdout,
-            "stderr": stderr,
-            "result_repr": result_repr,
-            **metadata,
-        }
-        # Evict oldest items if exceeding capacity
-        if _MAX_OUTPUT_ITEMS > 0 and len(_output_storage) > _MAX_OUTPUT_ITEMS:
-            overflow = len(_output_storage) - _MAX_OUTPUT_ITEMS
-            # IDs are numeric strings; evict smallest IDs first
-            for victim in sorted(_output_storage.keys(), key=lambda k: int(k))[
-                :overflow
-            ]:
-                _output_storage.pop(victim, None)
-
-        return output_id
-
-
-async def _proxy_to_external(
-    tool_name: str, params: dict[str, Any] | None = None
-) -> dict[str, Any] | None:
-    """Proxy a tool call to an external viewer if available.
-
-    Attempts to contact a running napari-mcp bridge server on the configured
-    port. Returns None if no external server is reachable, so the caller can
-    fall back to the local viewer implementation.
-    """
-    try:
-        client = Client(f"http://localhost:{_external_port}/mcp")
-        async with client:
-            result = await client.call_tool(tool_name, params or {})
-            # return result
-            if hasattr(result, "content"):
-                content = result.content
-                if content[0].type == "text":
-                    import json
-
-                    response = (
-                        content[0].text
-                        if hasattr(content[0], "text")
-                        else str(content[0])
-                    )
-                    try:
-                        return json.loads(response)
-                    except json.JSONDecodeError:
-                        return {
-                            "status": "error",
-                            "message": f"Invalid JSON response: {response}",
-                        }
-                else:
-                    return content
-            return {
-                "status": "error",
-                "message": "Invalid response format from external viewer",
-            }
-    except Exception:
-        return None
-
-
-def _ensure_qt_app() -> Any:
-    """Return a Qt application instance if available, else a no-op stub.
-
-    This allows running in environments without Qt (e.g., some CI or tests
-    that mock napari) while keeping real GUI behavior when Qt is present.
-    """
-    global _qt_app
-    if QtWidgets is None:  # Fallback: provide a minimal stub
-
-        class _StubApp:
-            def processEvents(self, *_: Any) -> None:  # noqa: N802 (Qt-style)
-                pass
-
-            def setQuitOnLastWindowClosed(self, *_: Any) -> None:  # noqa: N802
-                pass
-
-        if _qt_app is None:
-            _qt_app = _StubApp()
-        return _qt_app
-
-    app = QtWidgets.QApplication.instance()
-    if app is None:
-        _qt_app = QtWidgets.QApplication([])
-        app = _qt_app
-    # Ensure the application stays alive even if the last window is closed
-    try:
-        app.setQuitOnLastWindowClosed(False)
-    except Exception:
-        # Best-effort; some headless backends may not support this
-        pass
-    return app
-
-
-async def _detect_external_viewer() -> tuple[Client | None, dict[str, Any] | None]:
-    """Detect if an external napari viewer is available via MCP bridge.
-
-    Returns
-    -------
-    tuple
-        (client, session_info) if external viewer found, (None, None) otherwise
-    """
-    try:
-        client = Client(f"http://localhost:{_external_port}/mcp")
-        async with client:
-            # Try to get session info to verify it's a napari bridge
-            result = await client.call_tool("session_information")
-            if result and hasattr(result, "content"):
-                content = result.content
-                if isinstance(content, list) and len(content) > 0:
-                    info = (
-                        content[0].text
-                        if hasattr(content[0], "text")
-                        else str(content[0])
-                    )
-                    # Parse the JSON response
-                    import json
-
-                    info_dict = json.loads(info) if isinstance(info, str) else info
-                    if info_dict.get("session_type") == "napari_bridge_session":
-                        return client, info_dict
-            return None, None
-    except Exception:
-        return None, None
-
-
-def _detect_external_viewer_sync() -> bool:
-    """Synchronous wrapper to check if external viewer is available.
-
-    In tests, ``_detect_external_viewer`` may be patched to return a plain
-    tuple rather than a coroutine. Handle both cases gracefully.
-    """
-    try:
-        import asyncio
-        import inspect
-
-        maybe_coro = _detect_external_viewer()
-        if inspect.isawaitable(maybe_coro):
-            loop = asyncio.new_event_loop()
-            try:
-                client, info = loop.run_until_complete(maybe_coro)  # type: ignore[assignment]
-            finally:
-                loop.close()
-        else:
-            # Already a concrete (client, info) tuple from a patch/mocked fn
-            client, info = maybe_coro  # type: ignore[misc]
-        return client is not None
-    except Exception:
-        return False
-
-
-def _ensure_viewer() -> Any:
-    global _viewer
-    _ensure_qt_app()
-    if _viewer is None:
-        _viewer = napari.Viewer()
-        _connect_window_destroyed_signal(_viewer)
-    return _viewer
-
-
-def _connect_window_destroyed_signal(viewer) -> None:
-    """Connect to the Qt window destroyed signal to clear our singleton.
-
-    This prevents stale references after a user manually closes the window.
-    """
-    global _window_close_connected, _viewer
-    if _window_close_connected:
-        return
-    try:
-        qt_win = viewer.window._qt_window  # type: ignore[attr-defined]
-
-        def _on_destroyed(*_args: Any) -> None:
-            # Clear the global so future calls re-create a fresh viewer
-            # Keep the Qt application alive
-            global _viewer
-            _viewer = None
-
-        qt_win.destroyed.connect(_on_destroyed)  # type: ignore[attr-defined]
-        _window_close_connected = True
-    except Exception:
-        # If anything goes wrong, continue without the connection
-        pass
-
-
-def _process_events(cycles: int = 2) -> None:
-    app = _ensure_qt_app()
-    for _ in range(max(1, cycles)):
-        app.processEvents()
-
-
-# Optional GUI executor for running viewer operations on the main thread
-_GUI_EXECUTOR: Any | None = None
-
-
-def set_gui_executor(executor: Any | None) -> None:
-    """Configure an executor that runs a callable on the GUI/main thread.
-
-    If None, operations execute directly in the current thread.
-    """
-    global _GUI_EXECUTOR
-    _GUI_EXECUTOR = executor
-
-
-def _gui_execute(operation):
-    if _GUI_EXECUTOR is not None:
-        return _GUI_EXECUTOR(operation)
-    return operation()
-
-
-async def _qt_event_pump() -> None:
-    """Periodically process Qt events so the GUI remains responsive.
-
-    We avoid calling napari.run() to keep the server responsive while still
-    allowing the user to interact with the GUI.
-    """
-    try:
-        # Tight loop with small sleep keeps UI fluid without starving asyncio
-        while True:
-            _process_events(2)
-            await asyncio.sleep(0.01)
-    except asyncio.CancelledError:
-        # Graceful shutdown of the pump
-        pass
-
-
-class NapariMCPTools:
-    """Implementation of Napari MCP tools (exactly matching server.py behavior)."""
-
-    @staticmethod
+    @_register
     async def detect_viewers() -> dict[str, Any]:
-        """
-        Detect available viewers (local and external).
-
-        Returns
-        -------
-        dict
-            Dictionary with information about available viewers
-        """
+        """Detect available viewers (local and external)."""
         viewers: dict[str, Any] = {"local": None, "external": None}
 
-        # Check for external viewer
-        client, info = await _detect_external_viewer()
+        client, info = await state.detect_external_viewer()
         if client and info is not None:
             viewers["external"] = {
                 "available": True,
                 "type": "napari_bridge",
-                "port": info.get("bridge_port", _external_port),
+                "port": info.get("bridge_port", state.bridge_port),
                 "viewer_info": info.get("viewer", {}),
             }
         else:
             viewers["external"] = {"available": False}
 
-        # Check for local viewer
-        global _viewer
-        if _viewer is not None:
+        if state.viewer is not None:
             viewers["local"] = {
                 "available": True,
                 "type": "singleton",
-                "title": _viewer.title,
-                "n_layers": len(_viewer.layers),
+                "title": state.viewer.title,
+                "n_layers": len(state.viewer.layers),
             }
         else:
             viewers["local"] = {
-                "available": True,  # Can be created
+                "available": True,
                 "type": "not_initialized",
             }
 
-        return {
-            "status": "ok",
-            "viewers": viewers,
-        }
+        return {"status": "ok", "viewers": viewers}
 
-    @staticmethod
+    @_register
     async def init_viewer(
         title: str | None = None,
         width: int | str | None = None,
         height: int | str | None = None,
         port: int | str | None = None,
     ) -> dict[str, Any]:
-        """
-        Create or return the napari viewer (local or external).
+        """Create or return the napari viewer (local or external).
 
         Parameters
         ----------
@@ -453,33 +170,21 @@ class NapariMCPTools:
         port : int, optional
             If provided, attempt to connect to an external napari-mcp bridge on
             this port (default is taken from NAPARI_MCP_BRIDGE_PORT or 9999).
-
-        Returns
-        -------
-        dict
-            Dictionary containing status, viewer type, and layer info.
         """
-        # Allow overriding the external port per-call
-        global _external_port
         if port is not None:
             try:
-                _external_port = int(port)
+                state.bridge_port = int(port)
             except Exception:
-                logger.error("Invalid port: {port}")
-                _external_port = _external_port
+                logger.error("Invalid port: %s", port)
 
-        async with _viewer_lock:
-            # Try external viewer first; fall back to local
-            try:
-                return await NapariMCPTools._external_session_information(
-                    _external_port
-                )
-            except Exception:
-                # No external viewer; continue to local viewer
-                pass
+        async with state.viewer_lock:
+            if state.mode == StartupMode.AUTO_DETECT:
+                try:
+                    return await state.external_session_information()
+                except Exception:
+                    pass
 
-            # Use local viewer
-            v = _ensure_viewer()
+            v = ensure_viewer(state)
             if title:
                 v.title = title
             if width or height:
@@ -494,25 +199,23 @@ class NapariMCPTools:
                     else v.window.qt_viewer.canvas.size().height()
                 )
                 v.window.qt_viewer.canvas.native.resize(w, h)
-            # Always ensure GUI pump is running for local viewer (backwards-incompatible change)
-            global _qt_pump_task
-            app = _ensure_qt_app()
+
+            app = ensure_qt_app(state)
             with contextlib.suppress(Exception):
                 app.setQuitOnLastWindowClosed(False)
-            _connect_window_destroyed_signal(v)
+            connect_window_destroyed_signal(state, v)
 
-            # Best-effort to show window without forcing focus (safer for tests/headless)
             try:
                 qt_win = v.window._qt_window  # type: ignore[attr-defined]
                 qt_win.show()
             except Exception:
                 pass
 
-            if _qt_pump_task is None or _qt_pump_task.done():
+            if state.qt_pump_task is None or state.qt_pump_task.done():
                 loop = asyncio.get_running_loop()
-                _qt_pump_task = loop.create_task(_qt_event_pump())
+                state.qt_pump_task = loop.create_task(qt_event_pump(state))
 
-            _process_events()
+            process_events(state)
             return {
                 "status": "ok",
                 "viewer_type": "local",
@@ -520,95 +223,37 @@ class NapariMCPTools:
                 "layers": [lyr.name for lyr in v.layers],
             }
 
-    @staticmethod
-    async def _external_session_information(_external_port: int) -> dict[str, Any]:
-        """Get session information from the external viewer."""
-        test_client = Client(f"http://localhost:{_external_port}/mcp")
-        async with test_client:
-            result = await test_client.call_tool("session_information")
-            if hasattr(result, "content"):
-                content = result.content
-                if isinstance(content, list) and len(content) > 0:
-                    import json
-
-                    info = (
-                        content[0].text
-                        if hasattr(content[0], "text")
-                        else str(content[0])
-                    )
-                    info_dict = json.loads(info) if isinstance(info, str) else info
-                    if info_dict.get("session_type") == "napari_bridge_session":
-                        return {
-                            "status": "ok",
-                            "viewer_type": "external",
-                            "title": info_dict.get("viewer", {}).get(
-                                "title", "External Viewer"
-                            ),
-                            "layers": info_dict.get("viewer", {}).get(
-                                "layer_names", []
-                            ),
-                            "port": info_dict.get("bridge_port", _external_port),
-                        }
-
-        return {
-            "status": "error",
-            "message": "Failed to get session information from external viewer",
-        }
-
-    @staticmethod
+    @_register
     async def close_viewer() -> dict[str, Any]:
-        """
-        Close the viewer window and clear all layers.
-
-        Returns
-        -------
-        dict
-            Dictionary with status: 'closed' if viewer existed, 'no_viewer' if none.
-        """
-        async with _viewer_lock:
-            global _viewer, _qt_pump_task
-            if _viewer is not None:
-                _viewer.close()
-                _viewer = None
-                # Stop GUI pump when closing viewer
-                if _qt_pump_task is not None and not _qt_pump_task.done():
-                    _qt_pump_task.cancel()
+        """Close the viewer window and clear all layers."""
+        async with state.viewer_lock:
+            if state.viewer is not None:
+                state.viewer.close()
+                state.viewer = None
+                if state.qt_pump_task is not None and not state.qt_pump_task.done():
+                    state.qt_pump_task.cancel()
                     with contextlib.suppress(asyncio.CancelledError):
-                        await _qt_pump_task
-                _qt_pump_task = None
-                _process_events()
+                        await state.qt_pump_task
+                state.qt_pump_task = None
+                process_events(state)
                 return {"status": "closed"}
             return {"status": "no_viewer"}
 
-    @staticmethod
+    @_register
     async def session_information() -> dict[str, Any]:
-        """
-        Get comprehensive information about the current napari session.
-
-        Returns
-        -------
-        dict
-            Comprehensive session information including viewer state, system info,
-            and environment details.
-        """
-        import os
+        """Get comprehensive information about the current napari session."""
         import platform
 
-        async with _viewer_lock:
-            global _viewer, _qt_pump_task, _exec_globals
+        import napari
 
-            try:
-                return await NapariMCPTools._external_session_information(
-                    _external_port
-                )
-            except Exception:
-                # No external viewer; continue to local viewer
-                pass
+        async with state.viewer_lock:
+            if state.mode == StartupMode.AUTO_DETECT:
+                try:
+                    return await state.external_session_information()
+                except Exception:
+                    pass
 
-            # Use local viewer
-
-            # Check if viewer exists
-            viewer_exists = _viewer is not None
+            viewer_exists = state.viewer is not None
             if not viewer_exists:
                 return {
                     "status": "ok",
@@ -618,10 +263,9 @@ class NapariMCPTools:
                     "message": "No viewer currently initialized. Call init_viewer() first.",
                 }
 
-            v = _viewer
-            assert v is not None  # We already checked this above
+            v = state.viewer
+            assert v is not None
 
-            # Viewer information
             viewer_info = {
                 "title": v.title,
                 "viewer_id": id(v),
@@ -638,7 +282,6 @@ class NapariMCPTools:
                 "grid_enabled": v.grid.enabled,
             }
 
-            # System information
             system_info = {
                 "python_version": sys.version,
                 "platform": platform.platform(),
@@ -647,20 +290,20 @@ class NapariMCPTools:
                 "working_directory": os.getcwd(),
             }
 
-            # Session status
-            gui_running = _qt_pump_task is not None and not _qt_pump_task.done()
+            gui_running = (
+                state.qt_pump_task is not None and not state.qt_pump_task.done()
+            )
             session_info = {
                 "server_type": "napari_mcp_standalone",
                 "viewer_instance": f"<napari.Viewer at {hex(id(v))}>",
                 "gui_pump_running": gui_running,
-                "execution_namespace_vars": list(_exec_globals.keys()),
-                "qt_app_available": _qt_app is not None,
+                "execution_namespace_vars": list(state.exec_globals.keys()),
+                "qt_app_available": state.qt_app is not None,
             }
 
-            # Layer details
             layer_details = []
             for layer in v.layers:
-                layer_detail = {
+                layer_detail: dict[str, Any] = {
                     "name": layer.name,
                     "type": layer.__class__.__name__,
                     "visible": _parse_bool(getattr(layer, "visible", True)),
@@ -674,8 +317,6 @@ class NapariMCPTools:
                     else None,
                     "layer_id": id(layer),
                 }
-
-                # Add layer-specific properties
                 if hasattr(layer, "colormap"):
                     layer_detail["colormap"] = getattr(
                         layer.colormap, "name", str(layer.colormap)
@@ -688,7 +329,6 @@ class NapariMCPTools:
                         pass
                 if hasattr(layer, "gamma"):
                     layer_detail["gamma"] = float(getattr(layer, "gamma", 1.0))
-
                 layer_details.append(layer_detail)
 
             return {
@@ -701,13 +341,11 @@ class NapariMCPTools:
                 "layers": layer_details,
             }
 
-    @staticmethod
+    @_register
     async def list_layers() -> list[dict[str, Any]]:
         """Return a list of layers with key properties."""
-        # Try to proxy to external viewer first
-        proxy_result = await _proxy_to_external("list_layers")
+        proxy_result = await state.proxy_to_external("list_layers")
         if proxy_result is not None:
-            # Ensure the result is the expected list format
             if isinstance(proxy_result, list):
                 return proxy_result
             elif isinstance(proxy_result, dict) and "content" in proxy_result:
@@ -716,14 +354,13 @@ class NapariMCPTools:
                     return content
             return []
 
-        # Local execution
-        async with _viewer_lock:
+        async with state.viewer_lock:
 
             def _build():
-                v = _ensure_viewer()
-                result: list[dict[str, Any]] = []  # type: ignore
+                v = ensure_viewer(state)
+                result: list[dict[str, Any]] = []
                 for lyr in v.layers:
-                    entry = {
+                    entry: dict[str, Any] = {
                         "name": lyr.name,
                         "type": lyr.__class__.__name__,
                         "visible": _parse_bool(getattr(lyr, "visible", True)),
@@ -749,9 +386,9 @@ class NapariMCPTools:
                     result.append(entry)
                 return result
 
-            return _gui_execute(_build)
+            return state.gui_execute(_build)
 
-    @staticmethod
+    @_register
     async def add_image(
         path: str,
         name: str | None = None,
@@ -759,8 +396,7 @@ class NapariMCPTools:
         blending: str | None = None,
         channel_axis: int | str | None = None,
     ) -> dict[str, Any]:
-        """
-        Add an image layer from a file path.
+        """Add an image layer from a file path.
 
         Parameters
         ----------
@@ -774,13 +410,7 @@ class NapariMCPTools:
             Blending mode (e.g., 'translucent').
         channel_axis : int, optional
             If provided, interpret that axis as channels.
-
-        Returns
-        -------
-        dict
-            Dictionary containing status, layer name, and image shape.
         """
-        # Try to proxy to external viewer first
         params: dict[str, Any] = {"path": path}
         if name:
             params["name"] = name
@@ -791,18 +421,17 @@ class NapariMCPTools:
         if channel_axis is not None:
             params["channel_axis"] = int(channel_axis)
 
-        result = await _proxy_to_external("add_image", params)
+        result = await state.proxy_to_external("add_image", params)
         if result is not None:
             return result
 
-        # Local execution
         import imageio.v3 as iio
 
-        async with _viewer_lock:
+        async with state.viewer_lock:
             data = iio.imread(path)
 
             def _add():
-                v = _ensure_viewer()
+                v = ensure_viewer(state)
                 layer = v.add_image(
                     data,
                     name=name,
@@ -810,87 +439,84 @@ class NapariMCPTools:
                     blending=blending,
                     channel_axis=channel_axis,
                 )
-                _process_events()
+                process_events(state)
                 return {
                     "status": "ok",
                     "name": layer.name,
                     "shape": list(np.shape(data)),
                 }
 
-            return _gui_execute(_add)
+            return state.gui_execute(_add)
 
-    @staticmethod
+    @_register
     async def add_labels(path: str, name: str | None = None) -> dict[str, Any]:
         """Add a labels layer from a file path (e.g., PNG/TIFF with integer labels)."""
         import imageio.v3 as iio
 
-        async with _viewer_lock:
+        async with state.viewer_lock:
             try:
                 from pathlib import Path
 
                 def _add():
-                    v = _ensure_viewer()
+                    v = ensure_viewer(state)
                     p = Path(path).expanduser().resolve(strict=False)
                     data = iio.imread(str(p))
                     layer = v.add_labels(data, name=name)
-                    _process_events()
+                    process_events(state)
                     return {
                         "status": "ok",
                         "name": layer.name,
                         "shape": list(np.shape(data)),
                     }
 
-                return _gui_execute(_add)
+                return state.gui_execute(_add)
             except Exception as e:
                 return {
                     "status": "error",
                     "message": f"Failed to add labels from '{path}': {e}",
                 }
 
-    @staticmethod
+    @_register
     async def add_points(
         points: list[list[float]], name: str | None = None, size: float | str = 10.0
     ) -> dict[str, Any]:
-        """
-        Add a points layer.
+        """Add a points layer.
 
         - points: List of [y, x] or [z, y, x] coordinates
         - name: Optional layer name
         - size: Point size in pixels
         """
-        async with _viewer_lock:
+        async with state.viewer_lock:
 
             def _add():
-                v = _ensure_viewer()
+                v = ensure_viewer(state)
                 arr = np.asarray(points, dtype=float)
                 layer = v.add_points(arr, name=name, size=float(size))
-                _process_events()
+                process_events(state)
                 return {
                     "status": "ok",
                     "name": layer.name,
                     "n_points": int(arr.shape[0]),
                 }
 
-            return _gui_execute(_add)
+            return state.gui_execute(_add)
 
-    @staticmethod
+    @_register
     async def remove_layer(name: str) -> dict[str, Any]:
         """Remove a layer by name."""
-        async with _viewer_lock:
+        async with state.viewer_lock:
 
             def _remove():
-                v = _ensure_viewer()
+                v = ensure_viewer(state)
                 if name in v.layers:
                     v.layers.remove(name)
-                    _process_events()
+                    process_events(state)
                     return {"status": "removed", "name": name}
                 return {"status": "not_found", "name": name}
 
-            return _gui_execute(_remove)
+            return state.gui_execute(_remove)
 
-    # Removed: rename_layer (use set_layer_properties with new_name instead)
-
-    @staticmethod
+    @_register
     async def set_layer_properties(
         name: str,
         visible: bool | None = None,
@@ -902,10 +528,10 @@ class NapariMCPTools:
         new_name: str | None = None,
     ) -> dict[str, Any]:
         """Set common properties on a layer by name."""
-        async with _viewer_lock:
+        async with state.viewer_lock:
 
             def _set():
-                v = _ensure_viewer()
+                v = ensure_viewer(state)
                 if name not in v.layers:
                     return {"status": "not_found", "name": name}
                 lyr = v.layers[name]
@@ -927,30 +553,29 @@ class NapariMCPTools:
                     lyr.gamma = float(gamma)
                 if new_name is not None:
                     lyr.name = new_name
-                _process_events()
+                process_events(state)
                 return {"status": "ok", "name": lyr.name}
 
-            return _gui_execute(_set)
+            return state.gui_execute(_set)
 
-    @staticmethod
+    @_register
     async def reorder_layer(
         name: str,
         index: int | str | None = None,
         before: str | None = None,
         after: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Reorder a layer by name.
+        """Reorder a layer by name.
 
         Provide exactly one of:
         - index: absolute target index
         - before: move before this layer name
         - after: move after this layer name
         """
-        async with _viewer_lock:
+        async with state.viewer_lock:
 
             def _reorder():
-                v = _ensure_viewer()
+                v = ensure_viewer(state)
                 if name not in v.layers:
                     return {"status": "not_found", "name": name}
                 if sum(x is not None for x in (index, before, after)) != 1:
@@ -972,134 +597,139 @@ class NapariMCPTools:
                     target = v.layers.index(after) + 1
                 if target != cur:
                     v.layers.move(cur, target)
-                _process_events()
+                process_events(state)
                 return {"status": "ok", "name": name, "index": v.layers.index(name)}
 
-            return _gui_execute(_reorder)
+            return state.gui_execute(_reorder)
 
-    @staticmethod
+    @_register
     async def set_active_layer(name: str) -> dict[str, Any]:
         """Set the selected/active layer by name."""
-        async with _viewer_lock:
+        async with state.viewer_lock:
 
             def _set_active():
-                v = _ensure_viewer()
+                v = ensure_viewer(state)
                 if name not in v.layers:
                     return {"status": "not_found", "name": name}
                 v.layers.selection = {v.layers[name]}
-                _process_events()
+                process_events(state)
                 return {"status": "ok", "active": name}
 
-            return _gui_execute(_set_active)
+            return state.gui_execute(_set_active)
 
-    @staticmethod
+    @_register
     async def reset_view() -> dict[str, Any]:
         """Reset the camera view to fit data."""
-        async with _viewer_lock:
+        async with state.viewer_lock:
 
             def _reset():
-                v = _ensure_viewer()
+                v = ensure_viewer(state)
                 v.reset_view()
-                _process_events()
+                process_events(state)
                 return {"status": "ok"}
 
-            return _gui_execute(_reset)
+            return state.gui_execute(_reset)
 
-    # Removed: set_zoom (use set_camera with zoom instead)
-
-    @staticmethod
+    @_register
     async def set_camera(
         center: list[float] | None = None,
         zoom: float | str | None = None,
-        angle: float | str | None = None,
+        angles: list[float] | None = None,
     ) -> dict[str, Any]:
-        """Set camera properties: center, zoom, and/or angle."""
-        async with _viewer_lock:
+        """Set camera properties: center, zoom, and/or angles.
+
+        Parameters
+        ----------
+        center : list[float], optional
+            Camera center position.
+        zoom : float, optional
+            Camera zoom factor.
+        angles : list[float], optional
+            Camera angles as [azimuth, elevation, roll] in degrees.
+        """
+        async with state.viewer_lock:
 
             def _set_cam():
-                v = _ensure_viewer()
+                v = ensure_viewer(state)
                 if center is not None:
                     v.camera.center = list(map(float, center))
                 if zoom is not None:
                     v.camera.zoom = float(zoom)
-                if angle is not None:
-                    v.camera.angles = (float(angle),)
-                _process_events()
+                if angles is not None:
+                    v.camera.angles = tuple(float(a) for a in angles)
+                process_events(state)
                 return {
                     "status": "ok",
                     "center": list(map(float, v.camera.center)),
                     "zoom": float(v.camera.zoom),
+                    "angles": list(map(float, v.camera.angles)),
                 }
 
-            return _gui_execute(_set_cam)
+            return state.gui_execute(_set_cam)
 
-    @staticmethod
+    @_register
     async def set_ndisplay(ndisplay: int | str) -> dict[str, Any]:
         """Set number of displayed dimensions (2 or 3)."""
-        async with _viewer_lock:
+        async with state.viewer_lock:
 
             def _set():
-                v = _ensure_viewer()
+                v = ensure_viewer(state)
                 v.dims.ndisplay = int(ndisplay)
-                _process_events()
+                process_events(state)
                 return {"status": "ok", "ndisplay": int(v.dims.ndisplay)}
 
-            return _gui_execute(_set)
+            return state.gui_execute(_set)
 
-    @staticmethod
+    @_register
     async def set_dims_current_step(
         axis: int | str, value: int | str
     ) -> dict[str, Any]:
         """Set the current step (slider position) for a specific axis."""
-        async with _viewer_lock:
+        async with state.viewer_lock:
 
             def _set():
-                v = _ensure_viewer()
+                v = ensure_viewer(state)
                 v.dims.set_current_step(int(axis), int(value))
-                _process_events()
+                process_events(state)
                 return {"status": "ok", "axis": int(axis), "value": int(value)}
 
-            return _gui_execute(_set)
+            return state.gui_execute(_set)
 
-    @staticmethod
+    @_register
     async def set_grid(enabled: bool | str = True) -> dict[str, Any]:
         """Enable or disable grid view."""
-        async with _viewer_lock:
+        async with state.viewer_lock:
 
             def _set():
-                v = _ensure_viewer()
+                v = ensure_viewer(state)
                 v.grid.enabled = _parse_bool(enabled)
-                _process_events()
+                process_events(state)
                 return {"status": "ok", "grid": _parse_bool(v.grid.enabled)}
 
-            return _gui_execute(_set)
+            return state.gui_execute(_set)
 
-    @staticmethod
+    @_register
     async def screenshot(canvas_only: bool | str = True) -> ImageContent:
-        """
-        Take a screenshot of the napari canvas and return as base64.
+        """Take a screenshot of the napari canvas and return as base64.
 
         Parameters
         ----------
         canvas_only : bool, default=True
             If True, only capture the canvas area.
-
-        Returns
-        -------
-        ImageContent
-            The screenshot image as an mcp.types.ImageContent object.
         """
-        # Try to proxy to external viewer first
-        result = await _proxy_to_external("screenshot", {"canvas_only": canvas_only})
+        from PIL import Image
+
+        result = await state.proxy_to_external(
+            "screenshot", {"canvas_only": canvas_only}
+        )
         if result is not None:
             return result
 
-        # Local execution
-        async with _viewer_lock:
+        async with state.viewer_lock:
 
             def _shot():
-                v = _ensure_viewer()
-                _process_events(3)
+                v = ensure_viewer(state)
+                process_events(state, 3)
                 arr = v.screenshot(canvas_only=canvas_only)
                 if not isinstance(arr, np.ndarray):
                     arr = np.asarray(arr)
@@ -1113,17 +743,16 @@ class NapariMCPTools:
                     data=enc, format="png"
                 ).to_image_content()
 
-            return _gui_execute(_shot)
+            return state.gui_execute(_shot)
 
-    @staticmethod
+    @_register
     async def timelapse_screenshot(
         axis: int | str,
         slice_range: str,
         canvas_only: bool | str = True,
-        interpolate_to_fit: bool = True,
+        interpolate_to_fit: bool = False,
     ) -> list[ImageContent]:
-        """
-        Capture a series of screenshots while sweeping a dims axis.
+        """Capture a series of screenshots while sweeping a dims axis.
 
         Parameters
         ----------
@@ -1131,21 +760,16 @@ class NapariMCPTools:
             Dims axis index to sweep (e.g., temporal axis).
         slice_range : str
             Python-like slice string over step indices, e.g. "1:5", ":6", "::2".
-            Defaults follow Python semantics with start=0, stop=nsteps, step=1.
         canvas_only : bool, default=True
             If True, only capture the canvas area.
         interpolate_to_fit : bool, default=False
             If True, interpolate the images to fit the total size cap of 1309246 bytes.
-
-        Returns
-        -------
-        list[ImageContent]
-            List of screenshots as mcp.types.ImageContent objects.
         """
+        from PIL import Image
+
         max_total_base64_bytes = 1309246 if interpolate_to_fit else None
 
-        # Try to proxy to external viewer first
-        result = await _proxy_to_external(
+        result = await state.proxy_to_external(
             "timelapse_screenshot",
             {
                 "axis": axis,
@@ -1158,9 +782,7 @@ class NapariMCPTools:
             return result  # type: ignore[return-value]
 
         def _parse_slice(spec: str, length: int) -> list[int]:
-            # Normalize
             s = (spec or "").strip()
-            # Single integer
             if s and ":" not in s:
                 try:
                     idx = int(s)
@@ -1174,7 +796,6 @@ class NapariMCPTools:
                     )
                 return [idx]
 
-            # Slice form start:stop:step
             parts = s.split(":")
             if len(parts) > 3:
                 raise ValueError(f"Invalid slice range: {spec!r}")
@@ -1188,11 +809,11 @@ class NapariMCPTools:
 
             start = _to_int_or_none(start_s)
             stop = _to_int_or_none(stop_s)
-            step = _to_int_or_none(step_s) or 1
+            step = _to_int_or_none(step_s)
             if step == 0:
                 raise ValueError("slice step cannot be 0")
-
-            # Handle negatives like Python
+            if step is None:
+                step = 1
             if start is None:
                 start = 0 if step > 0 else length - 1
             if stop is None:
@@ -1201,28 +822,19 @@ class NapariMCPTools:
                 start += length
             if stop < 0:
                 stop += length
-
-            # Clamp to valid iteration range similar to range() behavior
             rng = range(start, stop, step)
-            indices = [i for i in rng if 0 <= i < length]
-            return indices
+            return [i for i in rng if 0 <= i < length]
 
-        # Local execution
-        async with _viewer_lock:
+        async with state.viewer_lock:
 
             def _run_series():
-                v = _ensure_viewer()
-
-                # Determine number of steps along axis
+                v = ensure_viewer(state)
                 try:
                     nsteps_tuple = getattr(v.dims, "nsteps", None)
                     if nsteps_tuple is None:
-                        # Fallback: infer from current_step length and a conservative stop
-                        # We cannot reliably infer total steps without dims.nsteps; require it
                         raise AttributeError
                     total = int(nsteps_tuple[int(axis)])
                 except Exception:
-                    # Best effort via bounds from layers; may be approximate
                     try:
                         total = max(
                             int(getattr(lyr.data, "shape", [1])[(int(axis))])
@@ -1242,9 +854,8 @@ class NapariMCPTools:
                 if not indices:
                     return []
 
-                # Take a sample at the first index to estimate size
                 v.dims.set_current_step(int(axis), int(indices[0]))
-                _process_events(2)
+                process_events(state, 2)
                 sample_arr = v.screenshot(canvas_only=canvas_only)
                 if not isinstance(sample_arr, np.ndarray):
                     sample_arr = np.asarray(sample_arr)
@@ -1256,7 +867,6 @@ class NapariMCPTools:
                 sample_png = sbuf.getvalue()
                 sample_b64_len = ((len(sample_png) + 2) // 3) * 4
 
-                # Ask user whether to downsample if estimated total exceeds cap
                 downsample_factor = 1.0
                 if (
                     max_total_base64_bytes is not None
@@ -1268,20 +878,16 @@ class NapariMCPTools:
                     )
                     downsample_factor = max(0.05, min(1.0, est_factor))
 
-                images: list[ImageContent] = []  # type: ignore
+                images: list[ImageContent] = []
                 total_b64_len = 0
                 for idx in indices:
-                    # Move slider
                     v.dims.set_current_step(int(axis), int(idx))
-                    _process_events(2)
-
-                    # Capture
+                    process_events(state, 2)
                     arr = v.screenshot(canvas_only=canvas_only)
                     if not isinstance(arr, np.ndarray):
                         arr = np.asarray(arr)
                     if arr.dtype != np.uint8:
                         arr = arr.astype(np.uint8, copy=False)
-
                     img = Image.fromarray(arr)
                     if downsample_factor < 1.0:
                         new_w = max(1, int(img.width * downsample_factor))
@@ -1303,15 +909,13 @@ class NapariMCPTools:
                             data=enc, format="png"
                         ).to_image_content()
                     )
-
                 return images
 
-            return _gui_execute(_run_series)
+            return state.gui_execute(_run_series)
 
-    @staticmethod
+    @_register
     async def execute_code(code: str, line_limit: int | str = 30) -> dict[str, Any]:
-        """
-        Execute arbitrary Python code in the server's interpreter.
+        """Execute arbitrary Python code in the server's interpreter.
 
         Similar to napari's console. The execution namespace persists across calls
         and includes 'viewer', 'napari', and 'np'.
@@ -1324,73 +928,60 @@ class NapariMCPTools:
         line_limit : int, default=30
             Maximum number of output lines to return. Use -1 for unlimited output.
             Warning: Using -1 may consume a large number of tokens.
-
-        Returns
-        -------
-        dict
-            Dictionary with 'status', optional 'result_repr', 'stdout', 'stderr',
-            and 'output_id' for retrieving full output if truncated.
         """
-        # Try to proxy to external viewer first
-        result = await _proxy_to_external("execute_code", {"code": code})
+        import napari
+
+        result = await state.proxy_to_external("execute_code", {"code": code})
         if result is not None:
             return result
 
-        # Local execution
-        async with _viewer_lock:
-            v = _ensure_viewer()
-            _exec_globals.setdefault("__builtins__", __builtins__)  # type: ignore[assignment]
-            _exec_globals["viewer"] = v
+        async with state.viewer_lock:
+            v = ensure_viewer(state)
+            state.exec_globals.setdefault("__builtins__", __builtins__)  # type: ignore[assignment]
+            state.exec_globals["viewer"] = v
             napari_mod = napari
             if napari_mod is not None:
-                _exec_globals.setdefault("napari", napari_mod)
-            _exec_globals.setdefault("np", np)
+                state.exec_globals.setdefault("napari", napari_mod)
+            state.exec_globals.setdefault("np", np)
 
             stdout_buf = StringIO()
             stderr_buf = StringIO()
             result_repr: str | None = None
             try:
-                # Capture stdout/stderr during execution
                 with (
                     contextlib.redirect_stdout(stdout_buf),
                     contextlib.redirect_stderr(stderr_buf),
                 ):
-                    # Try to evaluate last expression if present
                     parsed = ast.parse(code, mode="exec")
                     if parsed.body and isinstance(parsed.body[-1], ast.Expr):
-                        # Execute all but last, then eval last expression to
-                        # capture a result
                         if len(parsed.body) > 1:
                             exec_ast = ast.Module(
                                 body=parsed.body[:-1], type_ignores=[]
                             )
                             exec(
                                 compile(exec_ast, "<mcp-exec>", "exec"),
-                                _exec_globals,
-                                _exec_globals,
+                                state.exec_globals,
+                                state.exec_globals,
                             )
                         last_expr = ast.Expression(body=parsed.body[-1].value)
                         value = eval(
                             compile(last_expr, "<mcp-eval>", "eval"),
-                            _exec_globals,
-                            _exec_globals,
+                            state.exec_globals,
+                            state.exec_globals,
                         )
                         result_repr = repr(value)
                     else:
-                        # Pure statements
                         exec(
                             compile(parsed, "<mcp-exec>", "exec"),
-                            _exec_globals,
-                            _exec_globals,
+                            state.exec_globals,
+                            state.exec_globals,
                         )
-                _process_events(2)
+                process_events(state, 2)
 
-                # Get full output
                 stdout_full = stdout_buf.getvalue()
                 stderr_full = stderr_buf.getvalue()
 
-                # Store full output and get ID
-                output_id = await _store_output(
+                output_id = await state.store_output(
                     tool_name="execute_code",
                     stdout=stdout_full,
                     stderr=stderr_full,
@@ -1398,14 +989,12 @@ class NapariMCPTools:
                     code=code,
                 )
 
-                # Prepare response with line limiting
-                response = {
+                response: dict[str, Any] = {
                     "status": "ok",
                     "output_id": output_id,
                     **({"result_repr": result_repr} if result_repr is not None else {}),
                 }
 
-                # Add warning for unlimited output
                 if line_limit == -1:
                     response["warning"] = (
                         "Unlimited output requested. This may consume a large number "
@@ -1414,35 +1003,29 @@ class NapariMCPTools:
                     response["stdout"] = stdout_full
                     response["stderr"] = stderr_full
                 else:
-                    # Truncate stdout and stderr
-                    stdout_truncated, stdout_was_truncated = _truncate_output(
+                    stdout_truncated, stdout_was_truncated = truncate_output(
                         stdout_full, int(line_limit)
                     )
-                    stderr_truncated, stderr_was_truncated = _truncate_output(
+                    stderr_truncated, stderr_was_truncated = truncate_output(
                         stderr_full, int(line_limit)
                     )
-
                     response["stdout"] = stdout_truncated
                     response["stderr"] = stderr_truncated
-
                     if stdout_was_truncated or stderr_was_truncated:
-                        response["truncated"] = True  # type: ignore
+                        response["truncated"] = True
                         response["message"] = (
                             f"Output truncated to {line_limit} lines. "
                             f"Use read_output('{output_id}') to retrieve full output."
                         )
-
                 return response
-            except Exception as e:
-                _process_events(1)
-                tb = traceback.format_exc()
 
-                # Get full output including traceback
+            except Exception as e:
+                process_events(state, 1)
+                tb = traceback.format_exc()
                 stdout_full = stdout_buf.getvalue()
                 stderr_full = stderr_buf.getvalue() + tb
 
-                # Store full output and get ID
-                output_id = await _store_output(
+                output_id = await state.store_output(
                     tool_name="execute_code",
                     stdout=stdout_full,
                     stderr=stderr_full,
@@ -1450,13 +1033,11 @@ class NapariMCPTools:
                     error=True,
                 )
 
-                # Prepare error response with line limiting
                 response = {
                     "status": "error",
                     "output_id": output_id,
                 }
 
-                # Add warning for unlimited output
                 if line_limit == -1:
                     response["warning"] = (
                         "Unlimited output requested. This may consume a large number "
@@ -1465,34 +1046,28 @@ class NapariMCPTools:
                     response["stdout"] = stdout_full
                     response["stderr"] = stderr_full
                 else:
-                    # Truncate stdout and stderr
-                    stdout_truncated, stdout_was_truncated = _truncate_output(
+                    stdout_truncated, stdout_was_truncated = truncate_output(
                         stdout_full, int(line_limit)
                     )
-                    stderr_truncated, stderr_was_truncated = _truncate_output(
+                    stderr_truncated, stderr_was_truncated = truncate_output(
                         stderr_full, int(line_limit)
                     )
-
                     response["stdout"] = stdout_truncated
-                    # Ensure exception summary is present even when truncated
                     error_summary = f"{type(e).__name__}: {e}"
                     if error_summary not in stderr_truncated:
-                        # Append a concise summary line so callers can see the error type
                         if stderr_truncated and not stderr_truncated.endswith("\n"):
                             stderr_truncated += "\n"
                         stderr_truncated += error_summary + "\n"
                     response["stderr"] = stderr_truncated
-
                     if stdout_was_truncated or stderr_was_truncated:
-                        response["truncated"] = True  # type: ignore
+                        response["truncated"] = True
                         response["message"] = (
                             f"Output truncated to {line_limit} lines. "
                             f"Use read_output('{output_id}') to retrieve full output."
                         )
-
                 return response
 
-    @staticmethod
+    @_register
     async def install_packages(
         packages: list[str],
         upgrade: bool | None = False,
@@ -1503,10 +1078,7 @@ class NapariMCPTools:
         line_limit: int | str = 30,
         timeout: int = 240,
     ) -> dict[str, Any]:
-        """
-        Install Python packages using pip.
-
-        Install packages into the currently running server environment.
+        """Install Python packages using pip.
 
         Parameters
         ----------
@@ -1524,18 +1096,10 @@ class NapariMCPTools:
             Allow pre-releases (--pre flag).
         line_limit : int, default=30
             Maximum number of output lines to return. Use -1 for unlimited output.
-            Warning: Using -1 may consume a large number of tokens.
         timeout : int, default=240
             Timeout for pip install in seconds.
-
-        Returns
-        -------
-        dict
-            Dictionary including status, returncode, stdout, stderr, command,
-            and output_id for retrieving full output if truncated.
         """
-        # Try to proxy to external viewer first
-        result = await _proxy_to_external(
+        result = await state.proxy_to_external(
             "install_packages",
             {
                 "packages": packages,
@@ -1577,7 +1141,6 @@ class NapariMCPTools:
             cmd.extend(["--extra-index-url", extra_index_url])
         cmd.extend(packages)
 
-        # Run pip as a subprocess without blocking the event loop
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
@@ -1590,15 +1153,17 @@ class NapariMCPTools:
         except asyncio.TimeoutError:
             with contextlib.suppress(ProcessLookupError):
                 proc.kill()
-            stdout_b, stderr_b = b"", f"pip install timed out after {timeout}s".encode()
+            stdout_b, stderr_b = (
+                b"",
+                f"pip install timed out after {timeout}s".encode(),
+            )
         stdout = stdout_b.decode(errors="replace")
         stderr = stderr_b.decode(errors="replace")
 
         status = "ok" if proc.returncode == 0 else "error"
         command_str = " ".join(shlex.quote(part) for part in cmd)
 
-        # Store full output and get ID
-        output_id = await _store_output(
+        output_id = await state.store_output(
             tool_name="install_packages",
             stdout=stdout,
             stderr=stderr,
@@ -1607,15 +1172,13 @@ class NapariMCPTools:
             returncode=proc.returncode,
         )
 
-        # Prepare response with line limiting
-        response = {
+        response: dict[str, Any] = {
             "status": status,
             "returncode": proc.returncode if proc.returncode is not None else -1,
             "command": command_str,
             "output_id": output_id,
         }
 
-        # Add warning for unlimited output
         if line_limit == -1:
             response["warning"] = (
                 "Unlimited output requested. This may consume a large number "
@@ -1624,32 +1187,27 @@ class NapariMCPTools:
             response["stdout"] = stdout
             response["stderr"] = stderr
         else:
-            # Truncate stdout and stderr
-            stdout_truncated, stdout_was_truncated = _truncate_output(
+            stdout_truncated, stdout_was_truncated = truncate_output(
                 stdout, int(line_limit)
             )
-            stderr_truncated, stderr_was_truncated = _truncate_output(
+            stderr_truncated, stderr_was_truncated = truncate_output(
                 stderr, int(line_limit)
             )
-
             response["stdout"] = stdout_truncated
             response["stderr"] = stderr_truncated
-
             if stdout_was_truncated or stderr_was_truncated:
                 response["truncated"] = True
                 response["message"] = (
                     f"Output truncated to {line_limit} lines. "
                     f"Use read_output('{output_id}') to retrieve full output."
                 )
-
         return response
 
-    @staticmethod
+    @_register
     async def read_output(
         output_id: str, start: int | str = 0, end: int | str = -1
     ) -> dict[str, Any]:
-        """
-        Read stored tool output with optional line range.
+        """Read stored tool output with optional line range.
 
         Parameters
         ----------
@@ -1659,22 +1217,16 @@ class NapariMCPTools:
             Starting line number (0-indexed).
         end : int, default=-1
             Ending line number (exclusive). If -1, read to end.
-
-        Returns
-        -------
-        dict
-            Dictionary containing the requested output lines and metadata.
         """
-        async with _output_storage_lock:
-            if output_id not in _output_storage:
+        async with state.output_storage_lock:
+            if output_id not in state.output_storage:
                 return {
                     "status": "error",
                     "message": f"Output ID '{output_id}' not found",
                 }
 
-            stored_output = _output_storage[output_id]
+            stored_output = state.output_storage[output_id]
 
-            # Combine stdout and stderr for line-based access
             full_output = ""
             if stored_output.get("stdout"):
                 full_output = stored_output["stdout"]
@@ -1688,7 +1240,6 @@ class NapariMCPTools:
                     full_output += "\n"
                 full_output += stderr_text
 
-            # Normalize and clamp range inputs
             try:
                 start = int(start)
             except Exception:
@@ -1697,15 +1248,11 @@ class NapariMCPTools:
                 end = int(end)
             except Exception:
                 end = -1
-
             start = max(0, start)
 
             lines = full_output.splitlines(keepends=True)
             total_lines = len(lines)
-
-            # Handle line range
             end = total_lines if end == -1 else min(total_lines, end)
-
             selected_lines = [] if start >= total_lines else lines[start:end]
 
             return {
@@ -1719,411 +1266,43 @@ class NapariMCPTools:
                 "result_repr": stored_output.get("result_repr"),
             }
 
-
-async def detect_viewers() -> dict[str, Any]:
-    """
-    Detect available viewers (local and external).
-
-    Returns
-    -------
-    dict
-        Dictionary with information about available viewers
-    """
-    return await NapariMCPTools.detect_viewers()
-
-
-# Removed explicit selection API; the server now auto-detects an external
-# napari-mcp bridge if available and otherwise uses a local viewer.
-
-
-async def _external_session_information(_external_port: int) -> dict[str, Any]:
-    """Get session information from the external viewer."""
-    test_client = Client(f"http://localhost:{_external_port}/mcp")
-    async with test_client:
-        result = await test_client.call_tool("session_information")
-        if hasattr(result, "content"):
-            content = result.content
-            if isinstance(content, list) and len(content) > 0:
-                import json
-
-                info = (
-                    content[0].text if hasattr(content[0], "text") else str(content[0])
-                )
-                info_dict = json.loads(info) if isinstance(info, str) else info
-                if info_dict.get("session_type") == "napari_bridge_session":
-                    return {
-                        "status": "ok",
-                        "viewer_type": "external",
-                        "title": info_dict.get("viewer", {}).get(
-                            "title", "External Viewer"
-                        ),
-                        "layers": info_dict.get("viewer", {}).get("layer_names", []),
-                        "port": info_dict.get("bridge_port", _external_port),
-                    }
-    return {
-        "status": "error",
-        "message": "Failed to get session information from external viewer",
-    }
-
-
-async def init_viewer(
-    title: str | None = None,
-    width: int | str | None = None,
-    height: int | str | None = None,
-    port: int | str | None = None,
-) -> dict[str, Any]:
-    """
-    Create or return the napari viewer (local or external).
-
-    Parameters
-    ----------
-    title : str, optional
-        Optional window title (only for local viewer).
-    width : int, optional
-        Optional initial canvas width (only for local viewer).
-    height : int, optional
-        Optional initial canvas height (only for local viewer).
-    port : int, optional
-        If provided, attempt to connect to an external napari-mcp bridge on
-        this port (default is taken from NAPARI_MCP_BRIDGE_PORT or 9999).
-
-    Returns
-    -------
-    dict
-        Dictionary containing status, viewer type, and layer info.
-    """
-    return await NapariMCPTools.init_viewer(
-        title=title, width=width, height=height, port=port
-    )
-
-
-# Removed explicit GUI control APIs (start_gui/stop_gui/is_gui_running)
-# GUI pump now starts automatically when initializing a local viewer.
-
-
-async def close_viewer() -> dict[str, Any]:
-    """
-    Close the viewer window and clear all layers.
-
-    Returns
-    -------
-    dict
-        Dictionary with status: 'closed' if viewer existed, 'no_viewer' if none.
-    """
-    return await NapariMCPTools.close_viewer()
-
-
-async def session_information() -> dict[str, Any]:
-    """
-    Get comprehensive information about the current napari session.
-
-    Returns
-    -------
-    dict
-        Comprehensive session information including viewer state, system info,
-        and environment details.
-    """
-    return await NapariMCPTools.session_information()
-
-
-async def list_layers() -> list[dict[str, Any]]:
-    """Return a list of layers with key properties."""
-    return await NapariMCPTools.list_layers()
-
-
-async def add_image(
-    path: str,
-    name: str | None = None,
-    colormap: str | None = None,
-    blending: str | None = None,
-    channel_axis: int | str | None = None,
-) -> dict[str, Any]:
-    """
-    Add an image layer from a file path.
-
-    Parameters
-    ----------
-    path : str
-        Path to an image readable by imageio (e.g., PNG, TIFF, OME-TIFF).
-    name : str, optional
-        Layer name. If None, uses filename.
-    colormap : str, optional
-        Napari colormap name (e.g., 'gray', 'magma').
-    blending : str, optional
-        Blending mode (e.g., 'translucent').
-    channel_axis : int, optional
-        If provided, interpret that axis as channels.
-
-    Returns
-    -------
-    dict
-        Dictionary containing status, layer name, and image shape.
-    """
-    return await NapariMCPTools.add_image(
-        path=path,
-        name=name,
-        colormap=colormap,
-        blending=blending,
-        channel_axis=channel_axis,
-    )
-
-
-async def add_labels(path: str, name: str | None = None) -> dict[str, Any]:
-    """Add a labels layer from a file path (e.g., PNG/TIFF with integer labels)."""
-    return await NapariMCPTools.add_labels(path=path, name=name)
-
-
-async def add_points(
-    points: list[list[float]], name: str | None = None, size: float | str = 10.0
-) -> dict[str, Any]:
-    """
-    Add a points layer.
-
-    - points: List of [y, x] or [z, y, x] coordinates
-    - name: Optional layer name
-    - size: Point size in pixels
-    """
-    return await NapariMCPTools.add_points(points=points, name=name, size=size)
-
-
-async def remove_layer(name: str) -> dict[str, Any]:
-    """Remove a layer by name."""
-    return await NapariMCPTools.remove_layer(name)
-
-
-# Removed: rename_layer (use set_layer_properties with new_name instead)
-
-
-async def set_layer_properties(
-    name: str,
-    visible: bool | None = None,
-    opacity: float | None = None,
-    colormap: str | None = None,
-    blending: str | None = None,
-    contrast_limits: list[float] | None = None,
-    gamma: float | str | None = None,
-    new_name: str | None = None,
-) -> dict[str, Any]:
-    """Set common properties on a layer by name."""
-    return await NapariMCPTools.set_layer_properties(
-        name=name,
-        visible=visible,
-        opacity=opacity,
-        colormap=colormap,
-        blending=blending,
-        contrast_limits=contrast_limits,
-        gamma=gamma,
-        new_name=new_name,
-    )
-
-
-async def reorder_layer(
-    name: str,
-    index: int | str | None = None,
-    before: str | None = None,
-    after: str | None = None,
-) -> dict[str, Any]:
-    """
-    Reorder a layer by name.
-
-    Provide exactly one of:
-    - index: absolute target index
-    - before: move before this layer name
-    - after: move after this layer name
-    """
-    return await NapariMCPTools.reorder_layer(
-        name=name, index=index, before=before, after=after
-    )
-
-
-async def set_active_layer(name: str) -> dict[str, Any]:
-    """Set the selected/active layer by name."""
-    return await NapariMCPTools.set_active_layer(name)
-
-
-async def reset_view() -> dict[str, Any]:
-    """Reset the camera view to fit data."""
-    return await NapariMCPTools.reset_view()
-
-
-# Removed: set_zoom (use set_camera with zoom instead)
-
-
-async def set_camera(
-    center: list[float] | None = None,
-    zoom: float | str | None = None,
-    angle: float | str | None = None,
-) -> dict[str, Any]:
-    """Set camera properties: center, zoom, and/or angle."""
-    return await NapariMCPTools.set_camera(center=center, zoom=zoom, angle=angle)
-
-
-async def set_ndisplay(ndisplay: int | str) -> dict[str, Any]:
-    """Set number of displayed dimensions (2 or 3)."""
-    return await NapariMCPTools.set_ndisplay(ndisplay)
-
-
-async def set_dims_current_step(axis: int | str, value: int | str) -> dict[str, Any]:
-    """Set the current step (slider position) for a specific axis."""
-    return await NapariMCPTools.set_dims_current_step(axis, value)
-
-
-async def set_grid(enabled: bool | str = True) -> dict[str, Any]:
-    """Enable or disable grid view."""
-    return await NapariMCPTools.set_grid(enabled)
-
-
-async def screenshot(canvas_only: bool | str = True) -> ImageContent:
-    """
-    Take a screenshot of the napari canvas and return as base64.
-
-    Parameters
-    ----------
-    canvas_only : bool, default=True
-        If True, only capture the canvas area.
-
-    Returns
-    -------
-    ImageContent
-        The screenshot image as an mcp.types.ImageContent object.
-    """
-    return await NapariMCPTools.screenshot(canvas_only)
-
-
-async def timelapse_screenshot(
-    axis: int | str,
-    slice_range: str,
-    canvas_only: bool | str = True,
-    interpolate_to_fit: bool = True,
-) -> list[ImageContent]:
-    """
-    Capture a series of screenshots while sweeping a dims axis.
-
-    Parameters
-    ----------
-    axis : int
-        Dims axis index to sweep (e.g., temporal axis).
-    slice_range : str
-        Python-like slice string over step indices, e.g. "1:5", ":6", "::2".
-        Defaults follow Python semantics with start=0, stop=nsteps, step=1.
-    canvas_only : bool, default=True
-        If True, only capture the canvas area.
-    interpolate_to_fit : bool, default=False
-        If True, interpolate the images to fit the total size cap of 1309246 bytes.
-
-    Returns
-    -------
-    list[ImageContent]
-        List of screenshots as mcp.types.ImageContent objects.
-    """
-    return await NapariMCPTools.timelapse_screenshot(
-        axis=axis,
-        slice_range=slice_range,
-        canvas_only=canvas_only,
-        interpolate_to_fit=interpolate_to_fit,
-    )
-
-
-async def execute_code(code: str, line_limit: int | str = 30) -> dict[str, Any]:
-    """
-    Execute arbitrary Python code in the server's interpreter.
-
-    Similar to napari's console. The execution namespace persists across calls
-    and includes 'viewer', 'napari', and 'np'.
-
-    Parameters
-    ----------
-    code : str
-        Python code string. The value of the last expression (if any)
-        is returned as 'result_repr'.
-    line_limit : int, default=30
-        Maximum number of output lines to return. Use -1 for unlimited output.
-        Warning: Using -1 may consume a large number of tokens.
-
-    Returns
-    -------
-    dict
-        Dictionary with 'status', optional 'result_repr', 'stdout', 'stderr',
-        and 'output_id' for retrieving full output if truncated.
-    """
-    return await NapariMCPTools.execute_code(code=code, line_limit=line_limit)
-
-
-async def install_packages(
-    packages: list[str],
-    upgrade: bool | None = False,
-    no_deps: bool | None = False,
-    index_url: str | None = None,
-    extra_index_url: str | None = None,
-    pre: bool | None = False,
-    line_limit: int | str = 30,
-    timeout: int = 240,
-) -> dict[str, Any]:
-    """
-    Install Python packages using pip.
-
-    Install packages into the currently running server environment.
-
-    Parameters
-    ----------
-    packages : list of str
-        List of package specifiers (e.g., "scikit-image", "torch==2.3.1").
-    upgrade : bool, optional
-        If True, pass --upgrade flag.
-    no_deps : bool, optional
-        If True, pass --no-deps flag.
-    index_url : str, optional
-        Custom index URL.
-    extra_index_url : str, optional
-        Extra index URL.
-    pre : bool, optional
-        Allow pre-releases (--pre flag).
-    line_limit : int, default=30
-        Maximum number of output lines to return. Use -1 for unlimited output.
-        Warning: Using -1 may consume a large number of tokens.
-    timeout : int, default=240
-        Timeout for pip install in seconds.
-
-    Returns
-    -------
-    dict
-        Dictionary including status, returncode, stdout, stderr, command,
-        and output_id for retrieving full output if truncated.
-    """
-    return await NapariMCPTools.install_packages(
-        packages=packages,
-        upgrade=upgrade,
-        no_deps=no_deps,
-        index_url=index_url,
-        extra_index_url=extra_index_url,
-        pre=pre,
-        line_limit=line_limit,
-        timeout=timeout,
-    )
-
-
-async def read_output(
-    output_id: str, start: int | str = 0, end: int | str = -1
-) -> dict[str, Any]:
-    """
-    Read stored tool output with optional line range.
-
-    Parameters
-    ----------
-    output_id : str
-        Unique ID of the stored output.
-    start : int, default=0
-        Starting line number (0-indexed).
-    end : int, default=-1
-        Ending line number (exclusive). If -1, read to end.
-
-    Returns
-    -------
-    dict
-        Dictionary containing the requested output lines and metadata.
-    """
-    return await NapariMCPTools.read_output(output_id=output_id, start=start, end=end)
-
+    # ---- backward-compatible module-level tool names (for tests) ----
+    # The @server.tool() decorator wraps closures into FunctionTool objects.
+    # We need to expose the raw async functions (stored in _raw_tools before
+    # decoration) so that ``from napari_mcp.server import list_layers`` works.
+    _mod = sys.modules[__name__]
+    for _name, _fn in _raw_tools.items():
+        setattr(_mod, _name, _fn)
+
+    # Store server instance for test access via ``napari_mcp.server.server``
+    _mod.server = server
+
+    return server
+
+
+def detect_external_viewer_sync() -> bool:
+    """Synchronous check for external viewer availability."""
+    if _state is None:
+        return False
+    try:
+        try:
+            asyncio.get_running_loop()
+            return False
+        except RuntimeError:
+            pass
+        loop = asyncio.new_event_loop()
+        try:
+            client, _ = loop.run_until_complete(_state.detect_external_viewer())
+            return client is not None
+        finally:
+            loop.close()
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Typer CLI
+# ---------------------------------------------------------------------------
 
 app = typer.Typer(
     name="napari-mcp",
@@ -2133,15 +1312,22 @@ app = typer.Typer(
 
 
 @app.command()
-def run() -> None:
+def run(
+    auto_detect: bool = typer.Option(
+        False, "--auto-detect", help="Auto-detect external napari viewers at startup"
+    ),
+    port: int = typer.Option(9999, "--port", help="Bridge port for auto-detect mode"),
+) -> None:
     """Run the MCP server."""
-    server.run()
+    mode = StartupMode.AUTO_DETECT if auto_detect else StartupMode.STANDALONE
+    state = ServerState(mode=mode, bridge_port=port)
+    srv = create_server(state)
+    srv.run()
 
 
 @app.command()
 def install() -> None:
-    """
-    Install napari-mcp in various AI clients.
+    """Install napari-mcp in various AI clients.
 
     NOTE: This command is deprecated. Use 'napari-mcp-install' instead.
     """
@@ -2149,55 +1335,41 @@ def install() -> None:
 
     console = Console()
     console.print(
-        "\n[bold yellow]⚠️  Deprecated Command[/bold yellow]\n",
+        "\n[bold yellow]Deprecated Command[/bold yellow]\n",
         style="yellow",
     )
     console.print(
         "The 'napari-mcp install' command has been replaced by 'napari-mcp-install'.",
     )
     console.print("\n[bold green]To install napari-mcp:[/bold green]")
-    console.print("  • Run: [bold cyan]napari-mcp-install --help[/bold cyan]")
+    console.print("  Run: [bold cyan]napari-mcp-install --help[/bold cyan]")
     console.print(
-        "  • Or: [bold cyan]napari-mcp-install claude-desktop[/bold cyan] (for example)\n"
+        "  Or: [bold cyan]napari-mcp-install install --target claude-desktop[/bold cyan] (for example)\n"
     )
-
     console.print("[yellow]Please use 'napari-mcp-install' instead.[/yellow]\n")
-
     raise typer.Exit(1)
 
 
 def main() -> None:
     """Entry point that defaults to running the server."""
-    # If no arguments provided, default to running the server
     if len(sys.argv) == 1:
-        server.run()
+        state = ServerState()
+        srv = create_server(state)
+        srv.run()
     else:
         app()
 
 
-# Register tools with the FastMCP server without replacing the callables
-server.tool()(detect_viewers)
-server.tool()(init_viewer)
-server.tool()(close_viewer)
-server.tool()(session_information)
-server.tool()(list_layers)
-server.tool()(add_image)
-server.tool()(add_labels)
-server.tool()(add_points)
-server.tool()(remove_layer)
-server.tool()(set_layer_properties)
-server.tool()(reorder_layer)
-server.tool()(set_active_layer)
-server.tool()(reset_view)
-server.tool()(set_camera)
-server.tool()(set_ndisplay)
-server.tool()(set_dims_current_step)
-server.tool()(set_grid)
-server.tool()(screenshot)
-server.tool()(timelapse_screenshot)
-server.tool()(execute_code)
-server.tool()(install_packages)
-server.tool()(read_output)
+# ---------------------------------------------------------------------------
+# Default initialisation: create state and register tools so that
+# ``from napari_mcp.server import list_layers`` works at import time.
+# Tests override this via conftest's ``reset_server_state`` fixture.
+# ---------------------------------------------------------------------------
+
+if _state is None:
+    _state = ServerState()
+    create_server(_state)
+
 
 if __name__ == "__main__":
     main()

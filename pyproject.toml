@@ -27,7 +27,6 @@ classifiers = [
 dependencies = [
   "fastmcp>=2.10.3",
   "napari>=0.5.5",
-  "pyqt6>=6.5.0",
   "qtpy>=2.4.1",
   "Pillow>=10.3.0",
   "imageio>=2.34.0",
@@ -35,6 +34,7 @@ dependencies = [
   "typer>=0.9.0",
   "rich>=13.0.0",
   "toml>=0.10.2",
+  'tomli>=2.0; python_version < "3.11"',
 ]
 
 [project.urls]
@@ -45,21 +45,6 @@ Documentation = "https://royerlab.github.io/napari-mcp/"
 Changelog = "https://github.com/royerlab/napari-mcp/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-test = [
-  "pytest>=8.4.0",
-  "pytest-asyncio>=0.23.0",
-  "pytest-cov>=4.0.0",
-  "pytest-qt>=4.0.0",
-  "pytest-xdist>=3.5.0",
-  "pytest-timeout>=2.2.0",
-  "pytest-benchmark>=4.0.0",
-  "pytest-mock>=3.12.0",
-  "pytest-random-order>=1.1.0",
-  "pytest-forked>=1.6.0",
-  "hypothesis>=6.100.0",
-  "napari[testing,pyqt6]",
-  "tox",
-]
 dev = [
   "ruff>=0.12.10",
   "mypy>=1.17.0",
@@ -67,9 +52,8 @@ dev = [
   "types-Pillow>=10.0.0",
   "pre-commit>=4.3.0",
   "bandit>=1.8.6",
-  "black>=24.0.0",
 ]
-all = ["napari-mcp[test,dev]"]
+all = ["napari-mcp[dev]"]
 
 [project.scripts]
 napari-mcp = "napari_mcp.server:main"
@@ -120,8 +104,10 @@ markers = [
   "isolated: marks tests that must run in complete isolation",
 ]
 filterwarnings = [
-  "ignore::DeprecationWarning",
-  "ignore::PendingDeprecationWarning",
+  "ignore::DeprecationWarning:napari.*",
+  "ignore::DeprecationWarning:vispy.*",
+  "ignore::DeprecationWarning:qtpy.*",
+  "ignore::PendingDeprecationWarning:napari.*",
 ]
 # Test isolation settings
 junit_family = "xunit2"
@@ -175,14 +161,10 @@ select = [
   "PIE", # flake8-pie
 ]
 ignore = [
-  "E501",   # line too long - let black handle this
+  "E501",   # line too long - handled by ruff format
   "BLE001", # blind except - needed for robust error handling in server code
   "S101",   # assert detected - allow in tests
-  "S102",   # exec detected - needed for MCP server functionality
   "S110",   # try-except-pass - acceptable for best-effort operations
-  "S307",   # eval detected - needed for MCP server functionality
-  "S603",   # subprocess call - allow for tools
-  "S607",   # subprocess with shell - allow for tools
   "SIM105", # contextlib.suppress - prefer explicit try/except for clarity
   "TCH003", # typing-only imports - not critical for functionality
   "D401",   # imperative mood - not critical for functionality
@@ -201,6 +183,10 @@ convention = "numpy"
   "S311",
   "D",
 ] # Allow asserts, hardcoded passwords, random, and skip docstrings in tests
+"src/napari_mcp/server.py" = ["S102", "S307"]  # exec/eval needed for MCP execute_code
+"src/napari_mcp/bridge_server.py" = ["S102", "S307"]  # exec/eval needed for MCP execute_code
+"src/napari_mcp/cli/install/utils.py" = ["S603", "S607"]  # subprocess needed for python detection
+"src/napari_mcp/cli/install/codex_cli.py" = ["S603", "S607"]  # subprocess needed for codex
 
 [tool.ruff.format]
 quote-style = "double"
@@ -208,22 +194,20 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
-[tool.black]
-line-length = 88
-target-version = ['py310', 'py311', 'py312', 'py313']
-
 [dependency-groups]
 dev = [
     "ruff>=0.12.10",
-    "black>=24.0.0",
     "types-toml>=0.10.8.20240310",
 ]
 testing = [
   "tox",
   "pytest>=8.4.0",
+  "pytest-asyncio>=0.23.0",
   "pytest-cov>=4.0.0",
   "pytest-qt>=4.0.0",
-  "pytest-asyncio>=0.23.0",
+  "pytest-xdist>=3.5.0",
+  "pytest-timeout>=2.2.0",
+  "pytest-benchmark>=4.0.0",
   "pytest-mock>=3.12.0",
   "pytest-random-order>=1.1.0",
   "pytest-forked>=1.6.0",
@@ -240,9 +224,8 @@ napari-mcp = { path = ".", editable = true }
 
 [tool.pixi.environments]
 default = { solve-group = "default" }
-all = { features = ["all", "test", "dev"], solve-group = "default" }
+all = { features = ["all", "dev", "testing"], solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
-test = { features = ["test"], solve-group = "default" }
 testing = { features = ["testing"], solve-group = "default" }
 
 [tool.pixi.tasks]

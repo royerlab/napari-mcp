@@ -180,7 +180,7 @@ uv pip install -e ".[test,dev]"
 
 ```bash
 # Configure to use your development installation
-napari-mcp-install claude-desktop --persistent
+napari-mcp-install install claude-desktop --persistent
 
 # This will use your local Python with the editable installation
 ```

@@ -13,10 +13,10 @@ Setup guide for Google's Gemini CLI with napari MCP server.
 pip install napari-mcp
 
 # 2. Auto-configure Gemini CLI (global)
-napari-mcp-install gemini --global
+napari-mcp-install install gemini --global
 
 # OR configure for specific project
-napari-mcp-install gemini --project /path/to/project
+napari-mcp-install install gemini --project /path/to/project
 ```
 
 ### Configuration Locations
@@ -28,16 +28,16 @@ napari-mcp-install gemini --project /path/to/project
 
 ```bash
 # Global installation (recommended)
-napari-mcp-install gemini --global
+napari-mcp-install install gemini --global
 
 # Project-specific installation
-napari-mcp-install gemini --project .
+napari-mcp-install install gemini --project .
 
 # Preview changes
-napari-mcp-install gemini --dry-run
+napari-mcp-install install gemini --dry-run
 
 # Use persistent Python
-napari-mcp-install gemini --persistent
+napari-mcp-install install gemini --persistent
 ```
 
 ### Manual Configuration
@@ -70,7 +70,7 @@ Gemini CLI supports additional configuration options:
 napari-mcp-install list
 
 # Update configuration
-napari-mcp-install gemini --global --force
+napari-mcp-install install gemini --global --force
 
 # Uninstall
 napari-mcp-install uninstall gemini
@@ -82,7 +82,7 @@ napari-mcp-install uninstall gemini
     1. Verify installation: `napari-mcp-install list`
     2. Check config file exists: `cat ~/.gemini/settings.json`
     3. Restart Gemini CLI
-    4. Reinstall: `napari-mcp-install gemini --global --force`
+    4. Reinstall: `napari-mcp-install install gemini --global --force`
 
 ---
 
@@ -97,7 +97,7 @@ Setup guide for OpenAI's Codex CLI with napari MCP server.
 pip install napari-mcp
 
 # 2. Auto-configure Codex CLI
-napari-mcp-install codex
+napari-mcp-install install codex
 
 # 3. Restart Codex CLI
 ```
@@ -113,16 +113,16 @@ napari-mcp-install codex
 
 ```bash
 # Basic installation
-napari-mcp-install codex
+napari-mcp-install install codex
 
 # Preview changes
-napari-mcp-install codex --dry-run
+napari-mcp-install install codex --dry-run
 
 # Use persistent Python
-napari-mcp-install codex --persistent
+napari-mcp-install install codex --persistent
 
 # Force update
-napari-mcp-install codex --force
+napari-mcp-install install codex --force
 ```
 
 ### Manual Configuration
@@ -150,7 +150,7 @@ args = ["-m", "napari_mcp.server"]
 napari-mcp-install list
 
 # Update configuration
-napari-mcp-install codex --force
+napari-mcp-install install codex --force
 
 # Uninstall
 napari-mcp-install uninstall codex
@@ -163,7 +163,7 @@ napari-mcp-install uninstall codex
     2. Check config file: `cat ~/.codex/config.toml`
     3. Validate TOML syntax: `python -c "import toml; toml.load(open('.codex/config.toml'))"`
     4. Restart Codex CLI
-    5. Reinstall: `napari-mcp-install codex --force`
+    5. Reinstall: `napari-mcp-install install codex --force`
 
 !!! failure "TOML syntax errors"
     The installer requires the `toml` package. Install it:
@@ -178,7 +178,7 @@ napari-mcp-install uninstall codex
 You can install napari-mcp for all supported platforms at once:
 
 ```bash
-napari-mcp-install all
+napari-mcp-install install all
 ```
 
 This installs for:
@@ -191,7 +191,7 @@ This installs for:
 
 Use `--dry-run` to preview:
 ```bash
-napari-mcp-install all --dry-run
+napari-mcp-install install all --dry-run
 ```
 
 ---

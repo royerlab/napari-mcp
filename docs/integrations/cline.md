@@ -11,7 +11,7 @@ Setup guide for using napari MCP server with Cline - the powerful AI coding assi
 pip install napari-mcp
 
 # 2. Auto-configure Cline in VS Code
-napari-mcp-install cline-vscode
+napari-mcp-install install cline-vscode
 
 # 3. Restart VS Code (or reload window)
 ```
@@ -23,7 +23,7 @@ napari-mcp-install cline-vscode
 pip install napari-mcp
 
 # 2. Auto-configure Cline in Cursor
-napari-mcp-install cline-cursor
+napari-mcp-install install cline-cursor
 
 # 3. Restart Cursor
 ```
@@ -171,10 +171,10 @@ Cline supports configuring which tools can be called without confirmation:
 napari-mcp-install list
 
 # Update VS Code configuration
-napari-mcp-install cline-vscode --force
+napari-mcp-install install cline-vscode --force
 
 # Update Cursor configuration
-napari-mcp-install cline-cursor --force
+napari-mcp-install install cline-cursor --force
 
 # Uninstall
 napari-mcp-install uninstall cline-vscode
@@ -208,9 +208,9 @@ napari-mcp-install uninstall cline-cursor
 
     5. **Reinstall:**
        ```bash
-       napari-mcp-install cline-vscode --force
+       napari-mcp-install install cline-vscode --force
        # or
-       napari-mcp-install cline-cursor --force
+       napari-mcp-install install cline-cursor --force
        ```
 
 ### Wrong IDE Detected
@@ -225,7 +225,7 @@ napari-mcp-install uninstall cline-cursor
     napari-mcp-install uninstall cline-vscode
 
     # Install correct one
-    napari-mcp-install cline-cursor
+    napari-mcp-install install cline-cursor
     ```
 
 ### VS Code Insiders

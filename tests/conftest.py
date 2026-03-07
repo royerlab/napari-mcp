@@ -1,16 +1,11 @@
 """Pytest configuration for napari-mcp tests."""
 
-# Import napari's official pytest fixtures (e.g., make_napari_viewer)
-# pytest_plugins = ("napari.utils._testsupport",)
-
 import contextlib
-import os
-import sys
+import logging
 
 import pytest
 
-# Add src directories to path for all tests
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -22,56 +17,58 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 def patch_viewer_creation(monkeypatch):
     """Patch viewer creation to prevent creating viewers without make_napari_viewer.
 
-    This ensures that init_viewer() and other functions don't create new viewers
+    This ensures that ensure_viewer() and other functions don't create new viewers
     when we already have one from make_napari_viewer.
     """
     from napari_mcp import server as napari_mcp_server
+    from napari_mcp.qt_helpers import ensure_viewer as original_ensure_viewer
 
-    # Store the original _ensure_viewer function
-    original_ensure_viewer = napari_mcp_server._ensure_viewer
-
-    def patched_ensure_viewer():
+    def patched_ensure_viewer(state):
         """Patched version that returns existing viewer if available."""
-        # If a viewer already exists (set by make_napari_viewer), return it
-        if napari_mcp_server._viewer is not None:
-            return napari_mcp_server._viewer
-        # Otherwise call the original function
-        return original_ensure_viewer()
+        if state.viewer is not None:
+            return state.viewer
+        return original_ensure_viewer(state)
 
-    # Monkey-patch the function
-    monkeypatch.setattr(napari_mcp_server, "_ensure_viewer", patched_ensure_viewer)
+    monkeypatch.setattr("napari_mcp.qt_helpers.ensure_viewer", patched_ensure_viewer)
+    # Also patch the imported reference in server module
+    monkeypatch.setattr(napari_mcp_server, "ensure_viewer", patched_ensure_viewer)
     yield
 
 
 @pytest.fixture(autouse=True)
-def reset_server_state():
-    """Reset all global state in server module before and after each test."""
+def reset_server_state(monkeypatch):
+    """Reset all server state before and after each test.
+
+    Creates a fresh ServerState in STANDALONE mode (proxy always returns None)
+    and calls create_server() to register tool functions as module-level names.
+
+    """
     try:
         from napari_mcp import server as napari_mcp_server
+        from napari_mcp.server import create_server
+        from napari_mcp.state import ServerState, StartupMode
 
-        # Reset state before test
-        napari_mcp_server._viewer = None
-        napari_mcp_server._window_close_connected = False
-        napari_mcp_server._exec_globals = {}
-        if hasattr(napari_mcp_server, "_qt_pump_task"):
-            napari_mcp_server._qt_pump_task = None
+        # Create fresh state for each test in STANDALONE mode
+        fresh_state = ServerState(mode=StartupMode.STANDALONE)
+        napari_mcp_server._state = fresh_state
+
+        # Register tool functions as module-level names
+        create_server(fresh_state)
 
         yield
 
         # Clean up after test
-        if napari_mcp_server._viewer is not None:
+        if fresh_state.viewer is not None:
             try:
-                napari_mcp_server._viewer.close()
-            except Exception:  # noqa: BLE001
-                pass  # Cleanup, ignore errors
-        napari_mcp_server._viewer = None
-        napari_mcp_server._window_close_connected = False
-        napari_mcp_server._exec_globals = {}
-        if hasattr(napari_mcp_server, "_qt_pump_task"):
-            napari_mcp_server._qt_pump_task = None
+                fresh_state.viewer.close()
+            except Exception:
+                pass
+        fresh_state.viewer = None
+        fresh_state.window_close_connected = False
+        fresh_state.exec_globals = {}
+        fresh_state.qt_pump_task = None
 
     except ImportError:
-        # Server module not imported in this test
         yield
 
 
@@ -79,27 +76,21 @@ def reset_server_state():
 def _materialize_viewer_when_requested(request):
     """If a test declares the make_napari_viewer fixture but never calls it,
     create one proactively so napari's leak checker tracks and cleans it.
-
-    This prevents leftover QtViewer instances when our server lazily creates
-    a viewer (e.g., on reset_view()) even if the test didn't explicitly call
-    make_napari_viewer().
     """
-    if "make_napari_viewer" in getattr(request, "fixturenames", ()):  # type: ignore[attr-defined]
+    if "make_napari_viewer" in getattr(request, "fixturenames", ()):
         try:
             factory = request.getfixturevalue("make_napari_viewer")
-            # Only create if none exist yet to avoid duplicates when tests call it
             created = getattr(request.node, "_auto_created_napari_viewer", False)
             if not created:
                 viewer = factory()
                 request.node._auto_created_napari_viewer = True
-                # ensure window exists so pytest-qt can manage it
                 with contextlib.suppress(Exception):
                     if hasattr(viewer, "window") and hasattr(
                         viewer.window, "_qt_window"
                     ):
                         pass
         except Exception:
-            pass
+            logger.debug("Failed to auto-create napari viewer", exc_info=True)
 
 
 # =============================================================================

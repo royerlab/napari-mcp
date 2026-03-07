@@ -22,10 +22,10 @@ pip install napari-mcp
 
 ```bash
 # For Claude Desktop
-napari-mcp-install claude-desktop
+napari-mcp-install install claude-desktop
 
 # For other applications (Claude Code, Cursor, Cline, etc.)
-napari-mcp-install --help  # See all options
+napari-mcp-install install --help  # See all options
 ```
 
 ### 3. Restart Your Application & Start Using
@@ -44,7 +44,7 @@ napari-mcp can also be used as a **napari plugin** for direct integration with a
 1. **Start napari** normally: `napari`
 2. **Open the widget**: Plugins → napari-mcp: MCP Server Control
 3. **Click "Start Server"** to expose your current session to AI assistants
-4. **Connect your AI app** using the standard installer: `napari-mcp-install <app>`
+4. **Connect your AI app** using the standard installer: `napari-mcp-install install <app>`
 
 This mode enables AI assistants to control your **current napari session** rather than starting a new viewer. Perfect for integrating with existing workflows!
 
@@ -85,13 +85,13 @@ Want to automate image processing with Python scripts? Use any LLM (OpenAI, Anth
 
 | Application | Command | Status |
 |-------------|---------|--------|
-| **Claude Desktop** | `napari-mcp-install claude-desktop` | ✅ Full Support |
-| **Claude Code** | `napari-mcp-install claude-code` | ✅ Full Support |
-| **Cursor IDE** | `napari-mcp-install cursor` | ✅ Full Support |
-| **Cline (VS Code)** | `napari-mcp-install cline-vscode` | ✅ Full Support |
-| **Cline (Cursor)** | `napari-mcp-install cline-cursor` | ✅ Full Support |
-| **Gemini CLI** | `napari-mcp-install gemini` | ✅ Full Support |
-| **Codex CLI** | `napari-mcp-install codex` | ✅ Full Support |
+| **Claude Desktop** | `napari-mcp-install install claude-desktop` | ✅ Full Support |
+| **Claude Code** | `napari-mcp-install install claude-code` | ✅ Full Support |
+| **Cursor IDE** | `napari-mcp-install install cursor` | ✅ Full Support |
+| **Cline (VS Code)** | `napari-mcp-install install cline-vscode` | ✅ Full Support |
+| **Cline (Cursor)** | `napari-mcp-install install cline-cursor` | ✅ Full Support |
+| **Gemini CLI** | `napari-mcp-install install gemini` | ✅ Full Support |
+| **Codex CLI** | `napari-mcp-install install codex` | ✅ Full Support |
 
 **→ See [Integration Guides](docs/integrations/index.md) for application-specific instructions**
 
@@ -114,6 +114,9 @@ The server exposes 20+ tools for complete napari control:
 
     - **`execute_code()`** - Runs Python code in the server environment
     - **`install_packages()`** - Installs packages via pip
+
+    The bridge server binds to `127.0.0.1` (localhost only) with no authentication.
+    Any local process can invoke these tools.
 
     **Use only with trusted AI assistants on local networks.**
     Never expose to public internet without proper sandboxing.

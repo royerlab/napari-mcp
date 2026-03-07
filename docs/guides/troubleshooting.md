@@ -72,7 +72,7 @@ The `napari-mcp-install` CLI tool automates configuration. Here are common issue
        mkdir -p ~/.config/Claude
 
        # Then retry
-       napari-mcp-install claude-desktop
+       napari-mcp-install install claude-desktop
        ```
 
 !!! failure "Config exists but server not configured"

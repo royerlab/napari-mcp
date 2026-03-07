@@ -9,7 +9,7 @@ Setup guide for using napari MCP server with Claude Code - perfect for developme
 pip install napari-mcp
 
 # 2. Auto-configure Claude Code
-napari-mcp-install claude-code
+napari-mcp-install install claude-code
 
 # 3. Restart Claude Code (if running)
 ```
@@ -102,7 +102,7 @@ If needed, manually edit `~/.claude.json`:
 napari-mcp-install list
 
 # Update configuration
-napari-mcp-install claude-code --force
+napari-mcp-install install claude-code --force
 
 # Uninstall
 napari-mcp-install uninstall claude-code
@@ -127,7 +127,7 @@ napari-mcp-install uninstall claude-code
 
     3. Reinstall:
        ```bash
-       napari-mcp-install claude-code --force
+       napari-mcp-install install claude-code --force
        ```
 
 ### Environment Issues
@@ -143,7 +143,7 @@ napari-mcp-install uninstall claude-code
     pip install napari-mcp
 
     # Configure with persistent mode
-    napari-mcp-install claude-code --persistent
+    napari-mcp-install install claude-code --persistent
     ```
 
 ## 📚 Next Steps
