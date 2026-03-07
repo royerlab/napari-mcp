@@ -1,12 +1,14 @@
 """Main CLI entry point for napari-mcp installer."""
 
+import sys as _sys
+from enum import Enum
 from typing import Annotated
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
-from .install import (
+from .install import (  # noqa: F401 - accessed via _get_installer_class
     ClaudeCodeInstaller,
     ClaudeDesktopInstaller,
     ClineCursorInstaller,
@@ -23,6 +25,41 @@ app = typer.Typer(
     add_completion=False,
 )
 console = Console()
+
+
+class InstallTarget(str, Enum):
+    """Supported installation targets."""
+
+    CLAUDE_DESKTOP = "claude-desktop"
+    CLAUDE_CODE = "claude-code"
+    CURSOR = "cursor"
+    CLINE_VSCODE = "cline-vscode"
+    CLINE_CURSOR = "cline-cursor"
+    GEMINI = "gemini"
+    CODEX = "codex"
+    ALL = "all"
+
+
+# Maps target names to class attribute names in this module (looked up at
+# call time so that unittest.mock.patch works correctly).
+_INSTALLER_CLASS_NAMES = {
+    InstallTarget.CLAUDE_DESKTOP: "ClaudeDesktopInstaller",
+    InstallTarget.CLAUDE_CODE: "ClaudeCodeInstaller",
+    InstallTarget.CURSOR: "CursorInstaller",
+    InstallTarget.CLINE_VSCODE: "ClineVSCodeInstaller",
+    InstallTarget.CLINE_CURSOR: "ClineCursorInstaller",
+    InstallTarget.GEMINI: "GeminiCLIInstaller",
+    InstallTarget.CODEX: "CodexCLIInstaller",
+}
+
+
+def _get_installer_class(target: InstallTarget):
+    """Look up installer class by name (supports mock patching)."""
+    return getattr(_sys.modules[__name__], _INSTALLER_CLASS_NAMES[target])
+
+
+# Targets that support --global / --project options
+PROJECT_TARGETS = {InstallTarget.CURSOR, InstallTarget.GEMINI}
 
 
 def version_callback(value: bool):
@@ -49,80 +86,43 @@ def main(
     """napari-mcp installer - Easy setup for LLM applications."""
 
 
-@app.command("claude-desktop")
-def install_claude_desktop(
-    persistent: Annotated[
-        bool,
-        typer.Option("--persistent", help="Use Python path instead of uv run"),
-    ] = False,
-    python_path: Annotated[
-        str | None,
-        typer.Option("--python-path", help="Custom Python executable path"),
-    ] = None,
-    force: Annotated[
-        bool,
-        typer.Option("--force", "-f", help="Skip prompts and force update"),
-    ] = False,
-    backup: Annotated[
-        bool,
-        typer.Option("--backup/--no-backup", help="Create backup before updating"),
-    ] = True,
-    dry_run: Annotated[
-        bool,
-        typer.Option("--dry-run", help="Preview changes without applying"),
-    ] = False,
+def _create_installer(
+    target: InstallTarget,
+    *,
+    persistent: bool = False,
+    python_path: str | None = None,
+    force: bool = False,
+    backup: bool = True,
+    dry_run: bool = False,
+    global_install: bool = False,
+    project_dir: str | None = None,
 ):
-    """Install napari-mcp for Claude Desktop."""
-    installer = ClaudeDesktopInstaller(
-        persistent=persistent,
-        python_path=python_path,
-        force=force,
-        backup=backup,
-        dry_run=dry_run,
-    )
-    success, message = installer.install()
-    if not success:
-        raise typer.Exit(1)
+    """Create an installer instance for the given target."""
+    installer_class = _get_installer_class(target)
+    kwargs = {
+        "persistent": persistent,
+        "python_path": python_path,
+        "force": force,
+        "backup": backup,
+        "dry_run": dry_run,
+    }
+    if target in PROJECT_TARGETS:
+        kwargs["global_install"] = global_install
+        if project_dir is not None:
+            kwargs["project_dir"] = project_dir
+    elif global_install or project_dir:
+        console.print(
+            f"[yellow]Warning: --global/--project ignored for {target.value}[/yellow]"
+        )
+    return installer_class(**kwargs)
 
 
-@app.command("claude-code")
-def install_claude_code(
-    persistent: Annotated[
-        bool,
-        typer.Option("--persistent", help="Use Python path instead of uv run"),
-    ] = False,
-    python_path: Annotated[
-        str | None,
-        typer.Option("--python-path", help="Custom Python executable path"),
-    ] = None,
-    force: Annotated[
-        bool,
-        typer.Option("--force", "-f", help="Skip prompts and force update"),
-    ] = False,
-    backup: Annotated[
-        bool,
-        typer.Option("--backup/--no-backup", help="Create backup before updating"),
-    ] = True,
-    dry_run: Annotated[
-        bool,
-        typer.Option("--dry-run", help="Preview changes without applying"),
-    ] = False,
-):
-    """Install napari-mcp for Claude Code CLI."""
-    installer = ClaudeCodeInstaller(
-        persistent=persistent,
-        python_path=python_path,
-        force=force,
-        backup=backup,
-        dry_run=dry_run,
-    )
-    success, message = installer.install()
-    if not success:
-        raise typer.Exit(1)
-
-
-@app.command("cursor")
-def install_cursor(
+@app.command("install")
+def install(
+    target: Annotated[
+        InstallTarget,
+        typer.Argument(help="Target application to install for"),
+    ],
     persistent: Annotated[
         bool,
         typer.Option("--persistent", help="Use Python path instead of uv run"),
@@ -145,15 +145,44 @@ def install_cursor(
     ] = False,
     global_install: Annotated[
         bool,
-        typer.Option("--global", help="Install globally instead of project-specific"),
+        typer.Option("--global", help="Install globally (cursor/gemini only)"),
     ] = False,
     project_dir: Annotated[
         str | None,
-        typer.Option("--project", help="Project directory for installation"),
+        typer.Option("--project", help="Project directory (cursor/gemini only)"),
     ] = None,
 ):
-    """Install napari-mcp for Cursor IDE."""
-    installer = CursorInstaller(
+    """Install napari-mcp for a target application."""
+    if target == InstallTarget.ALL:
+        console.print(
+            "[bold cyan]Installing napari-mcp for all supported applications...[/bold cyan]\n"
+        )
+        results = {}
+        for app_target in _INSTALLER_CLASS_NAMES:
+            try:
+                display_name = get_app_display_name(app_target.value)
+                console.print(f"[cyan]Installing for {display_name}...[/cyan]")
+                inst = _create_installer(
+                    app_target,
+                    persistent=persistent,
+                    python_path=python_path,
+                    force=force,
+                    backup=backup,
+                    dry_run=dry_run,
+                    global_install=app_target in PROJECT_TARGETS,
+                )
+                success, message = inst.install()
+                results[display_name] = (success, message)
+            except Exception as e:
+                results[get_app_display_name(app_target.value)] = (False, str(e))
+
+        show_installation_summary(results)
+        if not all(success for success, _ in results.values()):
+            raise typer.Exit(1)
+        return
+
+    inst = _create_installer(
+        target,
         persistent=persistent,
         python_path=python_path,
         force=force,
@@ -162,252 +191,16 @@ def install_cursor(
         global_install=global_install,
         project_dir=project_dir,
     )
-    success, message = installer.install()
+    success, message = inst.install()
     if not success:
-        raise typer.Exit(1)
-
-
-@app.command("cline-vscode")
-def install_cline_vscode(
-    persistent: Annotated[
-        bool,
-        typer.Option("--persistent", help="Use Python path instead of uv run"),
-    ] = False,
-    python_path: Annotated[
-        str | None,
-        typer.Option("--python-path", help="Custom Python executable path"),
-    ] = None,
-    force: Annotated[
-        bool,
-        typer.Option("--force", "-f", help="Skip prompts and force update"),
-    ] = False,
-    backup: Annotated[
-        bool,
-        typer.Option("--backup/--no-backup", help="Create backup before updating"),
-    ] = True,
-    dry_run: Annotated[
-        bool,
-        typer.Option("--dry-run", help="Preview changes without applying"),
-    ] = False,
-):
-    """Install napari-mcp for Cline extension in VS Code."""
-    installer = ClineVSCodeInstaller(
-        persistent=persistent,
-        python_path=python_path,
-        force=force,
-        backup=backup,
-        dry_run=dry_run,
-    )
-    success, message = installer.install()
-    if not success:
-        raise typer.Exit(1)
-
-
-@app.command("cline-cursor")
-def install_cline_cursor(
-    persistent: Annotated[
-        bool,
-        typer.Option("--persistent", help="Use Python path instead of uv run"),
-    ] = False,
-    python_path: Annotated[
-        str | None,
-        typer.Option("--python-path", help="Custom Python executable path"),
-    ] = None,
-    force: Annotated[
-        bool,
-        typer.Option("--force", "-f", help="Skip prompts and force update"),
-    ] = False,
-    backup: Annotated[
-        bool,
-        typer.Option("--backup/--no-backup", help="Create backup before updating"),
-    ] = True,
-    dry_run: Annotated[
-        bool,
-        typer.Option("--dry-run", help="Preview changes without applying"),
-    ] = False,
-):
-    """Install napari-mcp for Cline extension in Cursor IDE."""
-    installer = ClineCursorInstaller(
-        persistent=persistent,
-        python_path=python_path,
-        force=force,
-        backup=backup,
-        dry_run=dry_run,
-    )
-    success, message = installer.install()
-    if not success:
-        raise typer.Exit(1)
-
-
-@app.command("codex")
-def install_codex(
-    persistent: Annotated[
-        bool,
-        typer.Option("--persistent", help="Use Python path instead of uv run"),
-    ] = False,
-    python_path: Annotated[
-        str | None,
-        typer.Option("--python-path", help="Custom Python executable path"),
-    ] = None,
-    force: Annotated[
-        bool,
-        typer.Option("--force", "-f", help="Skip prompts and force update"),
-    ] = False,
-    backup: Annotated[
-        bool,
-        typer.Option("--backup/--no-backup", help="Create backup before updating"),
-    ] = True,
-    dry_run: Annotated[
-        bool,
-        typer.Option("--dry-run", help="Preview changes without applying"),
-    ] = False,
-):
-    """Install napari-mcp for Codex CLI."""
-    installer = CodexCLIInstaller(
-        persistent=persistent,
-        python_path=python_path,
-        force=force,
-        backup=backup,
-        dry_run=dry_run,
-    )
-    success, message = installer.install()
-    if not success:
-        raise typer.Exit(1)
-
-
-@app.command("gemini")
-def install_gemini(
-    persistent: Annotated[
-        bool,
-        typer.Option("--persistent", help="Use Python path instead of uv run"),
-    ] = False,
-    python_path: Annotated[
-        str | None,
-        typer.Option("--python-path", help="Custom Python executable path"),
-    ] = None,
-    force: Annotated[
-        bool,
-        typer.Option("--force", "-f", help="Skip prompts and force update"),
-    ] = False,
-    backup: Annotated[
-        bool,
-        typer.Option("--backup/--no-backup", help="Create backup before updating"),
-    ] = True,
-    dry_run: Annotated[
-        bool,
-        typer.Option("--dry-run", help="Preview changes without applying"),
-    ] = False,
-    global_install: Annotated[
-        bool,
-        typer.Option("--global", help="Install globally instead of project-specific"),
-    ] = False,
-    project_dir: Annotated[
-        str | None,
-        typer.Option("--project", help="Project directory for installation"),
-    ] = None,
-):
-    """Install napari-mcp for Gemini CLI."""
-    installer = GeminiCLIInstaller(
-        persistent=persistent,
-        python_path=python_path,
-        force=force,
-        backup=backup,
-        dry_run=dry_run,
-        global_install=global_install,
-        project_dir=project_dir,
-    )
-    success, message = installer.install()
-    if not success:
-        raise typer.Exit(1)
-
-
-@app.command("all")
-def install_all(
-    persistent: Annotated[
-        bool,
-        typer.Option("--persistent", help="Use Python path instead of uv run"),
-    ] = False,
-    python_path: Annotated[
-        str | None,
-        typer.Option("--python-path", help="Custom Python executable path"),
-    ] = None,
-    force: Annotated[
-        bool,
-        typer.Option("--force", "-f", help="Skip prompts and force update"),
-    ] = False,
-    backup: Annotated[
-        bool,
-        typer.Option("--backup/--no-backup", help="Create backup before updating"),
-    ] = True,
-    dry_run: Annotated[
-        bool,
-        typer.Option("--dry-run", help="Preview changes without applying"),
-    ] = False,
-):
-    """Install napari-mcp for all supported applications."""
-    console.print(
-        "[bold cyan]Installing napari-mcp for all supported applications...[/bold cyan]\n"
-    )
-
-    results = {}
-
-    # Install for each application
-    installers = [
-        ("claude-desktop", ClaudeDesktopInstaller),
-        ("claude-code", ClaudeCodeInstaller),
-        ("cursor", CursorInstaller),
-        ("cline-vscode", ClineVSCodeInstaller),
-        ("cline-cursor", ClineCursorInstaller),
-        ("gemini", GeminiCLIInstaller),
-        ("codex", CodexCLIInstaller),
-    ]
-
-    for app_key, installer_class in installers:
-        try:
-            console.print(
-                f"[cyan]Installing for {get_app_display_name(app_key)}...[/cyan]"
-            )
-
-            # Special handling for project-specific installers
-            if app_key in ["cursor", "gemini"]:
-                installer = installer_class(
-                    persistent=persistent,
-                    python_path=python_path,
-                    force=force,
-                    backup=backup,
-                    dry_run=dry_run,
-                    global_install=True,  # Use global for 'all' command
-                )
-            else:
-                installer = installer_class(
-                    persistent=persistent,
-                    python_path=python_path,
-                    force=force,
-                    backup=backup,
-                    dry_run=dry_run,
-                )
-
-            success, message = installer.install()
-            results[get_app_display_name(app_key)] = (success, message)
-
-        except Exception as e:
-            results[get_app_display_name(app_key)] = (False, str(e))
-
-    # Show summary
-    show_installation_summary(results)
-
-    # Exit with error if any failed
-    if not all(success for success, _ in results.values()):
         raise typer.Exit(1)
 
 
 @app.command("uninstall")
 def uninstall(
-    app_name: Annotated[
-        str,
-        typer.Argument(
-            help="Application to uninstall from (claude-desktop, claude-code, cursor, cline, gemini, all)"
-        ),
+    target: Annotated[
+        InstallTarget,
+        typer.Argument(help="Target application to uninstall from"),
     ],
     force: Annotated[
         bool,
@@ -423,78 +216,42 @@ def uninstall(
     ] = False,
 ):
     """Uninstall napari-mcp from an application."""
-    app_map = {
-        "claude-desktop": ClaudeDesktopInstaller,
-        "claude-code": ClaudeCodeInstaller,
-        "cursor": CursorInstaller,
-        "cline-vscode": ClineVSCodeInstaller,
-        "cline-cursor": ClineCursorInstaller,
-        "gemini": GeminiCLIInstaller,
-        "codex": CodexCLIInstaller,
-    }
-
-    if app_name == "all":
+    if target == InstallTarget.ALL:
         console.print(
             "[bold cyan]Uninstalling napari-mcp from all applications...[/bold cyan]\n"
         )
         results = {}
-
-        for app_key, installer_class in app_map.items():
+        for app_target in _INSTALLER_CLASS_NAMES:
             try:
-                console.print(
-                    f"[cyan]Uninstalling from {get_app_display_name(app_key)}...[/cyan]"
+                display_name = get_app_display_name(app_target.value)
+                console.print(f"[cyan]Uninstalling from {display_name}...[/cyan]")
+                inst = _create_installer(
+                    app_target,
+                    force=force,
+                    backup=backup,
+                    dry_run=dry_run,
+                    global_install=app_target in PROJECT_TARGETS,
                 )
-
-                # Special handling for project-specific installers
-                if app_key in ["cursor", "gemini"]:
-                    installer = installer_class(
-                        force=force,
-                        backup=backup,
-                        dry_run=dry_run,
-                        global_install=True,
-                    )
-                else:
-                    installer = installer_class(
-                        force=force,
-                        backup=backup,
-                        dry_run=dry_run,
-                    )
-
-                success, message = installer.uninstall()
-                results[get_app_display_name(app_key)] = (success, message)
-
+                success, message = inst.uninstall()
+                results[display_name] = (success, message)
             except Exception as e:
-                results[get_app_display_name(app_key)] = (False, str(e))
+                results[get_app_display_name(app_target.value)] = (False, str(e))
 
         show_installation_summary(results)
-
-    elif app_name in app_map:
-        installer_class = app_map[app_name]
-
-        # Special handling for project-specific installers
-        if app_name in ["cursor", "gemini"]:
-            installer = installer_class(
-                force=force,
-                backup=backup,
-                dry_run=dry_run,
-                global_install=True,
-            )
-        else:
-            installer = installer_class(
-                force=force,
-                backup=backup,
-                dry_run=dry_run,
-            )
-
-        success, message = installer.uninstall()
-        if not success:
-            console.print(f"[red]Failed: {message}[/red]")
+        if not all(success for success, _ in results.values()):
             raise typer.Exit(1)
-    else:
-        console.print(f"[red]Unknown application: {app_name}[/red]")
-        console.print(
-            "Available: claude-desktop, claude-code, cursor, cline-vscode, cline-cursor, gemini, codex, all"
-        )
+        return
+
+    inst = _create_installer(
+        target,
+        force=force,
+        backup=backup,
+        dry_run=dry_run,
+        global_install=target in PROJECT_TARGETS,
+    )
+    success, message = inst.uninstall()
+    if not success:
+        console.print(f"[red]Failed: {message}[/red]")
         raise typer.Exit(1)
 
 
@@ -509,64 +266,53 @@ def list_installations():
     table.add_column("Config Path")
     table.add_column("Details")
 
-    # Check each application
-    apps = [
-        ("claude-desktop", ClaudeDesktopInstaller),
-        ("claude-code", ClaudeCodeInstaller),
-        ("cursor", CursorInstaller),
-        ("cline-vscode", ClineVSCodeInstaller),
-        ("cline-cursor", ClineCursorInstaller),
-        ("gemini", GeminiCLIInstaller),
-        ("codex", CodexCLIInstaller),
-    ]
-
-    for app_key, installer_class in apps:
+    for app_target in _INSTALLER_CLASS_NAMES:
+        app_key = app_target.value
         try:
-            # Create installer to get config path (force=True to skip prompts)
-            if app_key in ["cursor", "gemini"]:
-                installer = installer_class(
-                    force=True,  # Skip prompts in list command
-                    global_install=True,
-                )
-            else:
-                installer = installer_class(force=True)  # Skip prompts in list command
+            kwargs = {"force": True}
+            if app_target in PROJECT_TARGETS:
+                kwargs["global_install"] = True
+            installer = _get_installer_class(app_target)(**kwargs)
 
             config_path = installer.get_config_path()
             display_name = get_app_display_name(app_key)
 
             if config_path.exists():
-                # Special handling for Codex CLI which uses TOML
                 if app_key == "codex":
                     try:
-                        import toml
+                        import sys
 
-                        with open(config_path) as f:
-                            config = toml.load(f)
-                        # Check for napari_mcp in mcp_servers
+                        if sys.version_info >= (3, 11):
+                            import tomllib
+                        else:
+                            import tomli as tomllib  # type: ignore[no-redef]
+
+                        with open(config_path, "rb") as f:
+                            config = tomllib.load(f)
                         if (
                             "mcp_servers" in config
                             and "napari_mcp" in config["mcp_servers"]
                         ):
-                            status = "[green]✓[/green]"
+                            status = "[green]\u2713[/green]"
                             details = "Installed"
                         else:
-                            status = "[yellow]○[/yellow]"
+                            status = "[yellow]\u25cb[/yellow]"
                             details = "Config exists, server not configured"
                     except Exception as e:
-                        status = "[red]✗[/red]"
+                        status = "[red]\u2717[/red]"
                         details = f"Error: {str(e)[:30]}"
                 else:
                     from .install.utils import check_existing_server, read_json_config
 
                     config = read_json_config(config_path)
                     if check_existing_server(config, "napari-mcp"):
-                        status = "[green]✓[/green]"
+                        status = "[green]\u2713[/green]"
                         details = "Installed"
                     else:
-                        status = "[yellow]○[/yellow]"
+                        status = "[yellow]\u25cb[/yellow]"
                         details = "Config exists, server not configured"
             else:
-                status = "[dim]−[/dim]"
+                status = "[dim]\u2212[/dim]"
                 details = "Not configured"
 
             table.add_row(display_name, status, str(config_path), details)
@@ -574,14 +320,14 @@ def list_installations():
         except Exception as e:
             table.add_row(
                 get_app_display_name(app_key),
-                "[red]✗[/red]",
+                "[red]\u2717[/red]",
                 "Error",
                 f"[red]{str(e)}[/red]",
             )
 
     console.print(table)
     console.print(
-        "\n[dim]Legend: ✓ Installed | ○ Partial | − Not configured | ✗ Error[/dim]"
+        "\n[dim]Legend: \u2713 Installed | \u25cb Partial | \u2212 Not configured | \u2717 Error[/dim]"
     )
 
 

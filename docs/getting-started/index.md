@@ -31,7 +31,7 @@ Two simple ways to set up napari MCP:
 pip install napari-mcp
 
 # 2. Auto-configure your application
-napari-mcp-install claude-desktop  # or claude-code, cursor, etc.
+napari-mcp-install install claude-desktop  # or claude-code, cursor, etc.
 
 # 3. Restart application and start using!
 ```
@@ -67,14 +67,14 @@ The CLI installer supports:
 
 | Application | Command | Platform |
 |-------------|---------|----------|
-| **Claude Desktop** | `napari-mcp-install claude-desktop` | macOS, Windows, Linux |
-| **Claude Code** | `napari-mcp-install claude-code` | macOS, Windows, Linux |
-| **Cursor IDE** | `napari-mcp-install cursor` | macOS, Windows, Linux |
-| **Cline (VS Code)** | `napari-mcp-install cline-vscode` | macOS, Windows, Linux |
-| **Cline (Cursor)** | `napari-mcp-install cline-cursor` | macOS, Windows, Linux |
-| **Gemini CLI** | `napari-mcp-install gemini` | macOS, Windows, Linux |
-| **Codex CLI** | `napari-mcp-install codex` | macOS, Windows, Linux |
-| **All** | `napari-mcp-install all` | Install for all apps |
+| **Claude Desktop** | `napari-mcp-install install claude-desktop` | macOS, Windows, Linux |
+| **Claude Code** | `napari-mcp-install install claude-code` | macOS, Windows, Linux |
+| **Cursor IDE** | `napari-mcp-install install cursor` | macOS, Windows, Linux |
+| **Cline (VS Code)** | `napari-mcp-install install cline-vscode` | macOS, Windows, Linux |
+| **Cline (Cursor)** | `napari-mcp-install install cline-cursor` | macOS, Windows, Linux |
+| **Gemini CLI** | `napari-mcp-install install gemini` | macOS, Windows, Linux |
+| **Codex CLI** | `napari-mcp-install install codex` | macOS, Windows, Linux |
+| **All** | `napari-mcp-install install all` | Install for all apps |
 
 **→ See [Integration Guides](../integrations/index.md) for app-specific details**
 

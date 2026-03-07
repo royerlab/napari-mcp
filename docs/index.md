@@ -55,12 +55,12 @@ pip install napari-mcp
 
 ```bash
 # For Claude Desktop
-napari-mcp-install claude-desktop
+napari-mcp-install install claude-desktop
 
 # For other applications
-napari-mcp-install claude-code    # Claude Code CLI
-napari-mcp-install cursor         # Cursor IDE
-napari-mcp-install cline-vscode   # Cline in VS Code
+napari-mcp-install install claude-code    # Claude Code CLI
+napari-mcp-install install cursor         # Cursor IDE
+napari-mcp-install install cline-vscode   # Cline in VS Code
 napari-mcp-install --help         # See all options
 ```
 
@@ -117,13 +117,13 @@ The server exposes 20+ MCP tools for complete napari control:
 
 | Application | Command | Status |
 |-------------|---------|--------|
-| **Claude Desktop** | `napari-mcp-install claude-desktop` | ✅ Full Support |
-| **Claude Code** | `napari-mcp-install claude-code` | ✅ Full Support |
-| **Cursor IDE** | `napari-mcp-install cursor` | ✅ Full Support |
-| **Cline (VS Code)** | `napari-mcp-install cline-vscode` | ✅ Full Support |
-| **Cline (Cursor)** | `napari-mcp-install cline-cursor` | ✅ Full Support |
-| **Gemini CLI** | `napari-mcp-install gemini` | ✅ Full Support |
-| **Codex CLI** | `napari-mcp-install codex` | ✅ Full Support |
+| **Claude Desktop** | `napari-mcp-install install claude-desktop` | ✅ Full Support |
+| **Claude Code** | `napari-mcp-install install claude-code` | ✅ Full Support |
+| **Cursor IDE** | `napari-mcp-install install cursor` | ✅ Full Support |
+| **Cline (VS Code)** | `napari-mcp-install install cline-vscode` | ✅ Full Support |
+| **Cline (Cursor)** | `napari-mcp-install install cline-cursor` | ✅ Full Support |
+| **Gemini CLI** | `napari-mcp-install install gemini` | ✅ Full Support |
+| **Codex CLI** | `napari-mcp-install install codex` | ✅ Full Support |
 
 **→ See [Integration Guides](integrations/index.md) for application-specific setup**
 

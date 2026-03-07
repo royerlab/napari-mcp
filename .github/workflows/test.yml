@@ -41,7 +41,7 @@ jobs:
         python-version: "3.11"
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v4
+      uses: astral-sh/setup-uv@v6
       with:
         enable-cache: true
         cache-suffix: "smoke"
@@ -51,7 +51,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --extra test
+        uv sync --group testing
 
     - name: Test with tox
       uses: aganders3/headless-gui@v1
@@ -113,14 +113,13 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --all-extras
-        uv pip install pytest-qt pytest-asyncio pytest-xdist pytest-timeout
+        uv sync --all-extras --group testing
 
     - name: Test with tox
       uses: aganders3/headless-gui@v1
       with:
         run: |
-          uv run pytest tests/ --verbose --dist loadscope --cov=napari_mcp --cov-report=xml --cov-report=term-missing --cov-fail-under=65 --durations=20 --timeout=60
+          uv run pytest tests/ --verbose --dist loadscope --cov=napari_mcp --cov-report=xml --cov-report=term-missing --cov-fail-under=80 --durations=20 --timeout=60
 
     - name: Upload coverage
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
@@ -160,7 +159,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv pip install --system ruff mypy types-Pillow bandit "safety<4.0"
+        uv pip install --system ruff mypy types-Pillow
 
     - name: Run quality checks
       run: |
@@ -173,18 +172,35 @@ jobs:
         echo "::endgroup::"
 
         echo "::group::Type Checking"
-        mypy src/napari_mcp/ --ignore-missing-imports || true
+        mypy src/napari_mcp/ --ignore-missing-imports
         echo "::endgroup::"
 
-        echo "::group::Security Scan"
-        bandit -r src/ --skip B110,B101,B102,B307 -f json || true
-        safety check || true
-        echo "::endgroup::"
+  # Advisory security scan (non-blocking)
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install security tools
+      run: pip install bandit "safety<4.0"
+
+    - name: Bandit scan
+      run: bandit -r src/ --skip B110,B101 -f json
+
+    - name: Safety check
+      run: safety check
 
   # Final status check
   test-status:
     if: always()
-    needs: [smoke-tests, test-all-platforms, quality]
+    needs: [smoke-tests, test-all-platforms, quality, security]
     runs-on: ubuntu-latest
     steps:
     - name: Check test status
@@ -194,5 +210,8 @@ jobs:
               "${{ needs.quality.result }}" == "failure" ]]; then
           echo "Tests failed!"
           exit 1
+        fi
+        if [[ "${{ needs.security.result }}" == "failure" ]]; then
+          echo "::warning::Security checks failed (advisory)"
         fi
         echo "All tests passed!"

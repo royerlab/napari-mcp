@@ -65,6 +65,13 @@ def read_json_config(path: Path) -> dict[str, Any]:
     -------
     dict[str, Any]
         Configuration dictionary, or empty dict if file doesn't exist.
+
+    Raises
+    ------
+    json.JSONDecodeError
+        If the file contains invalid JSON.
+    OSError
+        If the file cannot be read.
     """
     if not path.exists():
         return {}
@@ -74,7 +81,11 @@ def read_json_config(path: Path) -> dict[str, Any]:
             return json.load(f, object_pairs_hook=OrderedDict)
     except (OSError, json.JSONDecodeError) as e:
         console.print(f"[red]Error reading {path}: {e}[/red]")
-        return {}
+        console.print(
+            "[red]Cannot proceed with a corrupted config file. "
+            "Please fix or remove it manually.[/red]"
+        )
+        raise
 
 
 def write_json_config(path: Path, config: dict[str, Any], backup: bool = True) -> bool:

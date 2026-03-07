@@ -197,7 +197,7 @@ class TestCodexCLIInstaller:
     @patch("builtins.open", new_callable=mock_open)
     @patch("pathlib.Path.exists")
     @patch("pathlib.Path.mkdir")
-    @patch("toml.load")
+    @patch("napari_mcp.cli.install.codex_cli.tomllib.load")
     @patch("toml.dump")
     def test_install_toml_format(
         self, mock_dump, mock_load, mock_mkdir, mock_exists, mock_file
@@ -223,7 +223,7 @@ class TestCodexCLIInstaller:
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("pathlib.Path.exists")
-    @patch("toml.load")
+    @patch("napari_mcp.cli.install.codex_cli.tomllib.load")
     @patch("toml.dump")
     def test_uninstall_toml_format(self, mock_dump, mock_load, mock_exists, mock_file):
         """Test Codex uninstaller handles TOML format."""

@@ -11,7 +11,7 @@ Complete setup guide for using napari MCP server with Claude Desktop - the most 
 pip install napari-mcp
 
 # 2. Auto-configure Claude Desktop
-napari-mcp-install claude-desktop
+napari-mcp-install install claude-desktop
 
 # 3. Restart Claude Desktop
 ```
@@ -31,23 +31,23 @@ The installer automatically detects your platform and configures:
 ### Basic Installation
 
 ```bash
-napari-mcp-install claude-desktop
+napari-mcp-install install claude-desktop
 ```
 
 ### Advanced Options
 
 ```bash
 # Preview changes without applying
-napari-mcp-install claude-desktop --dry-run
+napari-mcp-install install claude-desktop --dry-run
 
 # Use your Python environment instead of uv
-napari-mcp-install claude-desktop --persistent
+napari-mcp-install install claude-desktop --persistent
 
 # Custom Python path
-napari-mcp-install claude-desktop --python-path /path/to/python
+napari-mcp-install install claude-desktop --python-path /path/to/python
 
 # Force update without prompts
-napari-mcp-install claude-desktop --force
+napari-mcp-install install claude-desktop --force
 ```
 
 ## 🧪 Testing the Integration
@@ -173,7 +173,7 @@ napari-mcp-install list
 ### Update Configuration
 
 ```bash
-napari-mcp-install claude-desktop --force
+napari-mcp-install install claude-desktop --force
 ```
 
 ### Uninstall
@@ -209,7 +209,7 @@ napari-mcp-install uninstall claude-desktop
 
     4. **Reinstall:**
        ```bash
-       napari-mcp-install claude-desktop --force
+       napari-mcp-install install claude-desktop --force
        ```
 
 ### Napari Window Doesn't Appear

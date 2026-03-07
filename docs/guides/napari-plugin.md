@@ -98,12 +98,12 @@ Run the standard installer:
 
 ```bash
 # For Claude Desktop
-napari-mcp-install claude-desktop
+napari-mcp-install install claude-desktop
 
 # For other applications
-napari-mcp-install claude-code    # Claude Code
-napari-mcp-install cursor         # Cursor IDE
-napari-mcp-install cline-vscode   # Cline in VS Code
+napari-mcp-install install claude-code    # Claude Code
+napari-mcp-install install cursor         # Cursor IDE
+napari-mcp-install install cline-vscode   # Cline in VS Code
 ```
 
 The installer automatically configures the AI app to detect and connect to your bridge server.

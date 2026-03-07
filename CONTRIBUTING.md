@@ -211,10 +211,22 @@ def add_image(path, name=None, colormap=None):
 ```python
 """
 tests/
-├── test_tools.py          # Main tool functionality tests
-├── test_tools_real.py     # Real napari GUI tests (marked as 'realgui')
-├── test_coverage.py       # Edge cases and error conditions
-└── test_edge_cases.py     # Additional edge cases
+├── test_tools.py          # E2E smoke test, server factory, tool registration
+├── test_server_tools.py   # Tool-by-tool unit tests, AUTO_DETECT, invalid inputs
+├── test_integration.py    # Multi-step workflows and concurrent tool calls
+├── test_bridge_server.py  # Bridge server and QtBridge tests
+├── test_widget.py         # MCP control widget tests
+├── test_qt_helpers.py     # Qt helper functions (ensure_qt_app, process_events)
+├── test_state.py          # ServerState and ViewerProtocol tests
+├── test_output_storage.py # Output truncation and storage tests
+├── test_timelapse.py      # Timelapse screenshot tests
+├── test_performance.py    # Benchmarks and performance regression tests
+├── test_external_viewer.py# External viewer detection and proxy tests
+├── test_property_based.py # Hypothesis property-based tests
+├── test_base_installer.py # CLI installer base class tests
+├── test_cli_installer.py  # CLI install command tests
+├── test_cli_utils.py      # CLI utility function tests
+└── test_cli_installers/   # Platform-specific installer tests
 """
 ```
 

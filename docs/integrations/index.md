@@ -18,11 +18,11 @@ napari-mcp-install <application-name>
 
 | Platform | Command | Status | Guide |
 |----------|---------|--------|-------|
-| **Claude Desktop** | `napari-mcp-install claude-desktop` | ✅ Full Support | [Setup →](claude-desktop.md) |
-| **Claude Code** | `napari-mcp-install claude-code` | ✅ Full Support | [Setup →](claude-code.md) |
-| **Cursor IDE** | `napari-mcp-install cursor` | ✅ Full Support | [Setup →](cursor.md) |
-| **Cline** | `napari-mcp-install cline-vscode` or `cline-cursor` | ✅ Full Support | [Setup →](cline.md) |
-| **Gemini / Codex** | `napari-mcp-install gemini` or `codex` | ✅ Full Support | [Setup →](other-llms.md) |
+| **Claude Desktop** | `napari-mcp-install install claude-desktop` | ✅ Full Support | [Setup →](claude-desktop.md) |
+| **Claude Code** | `napari-mcp-install install claude-code` | ✅ Full Support | [Setup →](claude-code.md) |
+| **Cursor IDE** | `napari-mcp-install install cursor` | ✅ Full Support | [Setup →](cursor.md) |
+| **Cline** | `napari-mcp-install install cline-vscode` or `cline-cursor` | ✅ Full Support | [Setup →](cline.md) |
+| **Gemini / Codex** | `napari-mcp-install install gemini` or `codex` | ✅ Full Support | [Setup →](other-llms.md) |
 | **Python** | Custom script | ✅ Full Support | [Guide →](python.md) |
 | **ChatGPT** | N/A | ❌ Not Supported | [Why? →](chatgpt.md) |
 
@@ -71,19 +71,19 @@ The CLI installer supports several options:
 
 ```bash
 # Use your Python environment instead of uv
-napari-mcp-install claude-desktop --persistent
+napari-mcp-install install claude-desktop --persistent
 
 # Custom Python path
-napari-mcp-install claude-desktop --python-path /path/to/python
+napari-mcp-install install claude-desktop --python-path /path/to/python
 
 # Preview changes only
-napari-mcp-install claude-desktop --dry-run
+napari-mcp-install install claude-desktop --dry-run
 
 # Force update without prompts
-napari-mcp-install claude-desktop --force
+napari-mcp-install install claude-desktop --force
 
 # Install for all applications
-napari-mcp-install all
+napari-mcp-install install all
 ```
 
 ## Management Commands

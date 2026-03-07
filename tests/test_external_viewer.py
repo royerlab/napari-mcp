@@ -1,22 +1,12 @@
 """Tests for external viewer detection and proxy functionality."""
 
 import json
-import os
-import sys
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from napari_mcp.server import (
-    _detect_external_viewer,
-    _detect_external_viewer_sync,
-    _parse_bool,
-    _proxy_to_external,
-    detect_viewers,
-)
+from napari_mcp.server import _parse_bool
+from napari_mcp.state import ServerState, StartupMode
 
 
 class TestBooleanParsing:
@@ -62,9 +52,11 @@ class TestExternalViewerDetection:
     """Test detection of external napari viewers."""
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server.Client")
+    @patch("fastmcp.Client")
     async def test_detect_external_viewer_success(self, mock_client_class):
         """Test successful detection of external viewer."""
+        state = ServerState(mode=StartupMode.AUTO_DETECT)
+
         # Setup mock client
         mock_client = AsyncMock()
         mock_client_class.return_value = mock_client
@@ -89,7 +81,7 @@ class TestExternalViewerDetection:
         mock_client.call_tool.return_value = mock_result
 
         # Test detection
-        client, info = await _detect_external_viewer()
+        client, info = await state.detect_external_viewer()
 
         assert client is not None
         assert info["session_type"] == "napari_bridge_session"
@@ -97,9 +89,11 @@ class TestExternalViewerDetection:
         assert info["bridge_port"] == 9999
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server.Client")
+    @patch("fastmcp.Client")
     async def test_detect_external_viewer_not_bridge(self, mock_client_class):
         """Test detection when server exists but is not a bridge."""
+        state = ServerState(mode=StartupMode.AUTO_DETECT)
+
         mock_client = AsyncMock()
         mock_client_class.return_value = mock_client
 
@@ -120,46 +114,51 @@ class TestExternalViewerDetection:
         ]
         mock_client.call_tool.return_value = mock_result
 
-        client, info = await _detect_external_viewer()
+        client, info = await state.detect_external_viewer()
 
         assert client is None
         assert info is None
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server.Client")
+    @patch("fastmcp.Client")
     async def test_detect_external_viewer_connection_error(self, mock_client_class):
         """Test detection when connection fails."""
+        state = ServerState(mode=StartupMode.AUTO_DETECT)
+
         mock_client_class.side_effect = Exception("Connection refused")
 
-        client, info = await _detect_external_viewer()
+        client, info = await state.detect_external_viewer()
 
+        assert client is None
+        assert info is None
+
+    @pytest.mark.asyncio
+    async def test_detect_external_viewer_standalone_mode(self):
+        """Test that STANDALONE mode skips detection entirely."""
+        state = ServerState(mode=StartupMode.STANDALONE)
+
+        client, info = await state.detect_external_viewer()
         assert client is None
         assert info is None
 
     def test_detect_external_viewer_sync(self):
         """Test synchronous wrapper for external viewer detection."""
-        # Patch the function to return a synchronous result directly
-        with patch("napari_mcp.server._detect_external_viewer") as mock_detect:
-            # Mock successful detection - return tuple directly, not a coroutine
-            mock_detect.return_value = (Mock(), {"test": "info"})
+        from napari_mcp.server import detect_external_viewer_sync
 
-            result = _detect_external_viewer_sync()
-            assert result is True
-
-            # Mock failed detection - return tuple directly, not a coroutine
-            mock_detect.return_value = (None, None)
-
-            result = _detect_external_viewer_sync()
-            assert result is False
+        # In STANDALONE mode (set by conftest), sync detection returns False
+        result = detect_external_viewer_sync()
+        assert result is False
 
 
 class TestProxyFunctionality:
     """Test proxying tool calls to external viewer."""
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server.Client")
+    @patch("fastmcp.Client")
     async def test_proxy_to_external_success(self, mock_client_class):
         """Test successful proxy to external viewer."""
+        state = ServerState(mode=StartupMode.AUTO_DETECT)
+
         # Setup mock client instance
         mock_client_instance = AsyncMock()
         mock_result = Mock()
@@ -173,7 +172,7 @@ class TestProxyFunctionality:
         mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
         mock_client_instance.__aexit__ = AsyncMock(return_value=None)
 
-        result = await _proxy_to_external("test_tool", {"param": "value"})
+        result = await state.proxy_to_external("test_tool", {"param": "value"})
 
         assert result is not None
         assert result["status"] == "ok"
@@ -184,16 +183,20 @@ class TestProxyFunctionality:
         mock_client_class.assert_called_once_with("http://localhost:9999/mcp")
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server.Client", side_effect=Exception("Connection refused"))
+    @patch("fastmcp.Client", side_effect=Exception("Connection refused"))
     async def test_proxy_to_external_unavailable(self, _):
         """Test proxy when external viewer is unavailable."""
-        result = await _proxy_to_external("test_tool", {"param": "value"})
+        state = ServerState(mode=StartupMode.AUTO_DETECT)
+
+        result = await state.proxy_to_external("test_tool", {"param": "value"})
         assert result is None
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server.Client")
+    @patch("fastmcp.Client")
     async def test_proxy_to_external_initialize_client(self, mock_client_class):
         """Test proxy initializes client if not present."""
+        state = ServerState(mode=StartupMode.AUTO_DETECT)
+
         # Setup mock client
         mock_client = AsyncMock()
         mock_client_class.return_value = mock_client
@@ -206,16 +209,18 @@ class TestProxyFunctionality:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        result = await _proxy_to_external("test_tool")
+        result = await state.proxy_to_external("test_tool")
 
         assert result is not None
         assert result["status"] == "ok"
         mock_client_class.assert_called_once_with("http://localhost:9999/mcp")
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server.Client")
+    @patch("fastmcp.Client")
     async def test_proxy_to_external_invalid_json(self, mock_client_class):
         """Test proxy with invalid JSON response."""
+        state = ServerState(mode=StartupMode.AUTO_DETECT)
+
         mock_client_instance = AsyncMock()
         mock_result = Mock()
         mock_result.content = [Mock(text="invalid json", type="text")]
@@ -225,24 +230,30 @@ class TestProxyFunctionality:
         mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
         mock_client_instance.__aexit__ = AsyncMock(return_value=None)
 
-        result = await _proxy_to_external("test_tool")
+        result = await state.proxy_to_external("test_tool")
 
         assert result is not None
         assert result["status"] == "error"
         assert "Invalid JSON response" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_proxy_standalone_returns_none(self):
+        """Test proxy returns None immediately in STANDALONE mode."""
+        state = ServerState(mode=StartupMode.STANDALONE)
+        result = await state.proxy_to_external("test_tool", {"param": "value"})
+        assert result is None
 
 
 class TestViewerDetectionAndSelection:
     """Test detect_viewers behavior."""
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server._detect_external_viewer")
-    @patch("napari_mcp.server._viewer", None)
-    async def test_detect_viewers_no_viewers(self, mock_detect):
-        """Test detecting viewers when none exist."""
-        mock_detect.return_value = (None, None)
+    async def test_detect_viewers_no_viewers(self):
+        """Test detecting viewers when none exist (STANDALONE mode)."""
+        from napari_mcp import server as napari_mcp_server
 
-        result = await detect_viewers()
+        # In STANDALONE mode, external is always unavailable
+        result = await napari_mcp_server.detect_viewers()
 
         assert result["status"] == "ok"
         assert result["viewers"]["external"]["available"] is False
@@ -250,14 +261,37 @@ class TestViewerDetectionAndSelection:
         assert result["viewers"]["local"]["type"] == "not_initialized"
 
     @pytest.mark.asyncio
-    @patch("napari_mcp.server._detect_external_viewer")
-    async def test_detect_viewers_with_external(self, mock_detect):
+    @patch("fastmcp.Client")
+    async def test_detect_viewers_with_external(self, mock_client_class):
         """Test detecting viewers with external available."""
-        mock_client = Mock()
-        mock_info = {"bridge_port": 9999, "viewer": {"title": "External"}}
-        mock_detect.return_value = (mock_client, mock_info)
+        from napari_mcp import server as napari_mcp_server
+        from napari_mcp.server import create_server
 
-        result = await detect_viewers()
+        # Create state in AUTO_DETECT mode
+        state = ServerState(mode=StartupMode.AUTO_DETECT)
+        napari_mcp_server._state = state
+        create_server(state)
+
+        mock_client = AsyncMock()
+        mock_client_class.return_value = mock_client
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        mock_result = Mock()
+        mock_result.content = [
+            Mock(
+                text=json.dumps(
+                    {
+                        "session_type": "napari_bridge_session",
+                        "bridge_port": 9999,
+                        "viewer": {"title": "External"},
+                    }
+                )
+            )
+        ]
+        mock_client.call_tool.return_value = mock_result
+
+        result = await napari_mcp_server.detect_viewers()
 
         assert result["status"] == "ok"
         assert result["viewers"]["external"]["available"] is True

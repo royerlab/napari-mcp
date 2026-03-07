@@ -2,14 +2,8 @@
 
 import pytest
 
-from napari_mcp.server import (
-    _store_output,
-    _truncate_output,
-    close_viewer,
-    execute_code,
-    install_packages,
-    read_output,
-)
+from napari_mcp import server as napari_mcp_server
+from napari_mcp.output import truncate_output as _truncate_output
 
 
 class TestOutputTruncation:
@@ -75,11 +69,11 @@ class TestOutputStorage:
         # Clear any existing storage
         from napari_mcp import server as napari_mcp_server
 
-        napari_mcp_server._output_storage.clear()
-        napari_mcp_server._next_output_id = 1
+        napari_mcp_server._state.output_storage.clear()
+        napari_mcp_server._state.next_output_id = 1
 
         # Store output
-        output_id = await _store_output(
+        output_id = await napari_mcp_server._state.store_output(
             tool_name="test_tool",
             stdout="test stdout",
             stderr="test stderr",
@@ -90,7 +84,7 @@ class TestOutputStorage:
         assert output_id == "1"
 
         # Retrieve output
-        result = await read_output(output_id)
+        result = await napari_mcp_server.read_output(output_id)
         assert result["status"] == "ok"
         assert result["tool_name"] == "test_tool"
         assert result["result_repr"] == "'test result'"
@@ -99,7 +93,7 @@ class TestOutputStorage:
 
     async def test_read_output_not_found(self):
         """Test reading non-existent output."""
-        result = await read_output("999")
+        result = await napari_mcp_server.read_output("999")
         assert result["status"] == "error"
         assert "not found" in result["message"]
 
@@ -108,15 +102,17 @@ class TestOutputStorage:
         # Clear storage
         from napari_mcp import server as napari_mcp_server
 
-        napari_mcp_server._output_storage.clear()
-        napari_mcp_server._next_output_id = 1
+        napari_mcp_server._state.output_storage.clear()
+        napari_mcp_server._state.next_output_id = 1
 
         # Store multi-line output
         multiline_stdout = "\n".join([f"line {i}" for i in range(10)])
-        output_id = await _store_output(tool_name="test_tool", stdout=multiline_stdout)
+        output_id = await napari_mcp_server._state.store_output(
+            tool_name="test_tool", stdout=multiline_stdout
+        )
 
         # Read first 3 lines
-        result = await read_output(output_id, start=0, end=3)
+        result = await napari_mcp_server.read_output(output_id, start=0, end=3)
         assert result["status"] == "ok"
         assert result["line_range"]["start"] == 0
         assert result["line_range"]["end"] == 3
@@ -128,13 +124,15 @@ class TestOutputStorage:
         """Test reading output beyond available range."""
         from napari_mcp import server as napari_mcp_server
 
-        napari_mcp_server._output_storage.clear()
-        napari_mcp_server._next_output_id = 1
+        napari_mcp_server._state.output_storage.clear()
+        napari_mcp_server._state.next_output_id = 1
 
-        output_id = await _store_output(tool_name="test_tool", stdout="line1\nline2\n")
+        output_id = await napari_mcp_server._state.store_output(
+            tool_name="test_tool", stdout="line1\nline2\n"
+        )
 
         # Try to read beyond available lines
-        result = await read_output(output_id, start=5, end=10)
+        result = await napari_mcp_server.read_output(output_id, start=5, end=10)
         assert result["status"] == "ok"
         assert len(result["lines"]) == 0
         assert result["total_lines"] == 2
@@ -149,46 +147,46 @@ class TestExecuteCodeLimiting:
         viewer = make_napari_viewer()
         from napari_mcp import server as napari_mcp_server
 
-        napari_mcp_server._viewer = viewer
-        napari_mcp_server._output_storage.clear()
-        napari_mcp_server._next_output_id = 1
+        napari_mcp_server._state.viewer = viewer
+        napari_mcp_server._state.output_storage.clear()
+        napari_mcp_server._state.next_output_id = 1
 
         # Execute code that produces output
-        result = await execute_code('print("test output")')
+        result = await napari_mcp_server.execute_code('print("test output")')
         assert result["status"] == "ok"
         assert "output_id" in result
         assert "test output" in result["stdout"]
 
-        await close_viewer()
+        await napari_mcp_server.close_viewer()
 
     async def test_execute_code_unlimited_output(self, make_napari_viewer):
         """Test execute_code with unlimited output."""
         viewer = make_napari_viewer()
         from napari_mcp import server as napari_mcp_server
 
-        napari_mcp_server._viewer = viewer
-        napari_mcp_server._output_storage.clear()
-        napari_mcp_server._next_output_id = 1
+        napari_mcp_server._state.viewer = viewer
+        napari_mcp_server._state.output_storage.clear()
+        napari_mcp_server._state.next_output_id = 1
 
-        result = await execute_code('print("test")', line_limit=-1)
+        result = await napari_mcp_server.execute_code('print("test")', line_limit=-1)
         assert result["status"] == "ok"
         assert "warning" in result
         assert "large number of tokens" in result["warning"]
 
-        await close_viewer()
+        await napari_mcp_server.close_viewer()
 
     async def test_execute_code_with_truncation(self, make_napari_viewer):
         """Test execute_code that produces output requiring truncation."""
         viewer = make_napari_viewer()
         from napari_mcp import server as napari_mcp_server
 
-        napari_mcp_server._viewer = viewer
-        napari_mcp_server._output_storage.clear()
-        napari_mcp_server._next_output_id = 1
+        napari_mcp_server._state.viewer = viewer
+        napari_mcp_server._state.output_storage.clear()
+        napari_mcp_server._state.next_output_id = 1
 
         # Generate many lines of output
         code = "for i in range(50): print(f'line {i}')"
-        result = await execute_code(code, line_limit=5)
+        result = await napari_mcp_server.execute_code(code, line_limit=5)
 
         assert result["status"] == "ok"
         assert "truncated" in result
@@ -196,26 +194,28 @@ class TestExecuteCodeLimiting:
         assert "Use read_output" in result["message"]
 
         # Verify we can read the full output
-        full_result = await read_output(result["output_id"])
+        full_result = await napari_mcp_server.read_output(result["output_id"])
         assert len(full_result["lines"]) == 50
 
-        await close_viewer()
+        await napari_mcp_server.close_viewer()
 
     async def test_execute_code_error_with_limiting(self, make_napari_viewer):
         """Test execute_code error handling with line limiting."""
         viewer = make_napari_viewer()
         from napari_mcp import server as napari_mcp_server
 
-        napari_mcp_server._viewer = viewer
-        napari_mcp_server._output_storage.clear()
-        napari_mcp_server._next_output_id = 1
+        napari_mcp_server._state.viewer = viewer
+        napari_mcp_server._state.output_storage.clear()
+        napari_mcp_server._state.next_output_id = 1
 
-        result = await execute_code('raise ValueError("test error")', line_limit=5)
+        result = await napari_mcp_server.execute_code(
+            'raise ValueError("test error")', line_limit=5
+        )
         assert result["status"] == "error"
         assert "output_id" in result
         assert "ValueError" in result["stderr"]
 
-        await close_viewer()
+        await napari_mcp_server.close_viewer()
 
 
 @pytest.mark.asyncio
@@ -226,11 +226,13 @@ class TestInstallPackagesLimiting:
         """Test install_packages with default line limit."""
         from napari_mcp import server as napari_mcp_server
 
-        napari_mcp_server._output_storage.clear()
-        napari_mcp_server._next_output_id = 1
+        napari_mcp_server._state.output_storage.clear()
+        napari_mcp_server._state.next_output_id = 1
 
         # Use a package that should fail quickly to avoid long test times
-        result = await install_packages(["nonexistent-package-xyz-123"])
+        result = await napari_mcp_server.install_packages(
+            ["nonexistent-package-xyz-123"]
+        )
 
         assert "output_id" in result
         assert "status" in result
@@ -242,22 +244,24 @@ class TestInstallPackagesLimiting:
         """Test install_packages with unlimited output."""
         from napari_mcp import server as napari_mcp_server
 
-        napari_mcp_server._output_storage.clear()
-        napari_mcp_server._next_output_id = 1
+        napari_mcp_server._state.output_storage.clear()
+        napari_mcp_server._state.next_output_id = 1
 
-        result = await install_packages(["nonexistent-package"], line_limit=-1)
+        result = await napari_mcp_server.install_packages(
+            ["nonexistent-package"], line_limit=-1
+        )
         assert "warning" in result
         assert "large number of tokens" in result["warning"]
 
     async def test_install_packages_empty_list(self):
         """Test install_packages with empty package list."""
-        result = await install_packages([])
+        result = await napari_mcp_server.install_packages([])
         assert result["status"] == "error"
         assert "non-empty list" in result["message"]
 
     async def test_install_packages_invalid_input(self):
         """Test install_packages with invalid input."""
-        result = await install_packages("not-a-list")  # type: ignore
+        result = await napari_mcp_server.install_packages("not-a-list")  # type: ignore
         assert result["status"] == "error"
         assert "non-empty list" in result["message"]
 
@@ -270,16 +274,18 @@ class TestReadOutputTool:
         """Test reading full output range."""
         from napari_mcp import server as napari_mcp_server
 
-        napari_mcp_server._output_storage.clear()
-        napari_mcp_server._next_output_id = 1
+        napari_mcp_server._state.output_storage.clear()
+        napari_mcp_server._state.next_output_id = 1
 
         # Store test output
         lines = [f"line {i}\n" for i in range(10)]
         output_text = "".join(lines)
-        output_id = await _store_output(tool_name="test_tool", stdout=output_text)
+        output_id = await napari_mcp_server._state.store_output(
+            tool_name="test_tool", stdout=output_text
+        )
 
         # Read full range (default parameters)
-        result = await read_output(output_id)
+        result = await napari_mcp_server.read_output(output_id)
         assert result["status"] == "ok"
         assert result["total_lines"] == 10
         assert len(result["lines"]) == 10
@@ -288,15 +294,17 @@ class TestReadOutputTool:
         """Test reading partial output range."""
         from napari_mcp import server as napari_mcp_server
 
-        napari_mcp_server._output_storage.clear()
-        napari_mcp_server._next_output_id = 1
+        napari_mcp_server._state.output_storage.clear()
+        napari_mcp_server._state.next_output_id = 1
 
         lines = [f"line {i}\n" for i in range(20)]
         output_text = "".join(lines)
-        output_id = await _store_output(tool_name="test_tool", stdout=output_text)
+        output_id = await napari_mcp_server._state.store_output(
+            tool_name="test_tool", stdout=output_text
+        )
 
         # Read middle portion
-        result = await read_output(output_id, start=5, end=10)
+        result = await napari_mcp_server.read_output(output_id, start=5, end=10)
         assert result["status"] == "ok"
         assert result["line_range"]["start"] == 5
         assert result["line_range"]["end"] == 10
@@ -308,19 +316,86 @@ class TestReadOutputTool:
         """Test reading output with both stdout and stderr."""
         from napari_mcp import server as napari_mcp_server
 
-        napari_mcp_server._output_storage.clear()
-        napari_mcp_server._next_output_id = 1
+        napari_mcp_server._state.output_storage.clear()
+        napari_mcp_server._state.next_output_id = 1
 
-        output_id = await _store_output(
+        output_id = await napari_mcp_server._state.store_output(
             tool_name="test_tool",
             stdout="stdout line 1\nstdout line 2\n",
             stderr="stderr line 1\nstderr line 2\n",
         )
 
-        result = await read_output(output_id)
+        result = await napari_mcp_server.read_output(output_id)
         assert result["status"] == "ok"
 
         # Check that both stdout and stderr are included
         combined_output = "".join(result["lines"])
         assert "stdout line 1" in combined_output
         assert "stderr line 1" in combined_output
+
+
+@pytest.mark.asyncio
+class TestOutputEviction:
+    """Test output storage eviction when exceeding capacity."""
+
+    async def test_eviction_removes_oldest_entries(self):
+        """Test that oldest entries are evicted when capacity is exceeded."""
+        from napari_mcp import server as napari_mcp_server
+
+        # Save originals
+        orig_storage = napari_mcp_server._state.output_storage.copy()
+        orig_max = napari_mcp_server._state.max_output_items
+        orig_id = napari_mcp_server._state.next_output_id
+
+        try:
+            napari_mcp_server._state.output_storage.clear()
+            napari_mcp_server._state.next_output_id = 1
+            napari_mcp_server._state.max_output_items = 3
+
+            # Store 5 outputs
+            ids = []
+            for i in range(5):
+                oid = await napari_mcp_server._state.store_output(
+                    tool_name=f"tool_{i}", stdout=f"output {i}"
+                )
+                ids.append(oid)
+
+            # Only the last 3 should remain
+            assert len(napari_mcp_server._state.output_storage) == 3
+
+            # First 2 should be evicted
+            result1 = await napari_mcp_server.read_output(ids[0])
+            assert result1["status"] == "error"
+            assert "not found" in result1["message"]
+
+            result2 = await napari_mcp_server.read_output(ids[1])
+            assert result2["status"] == "error"
+
+            # Last 3 should still be accessible
+            for oid in ids[2:]:
+                result = await napari_mcp_server.read_output(oid)
+                assert result["status"] == "ok"
+
+        finally:
+            # Restore originals
+            napari_mcp_server._state.output_storage.clear()
+            napari_mcp_server._state.output_storage.update(orig_storage)
+            napari_mcp_server._state.max_output_items = orig_max
+            napari_mcp_server._state.next_output_id = orig_id
+
+
+class TestTruncateOutputBackwardCompat:
+    """Test backward-compatible access to truncate_output."""
+
+    def test_server_module_alias(self):
+        from napari_mcp.output import truncate_output
+        from napari_mcp.server import _truncate_output
+
+        assert _truncate_output is truncate_output
+
+    def test_alias_works_correctly(self):
+        from napari_mcp.server import _truncate_output
+
+        result, was_truncated = _truncate_output("a\nb\n", 1)
+        assert was_truncated is True
+        assert result == "a\n"

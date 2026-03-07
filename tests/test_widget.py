@@ -3,7 +3,10 @@
 Tests the Qt widget interface for the MCP server using real Qt.
 """
 
+from unittest.mock import patch
+
 import numpy as np
+import pytest
 
 
 class TestWidgetWithRealQt:
@@ -135,3 +138,27 @@ class TestWidgetIntegration:
         # Server should be stopped
         if server:
             assert not server.is_running
+
+    def test_widget_initialization_without_viewer(self, make_napari_viewer, qtbot):
+        """Test widget uses current_viewer when no viewer provided."""
+        viewer = make_napari_viewer()
+        viewer.title = "Current Viewer"
+
+        import napari
+
+        with patch.object(napari, "current_viewer", return_value=viewer):
+            from napari_mcp.widget import MCPControlWidget
+
+            widget = MCPControlWidget()
+            qtbot.addWidget(widget)
+            assert widget.viewer == viewer
+
+    def test_widget_initialization_no_viewer_error(self, qtbot):
+        """Test widget raises error when no viewer available."""
+        import napari
+
+        with patch.object(napari, "current_viewer", return_value=None):
+            from napari_mcp.widget import MCPControlWidget
+
+            with pytest.raises(RuntimeError, match="No napari viewer found"):
+                MCPControlWidget()

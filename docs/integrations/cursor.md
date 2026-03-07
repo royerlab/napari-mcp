@@ -9,10 +9,10 @@ Setup guide for using napari MCP server with Cursor - AI-powered coding with ful
 pip install napari-mcp
 
 # 2. Auto-configure Cursor (global)
-napari-mcp-install cursor --global
+napari-mcp-install install cursor --global
 
 # OR configure for specific project
-napari-mcp-install cursor --project /path/to/project
+napari-mcp-install install cursor --project /path/to/project
 
 # 3. Restart Cursor
 ```
@@ -89,7 +89,7 @@ Take screenshots at each processing step for my documentation
 Best for most users:
 
 ```bash
-napari-mcp-install cursor --global
+napari-mcp-install install cursor --global
 ```
 
 Creates: `~/.cursor/mcp.json`
@@ -100,7 +100,7 @@ For project-specific setups:
 
 ```bash
 cd /path/to/your/project
-napari-mcp-install cursor --project .
+napari-mcp-install install cursor --project .
 ```
 
 Creates: `.cursor/mcp.json` in project directory
@@ -140,10 +140,10 @@ Edit the appropriate config file:
 napari-mcp-install list
 
 # Update global configuration
-napari-mcp-install cursor --global --force
+napari-mcp-install install cursor --global --force
 
 # Update project configuration
-napari-mcp-install cursor --project . --force
+napari-mcp-install install cursor --project . --force
 
 # Uninstall
 napari-mcp-install uninstall cursor
@@ -171,7 +171,7 @@ napari-mcp-install uninstall cursor
 
     4. **Reinstall:**
        ```bash
-       napari-mcp-install cursor --global --force
+       napari-mcp-install install cursor --global --force
        ```
 
 ### Project vs Global Confusion
@@ -183,14 +183,14 @@ napari-mcp-install uninstall cursor
 
     - **Use global for all projects:**
       ```bash
-      napari-mcp-install cursor --global
+      napari-mcp-install install cursor --global
       # Remove project configs
       rm .cursor/mcp.json
       ```
 
     - **Use project-specific for this project:**
       ```bash
-      napari-mcp-install cursor --project .
+      napari-mcp-install install cursor --project .
       ```
 
 ### Configuration File Not Found

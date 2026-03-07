@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
+import ast
 import asyncio
-import base64
 import contextlib
 import logging
 import threading
+import traceback
 from concurrent.futures import Future
-from functools import wraps
-from io import BytesIO, StringIO
+from concurrent.futures import TimeoutError as FutureTimeoutError
+from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from fastmcp import FastMCP
-
-from napari_mcp.server import NapariMCPTools as _Tools
 
 if TYPE_CHECKING:
     import napari
@@ -23,17 +21,17 @@ if TYPE_CHECKING:
 else:
     ImageContent = Any
 
-from PIL import Image
 from qtpy.QtCore import QObject, QThread, Signal, Slot
 from qtpy.QtWidgets import QApplication
 
-from napari_mcp.server import _parse_bool
+from napari_mcp.output import truncate_output
+from napari_mcp.server import _parse_bool, create_server
+from napari_mcp.state import ServerState, StartupMode
 
 
 class QtBridge(QObject):
     """Qt bridge for thread-safe operations."""
 
-    # Signal to request operation in main thread
     operation_requested = Signal(object, object)  # (callable, future)
 
     def __init__(self):
@@ -49,17 +47,32 @@ class QtBridge(QObject):
         except Exception as e:
             future.set_exception(e)
 
-    def run_in_main_thread(self, operation):
-        """Run an operation in the main thread and return the result."""
-        # Check if we're already on the main thread using Qt's method
+    def run_in_main_thread(self, operation, timeout=300.0):
+        """Run an operation in the main thread and return the result.
+
+        Parameters
+        ----------
+        operation : callable
+            The function to execute on the Qt main thread.
+        timeout : float
+            Maximum seconds to wait for the operation to complete.
+            Defaults to 300 (5 minutes).
+        """
         if QThread.currentThread() == QApplication.instance().thread():
-            # We're already on the main thread, execute directly
             return operation()
 
-        # Use signal/slot mechanism for cross-thread execution
         future = Future()
         self.operation_requested.emit(operation, future)
-        return future.result(timeout=5.0)
+        try:
+            return future.result(timeout=timeout)
+        except (TimeoutError, FutureTimeoutError):
+            raise TimeoutError(
+                f"napari bridge operation timed out after {timeout:.0f}s. "
+                f"The operation may still be running on the napari main thread. "
+                f"Consider breaking your code into smaller steps, or if the "
+                f"computation is genuinely long-running, use execute_code with "
+                f"a larger timeout parameter."
+            ) from None
 
 
 class NapariBridgeServer:
@@ -77,68 +90,31 @@ class NapariBridgeServer:
         """
         self.viewer = viewer
         self.port = port
-        self.server = FastMCP("Napari Bridge MCP Server")
         self.server_task = None
         self.loop = None
         self.thread = None
-        self._exec_globals: dict[str, Any] = {}
+
+        # Qt bridge for thread-safe operations
         self.qt_bridge = QtBridge()
-        # Move QtBridge to main thread for proper signal/slot communication
         app = QApplication.instance()
         if app and app.thread() != self.qt_bridge.thread():
             self.qt_bridge.moveToThread(app.thread())
-        # Expose this viewer to shared implementation so server/bridge delegate consistently
-        try:
-            from napari_mcp import server as _srv_impl
 
-            _srv_impl._viewer = viewer  # type: ignore[attr-defined]
+        # Create state with STANDALONE mode (bridge IS the local viewer)
+        self.state = ServerState(mode=StartupMode.STANDALONE, bridge_port=port)
+        self.state.viewer = viewer
+        self.state.gui_executor = self.qt_bridge.run_in_main_thread
 
-            # Disable external proxying inside the bridge to avoid loops
-            async def _no_proxy(*_args, **_kwargs):
-                return None
+        # Create server with all shared tools bound to this state
+        self.server = create_server(self.state)
 
-            async def _no_detect():
-                return (None, None)
+        # Override the 3 tools that differ in bridge mode
+        self._register_bridge_overrides()
 
-            _srv_impl._proxy_to_external = _no_proxy  # type: ignore[attr-defined]
-            _srv_impl._detect_external_viewer = _no_detect  # type: ignore[attr-defined]
-            # Configure shared tools to run GUI ops on the main thread
-            if hasattr(_srv_impl, "set_gui_executor"):
-                _srv_impl.set_gui_executor(self.qt_bridge.run_in_main_thread)
+    def _register_bridge_overrides(self):
+        """Register bridge-specific tool overrides."""
 
-            # Also disable external session info to prevent recursion
-            async def _no_external_session_info(_port):
-                raise RuntimeError("external session disabled in bridge")
-
-            if hasattr(_srv_impl, "NapariMCPTools"):
-                _srv_impl.NapariMCPTools._external_session_information = (  # type: ignore[attr-defined, method-assign]
-                    _no_external_session_info
-                )
-        except Exception:
-            pass
-        self._setup_tools()
-
-    def _run_in_main(self, func):
-        """Decorator to run a function in the main thread."""
-
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            return self.qt_bridge.run_in_main_thread(lambda: func(*args, **kwargs))
-
-        return wrapper
-
-    def _encode_png_base64(self, img: np.ndarray) -> dict[str, str]:
-        """Encode image as base64 PNG."""
-        pil = Image.fromarray(img)
-        buf = BytesIO()
-        pil.save(buf, format="PNG")
-        data = base64.b64encode(buf.getvalue()).decode("ascii")
-        return {"mime_type": "image/png", "base64_data": data}
-
-    def _setup_tools(self):
-        """Register all MCP tools with the server."""
-
-        @self.server.tool
+        @self.server.tool()
         async def session_information():
             """Get comprehensive information about the current napari session."""
 
@@ -162,7 +138,7 @@ class NapariBridgeServer:
 
                 layer_details = []
                 for layer in self.viewer.layers:
-                    layer_detail = {
+                    layer_detail: dict[str, Any] = {
                         "name": layer.name,
                         "type": layer.__class__.__name__,
                         "visible": _parse_bool(getattr(layer, "visible", True)),
@@ -184,24 +160,41 @@ class NapariBridgeServer:
                     "bridge_port": self.port,
                 }
 
-            # Run in main thread via Qt bridge and avoid any external proxy recursion
             return self.qt_bridge.run_in_main_thread(get_info)
 
-        @self.server.tool
-        async def list_layers():
-            """Return a list of layers with key properties."""
-            return await _Tools.list_layers()
-
-        @self.server.tool
+        @self.server.tool()
         async def add_image(
             data: list | None = None,
             path: str | None = None,
             name: str | None = None,
             colormap: str | None = None,
+            blending: str | None = None,
+            channel_axis: int | str | None = None,
         ):
             """Add an image layer from data or file path."""
             if path:
-                return await _Tools.add_image(path=path, name=name, colormap=colormap)
+                # Use file-based loading directly via Qt bridge
+                import imageio.v3 as iio
+
+                img_data = iio.imread(path)
+
+                def _add_from_file():
+                    layer = self.viewer.add_image(
+                        img_data,
+                        name=name,
+                        colormap=colormap,
+                        blending=blending,
+                        channel_axis=int(channel_axis)
+                        if channel_axis is not None
+                        else None,
+                    )
+                    return {
+                        "status": "ok",
+                        "name": layer.name,
+                        "shape": list(np.shape(img_data)),
+                    }
+
+                return self.qt_bridge.run_in_main_thread(_add_from_file)
 
             if data is None:
                 return {
@@ -209,88 +202,38 @@ class NapariBridgeServer:
                     "message": "Either data or path must be provided",
                 }
 
-            # Fallback: add from in-memory data on GUI thread
             arr = np.asarray(data)
 
             def add_layer():
-                layer = self.viewer.add_image(arr, name=name, colormap=colormap)
+                kwargs: dict[str, Any] = {"name": name, "colormap": colormap}
+                if blending is not None:
+                    kwargs["blending"] = blending
+                if channel_axis is not None:
+                    kwargs["channel_axis"] = int(channel_axis)
+                layer = self.viewer.add_image(arr, **kwargs)
                 return {"status": "ok", "name": layer.name, "shape": list(arr.shape)}
 
             return self.qt_bridge.run_in_main_thread(add_layer)
 
-        @self.server.tool
-        async def add_points(
-            points: list[list[float]], name: str | None = None, size: float = 10.0
-        ):
-            """Add a points layer."""
-            return await _Tools.add_points(points=points, name=name, size=size)
+        @self.server.tool()
+        async def execute_code(code: str, line_limit: int | str = 30):
+            """Execute Python code with access to the viewer.
 
-        @self.server.tool
-        async def remove_layer(name: str):
-            """Remove a layer by name."""
-            return await _Tools.remove_layer(name)
+            Parameters
+            ----------
+            code : str
+                Python code string. The value of the last expression (if any)
+                is returned as 'result_repr'.
+            line_limit : int, default=30
+                Maximum number of output lines to return. Use -1 for unlimited.
+            """
 
-        @self.server.tool
-        async def rename_layer(old_name: str, new_name: str):
-            """Rename a layer (delegates to set_layer_properties)."""
-            return await _Tools.set_layer_properties(name=old_name, new_name=new_name)
-
-        @self.server.tool
-        async def set_layer_properties(
-            name: str,
-            visible: bool | None = None,
-            opacity: float | None = None,
-            colormap: str | None = None,
-        ):
-            """Set properties on a layer."""
-            return await _Tools.set_layer_properties(
-                name=name, visible=visible, opacity=opacity, colormap=colormap
-            )
-
-        @self.server.tool
-        async def reset_view():
-            """Reset the camera view to fit data."""
-            return await _Tools.reset_view()
-
-        @self.server.tool
-        async def set_zoom(zoom: float):
-            """Set camera zoom factor."""
-            return await _Tools.set_camera(zoom=zoom)
-
-        @self.server.tool
-        async def set_ndisplay(ndisplay: int):
-            """Set number of displayed dimensions (2 or 3)."""
-            return await _Tools.set_ndisplay(ndisplay)
-
-        @self.server.tool
-        async def screenshot(canvas_only: bool | str = True) -> ImageContent:
-            """Take a screenshot and return as base64 PNG."""
-            return await _Tools.screenshot(canvas_only=canvas_only)
-
-        @self.server.tool
-        async def timelapse_screenshot(
-            axis: int,
-            slice_range: str,
-            canvas_only: bool | str = True,
-            interpolate_to_fit: bool = False,
-        ) -> list[ImageContent]:
-            """Capture a series of screenshots while sweeping a dims axis with optional downsampling to fit size cap."""
-            return await _Tools.timelapse_screenshot(
-                axis=axis,
-                slice_range=slice_range,
-                canvas_only=canvas_only,
-                interpolate_to_fit=interpolate_to_fit,
-            )
-
-        @self.server.tool
-        async def execute_code(code: str):
-            """Execute Python code with access to the viewer."""
-
-            def execute():
-                self._exec_globals.setdefault("__builtins__", __builtins__)
-                self._exec_globals["viewer"] = self.viewer
-                self._exec_globals.setdefault("napari", None)
-                self._exec_globals.setdefault("np", np)
+            def _run_on_qt():
+                """Run code on Qt main thread; returns raw (status, stdout, stderr, result_repr, error)."""
+                self.state.exec_globals.setdefault("__builtins__", __builtins__)
+                self.state.exec_globals["viewer"] = self.viewer
+                self.state.exec_globals.setdefault("napari", None)
+                self.state.exec_globals.setdefault("np", np)
 
                 stdout_buf = StringIO()
                 stderr_buf = StringIO()
@@ -301,8 +244,6 @@ class NapariBridgeServer:
                         contextlib.redirect_stdout(stdout_buf),
                         contextlib.redirect_stderr(stderr_buf),
                     ):
-                        import ast
-
                         parsed = ast.parse(code, mode="exec")
                         if parsed.body and isinstance(parsed.body[-1], ast.Expr):
                             if len(parsed.body) > 1:
@@ -311,64 +252,109 @@ class NapariBridgeServer:
                                 )
                                 exec(
                                     compile(exec_ast, "<bridge-exec>", "exec"),
-                                    self._exec_globals,
+                                    self.state.exec_globals,
                                 )
                             last_expr = ast.Expression(body=parsed.body[-1].value)
                             value = eval(
                                 compile(last_expr, "<bridge-eval>", "eval"),
-                                self._exec_globals,
+                                self.state.exec_globals,
                             )
                             result_repr = repr(value)
                         else:
                             exec(
                                 compile(parsed, "<bridge-exec>", "exec"),
-                                self._exec_globals,
+                                self.state.exec_globals,
                             )
 
-                    return {
-                        "status": "ok",
-                        **({"result_repr": result_repr} if result_repr else {}),
-                        "stdout": stdout_buf.getvalue(),
-                        "stderr": stderr_buf.getvalue(),
-                    }
-                except Exception:
-                    import traceback
-
+                    return (
+                        "ok",
+                        stdout_buf.getvalue(),
+                        stderr_buf.getvalue(),
+                        result_repr,
+                        None,
+                    )
+                except Exception as e:
                     tb = traceback.format_exc()
-                    return {
-                        "status": "error",
-                        "stdout": stdout_buf.getvalue(),
-                        "stderr": stderr_buf.getvalue() + tb,
-                    }
+                    return (
+                        "error",
+                        stdout_buf.getvalue(),
+                        stderr_buf.getvalue() + tb,
+                        None,
+                        e,
+                    )
 
-            return self.qt_bridge.run_in_main_thread(execute)
+            try:
+                status, stdout_full, stderr_full, result_repr, error = (
+                    self.qt_bridge.run_in_main_thread(_run_on_qt, timeout=600.0)
+                )
+            except TimeoutError:
+                output_id = await self.state.store_output(
+                    tool_name="execute_code",
+                    stdout="",
+                    stderr="execute_code timed out after 600s.",
+                    code=code,
+                    error=True,
+                )
+                return {
+                    "status": "error",
+                    "output_id": output_id,
+                    "stdout": "",
+                    "stderr": (
+                        "execute_code timed out after 600s. "
+                        "The code may still be running on the napari main thread. "
+                        "To avoid this, break your computation into smaller steps "
+                        "or move heavy processing to a background thread."
+                    ),
+                }
 
-        @self.server.tool
-        async def install_packages(
-            packages: list[str],
-            upgrade: bool | None = False,
-            no_deps: bool | None = False,
-            index_url: str | None = None,
-            extra_index_url: str | None = None,
-            pre: bool | None = False,
-            line_limit: int | str = 30,
-            timeout: int = 240,
-        ):
-            """Install Python packages using pip.
-
-            Install packages into the currently running server environment.
-            """
-            # Delegate to shared implementation (no Qt main-thread requirement)
-            return await _Tools.install_packages(
-                packages=packages,
-                upgrade=upgrade,
-                no_deps=no_deps,
-                index_url=index_url,
-                extra_index_url=extra_index_url,
-                pre=pre,
-                line_limit=line_limit,
-                timeout=timeout,
+            # Store full output
+            output_id = await self.state.store_output(
+                tool_name="execute_code",
+                stdout=stdout_full,
+                stderr=stderr_full,
+                result_repr=result_repr,
+                code=code,
+                **({"error": True} if status == "error" else {}),
             )
+
+            # Build response with truncation (same shape as server's execute_code)
+            response: dict[str, Any] = {
+                "status": status,
+                "output_id": output_id,
+            }
+            if result_repr is not None:
+                response["result_repr"] = result_repr
+
+            if line_limit == -1:
+                response["warning"] = (
+                    "Unlimited output requested. This may consume a large number "
+                    "of tokens. Consider using read_output for large outputs."
+                )
+                response["stdout"] = stdout_full
+                response["stderr"] = stderr_full
+            else:
+                stdout_truncated, stdout_was_truncated = truncate_output(
+                    stdout_full, int(line_limit)
+                )
+                stderr_truncated, stderr_was_truncated = truncate_output(
+                    stderr_full, int(line_limit)
+                )
+                response["stdout"] = stdout_truncated
+                if status == "error" and error is not None:
+                    error_summary = f"{type(error).__name__}: {error}"
+                    if error_summary not in stderr_truncated:
+                        if stderr_truncated and not stderr_truncated.endswith("\n"):
+                            stderr_truncated += "\n"
+                        stderr_truncated += error_summary + "\n"
+                response["stderr"] = stderr_truncated
+                if stdout_was_truncated or stderr_was_truncated:
+                    response["truncated"] = True
+                    response["message"] = (
+                        f"Output truncated to {line_limit} lines. "
+                        f"Use read_output('{output_id}') to retrieve full output."
+                    )
+
+            return response
 
     def _run_server_thread(self):
         """Run the server in a separate thread with its own event loop."""
@@ -376,7 +362,6 @@ class NapariBridgeServer:
         asyncio.set_event_loop(self.loop)
 
         try:
-            # Run the server synchronously (FastMCP handles the async internally)
             self.server.run(
                 transport="http", host="127.0.0.1", port=self.port, path="/mcp"
             )
@@ -387,7 +372,6 @@ class NapariBridgeServer:
 
     def start(self):
         """Start the MCP server in a background thread."""
-        # Thread-safe check and creation
         if self.thread is not None and self.thread.is_alive():
             return False
 
@@ -401,67 +385,14 @@ class NapariBridgeServer:
             try:
                 self.loop.call_soon_threadsafe(self.loop.stop)
             except RuntimeError:
-                pass  # Loop already stopped/closed
+                pass
 
         if self.thread:
             self.thread.join(timeout=2)
             self.thread = None
 
-        # Clean up loop reference
         self.loop = None
         return True
-
-    # Method wrappers to expose tools as direct methods for easier testing
-    async def session_information(self):
-        """Get session information via the registered tool."""
-        tool = await self.server.get_tool("session_information")
-        return await tool.fn()
-
-    async def list_layers(self):
-        """List layers via the registered tool."""
-        tool = await self.server.get_tool("list_layers")
-        return await tool.fn()
-
-    async def execute_code(self, code: str):
-        """Execute code via the registered tool."""
-        tool = await self.server.get_tool("execute_code")
-        return await tool.fn(code)
-
-    async def screenshot(self, canvas_only: bool = True) -> dict[str, str]:
-        """Take screenshot via the registered tool."""
-        tool = await self.server.get_tool("screenshot")
-        return await tool.fn(canvas_only)
-
-    async def timelapse_screenshot(
-        self,
-        axis: int,
-        slice_range: str,
-        canvas_only: bool = True,
-        interpolate_to_fit: bool = False,
-    ) -> list[dict[str, str]]:
-        """Timelapse screenshot via the registered tool."""
-        tool = await self.server.get_tool("timelapse_screenshot")
-        return await tool.fn(axis, slice_range, canvas_only, interpolate_to_fit)
-
-    async def add_image(self, **kwargs):
-        """Add image via the registered tool."""
-        tool = await self.server.get_tool("add_image")
-        return await tool.fn(**kwargs)
-
-    async def add_points(self, **kwargs):
-        """Add points via the registered tool."""
-        tool = await self.server.get_tool("add_points")
-        return await tool.fn(**kwargs)
-
-    async def remove_layer(self, name: str):
-        """Remove layer via the registered tool."""
-        tool = await self.server.get_tool("remove_layer")
-        return await tool.fn(name)
-
-    async def install_packages(self, **kwargs):
-        """Install packages via the registered tool."""
-        tool = await self.server.get_tool("install_packages")
-        return await tool.fn(**kwargs)
 
     @property
     def is_running(self) -> bool:
