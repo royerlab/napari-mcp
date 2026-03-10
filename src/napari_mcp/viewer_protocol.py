@@ -32,6 +32,22 @@ class ViewerProtocol(Protocol):
         """Add a points layer."""
         ...
 
+    def add_shapes(self, data: Any, **kwargs: Any) -> Any:
+        """Add a shapes layer."""
+        ...
+
+    def add_vectors(self, data: Any, **kwargs: Any) -> Any:
+        """Add a vectors layer."""
+        ...
+
+    def add_tracks(self, data: Any, **kwargs: Any) -> Any:
+        """Add a tracks layer."""
+        ...
+
+    def add_surface(self, data: Any, **kwargs: Any) -> Any:
+        """Add a surface layer."""
+        ...
+
     def screenshot(self, **kwargs: Any) -> Any:
         """Take a screenshot, returning a numpy array."""
         ...

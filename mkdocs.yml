@@ -111,9 +111,11 @@ nav:
         - Python Scripts: integrations/python.md
   - API Reference:
       - api/index.md
-      - Session & Viewer: api/viewer-controls.md
+      - Session & Viewer: api/session.md
       - Layer Management: api/layer-management.md
+      - Viewer Controls: api/viewer-controls.md
       - Utilities: api/utilities.md
+      - Supporting Modules: api/modules.md
       - Complete Reference: api/reference.md
   - User Guide:
       - guides/index.md
@@ -145,4 +147,4 @@ extra_css:
   - stylesheets/extra.css
 
 copyright: >
-  Copyright &copy; 2025 Ilan Theodoro
+  Copyright &copy; 2025-2026 Ilan Theodoro

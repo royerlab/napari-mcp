@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 def ensure_qt_app(state: ServerState) -> Any:
-    """Return a Qt application instance if available, else a no-op stub."""
+    """Return the Qt application, creating one if necessary, or a no-op stub."""
     from qtpy import QtWidgets
 
     if QtWidgets is None:
@@ -65,7 +65,10 @@ async def qt_event_pump(state: ServerState) -> None:
     """Periodically process Qt events so the GUI remains responsive."""
     try:
         while True:
-            process_events(state, 2)
+            try:
+                process_events(state, 2)
+            except Exception:
+                pass  # Don't crash the pump on transient Qt errors
             await asyncio.sleep(0.01)
     except asyncio.CancelledError:
         pass

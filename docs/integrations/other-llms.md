@@ -166,9 +166,9 @@ napari-mcp-install uninstall codex
     5. Reinstall: `napari-mcp-install install codex --force`
 
 !!! failure "TOML syntax errors"
-    The installer requires the `toml` package. Install it:
+    The `toml` package is included as a dependency of napari-mcp. If it's missing, reinstall:
     ```bash
-    pip install toml
+    pip install --upgrade napari-mcp
     ```
 
 ---

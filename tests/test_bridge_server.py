@@ -67,6 +67,30 @@ class TestNapariBridgeServer:
         server = NapariBridgeServer(viewer)
         assert hasattr(server.server, "tool")
 
+    def test_lifecycle_tools_excluded(self, make_napari_viewer):
+        """Bridge server must NOT expose viewer lifecycle tools.
+
+        When running from napari, the viewer is managed by napari itself.
+        Allowing an agent to close/init/detect viewers would be disruptive.
+        """
+        viewer = make_napari_viewer()
+        server = NapariBridgeServer(viewer)
+        tool_names = set(server.server._tool_manager._tools.keys())
+        for excluded in ("close_viewer", "init_viewer"):
+            assert excluded not in tool_names, (
+                f"{excluded} should not be available in bridge mode"
+            )
+        # Sanity: other tools should still be present
+        for expected in (
+            "session_information",
+            "execute_code",
+            "list_layers",
+            "screenshot",
+        ):
+            assert expected in tool_names, (
+                f"{expected} should be available in bridge mode"
+            )
+
 
 class TestQtBridge:
     """Test the Qt bridge for thread safety."""
@@ -436,8 +460,10 @@ class TestBridgeServerLayerOperations:
 
             tools = await bridge_server.server.get_tools()
             for name, tool in tools.items():
-                if name == "add_image":
-                    result = await tool.fn(data=test_data, name="test", colormap="gray")
+                if name == "add_layer":
+                    result = await tool.fn(
+                        layer_type="image", data=test_data, name="test", colormap="gray"
+                    )
                     break
 
             assert result["status"] == "ok"
@@ -447,6 +473,26 @@ class TestBridgeServerLayerOperations:
             assert "test" in bridge_server.viewer.layers
             assert bridge_server.viewer.layers["test"].data.shape == (2, 2)
             assert bridge_server.viewer.layers["test"].colormap.name == "gray"
+
+    @pytest.mark.asyncio
+    async def test_add_points_from_data(self, bridge_server):
+        """Test adding points via bridge add_layer — verifies type normalization."""
+        with patch.object(bridge_server.qt_bridge, "run_in_main_thread") as mock_run:
+
+            def execute_directly(func, **kwargs):
+                return func()
+
+            mock_run.side_effect = execute_directly
+
+            tools = await bridge_server.server.get_tools()
+            tool = tools["add_layer"]
+            result = await tool.fn(
+                layer_type="points", data=[[1, 2], [3, 4]], name="pts"
+            )
+
+            assert result["status"] == "ok"
+            assert result["n_points"] == 2
+            assert "pts" in bridge_server.viewer.layers
 
     @pytest.mark.asyncio
     async def test_remove_layer(self, bridge_server):

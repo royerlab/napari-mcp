@@ -28,7 +28,7 @@ napari-mcp is an MCP server that can be integrated into Python scripts, allowing
 - Python 3.10+
 - napari-mcp installed: `pip install napari-mcp`
 - An LLM provider SDK: `pip install openai` or `pip install anthropic`
-- MCP client library: `pip install mcp` (or use `uv run --with openai --with mcp`)
+- MCP client library: `pip install mcp` (or use `uv run --with napari-mcp --with openai --with mcp`)
 
 ## Example: OpenAI with napari MCP
 
@@ -116,7 +116,7 @@ if __name__ == "__main__":
 python script.py
 
 # Or use uv for zero-install
-uv run --with openai --with mcp python script.py
+uv run --with napari-mcp --with openai --with mcp python script.py
 ```
 
 **→ See [OpenAI MCP Documentation](https://platform.openai.com/docs/guides/tools-connectors-mcp) for more details**
@@ -168,7 +168,7 @@ async def main():
 
             # Use Claude to interact with napari
             message = client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model="claude-sonnet-4-6",
                 max_tokens=1024,
                 tools=tools,
                 messages=[
@@ -197,7 +197,7 @@ if __name__ == "__main__":
 python script.py
 
 # Or use uv for zero-install
-uv run --with anthropic --with mcp python script.py
+uv run --with napari-mcp --with anthropic --with mcp python script.py
 ```
 
 ## Example: Simple Napari MCP Client
@@ -260,7 +260,7 @@ if __name__ == "__main__":
 python script.py
 
 # Or with uv
-uv run --with mcp python script.py
+uv run --with napari-mcp --with mcp python script.py
 ```
 
 ## Available MCP Tools
@@ -273,17 +273,18 @@ All napari-mcp tools are available in your Python integration. Common ones inclu
 - `close_viewer()` - Close viewer
 
 ### Layer Operations
-- `add_image(path, name?, colormap?)` - Add image layer
-- `add_labels(path, name?)` - Add labels layer
-- `add_points(points, name?, size?)` - Add points
+- `add_layer(layer_type, path?, data?, data_var?, name?, ...)` - Add any layer type
 - `list_layers()` - List all layers
+- `get_layer(name, include_data?, slicing?)` - Get layer info and data
 - `remove_layer(name)` - Remove layer
+- `set_layer_properties(name, visible?, opacity?, ...)` - Set properties
+- `reorder_layer(name, index?, before?, after?)` - Reorder layers
+- `apply_to_layers(filter_type?, filter_pattern?, properties)` - Batch update
+- `save_layer_data(name, path)` - Export layer data
 
 ### Viewer Controls
-- `set_camera(center?, zoom?, angle?)` - Control camera
-- `reset_view()` - Reset view
-- `set_ndisplay(2|3)` - Switch 2D/3D
-- `screenshot(canvas_only?)` - Capture screenshot
+- `configure_viewer(zoom?, center?, ndisplay?, dims_axis?, grid?, ...)` - All viewer settings
+- `screenshot(canvas_only?, save_path?, axis?, slice_range?)` - Screenshot or timelapse
 
 ### Advanced
 - `execute_code(code)` - Run Python code
@@ -305,7 +306,7 @@ async def analyze_images(image_paths):
 
             for path in image_paths:
                 # Load image
-                await session.call_tool("add_image", {"path": path})
+                await session.call_tool("add_layer", {"layer_type": "image", "path": path})
 
                 # Process
                 code = """
@@ -349,7 +350,7 @@ Embed napari in larger applications:
 
 ```python
 try:
-    result = await session.call_tool("add_image", {"path": "/invalid/path.tif"})
+    result = await session.call_tool("add_layer", {"layer_type": "image", "path": "/invalid/path.tif"})
 except Exception as e:
     print(f"Error: {e}")
 ```

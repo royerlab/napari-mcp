@@ -167,13 +167,14 @@ class MCPControlWidget(QWidget):
     def _on_port_changed(self, value: int):
         """Handle port change."""
         self.port = value
-        if self.server and self.server.is_running:
-            self.info_text.append("Note: Port change will take effect after restart.")
-        # Always warn the user that the LLM agent must use the same port
-        self.info_text.append(
-            f"WARNING: Port changed to {self.port}. Make sure your LLM agent "
-            f"is configured to connect to http://localhost:{self.port}/mcp."
+        msg = (
+            f"Port set to {self.port}.\n\n"
+            f"Make sure your LLM agent is configured to connect to "
+            f"http://localhost:{self.port}/mcp."
         )
+        if self.server and self.server.is_running:
+            msg += "\n\nNote: Port change will take effect after restart."
+        self.info_text.setPlainText(msg)
 
     def _start_server(self):
         """Start the MCP server."""
@@ -187,6 +188,12 @@ class MCPControlWidget(QWidget):
                     f"Clients will auto-detect this napari-mcp bridge. If you "
                     f"customize the port, ensure your LLM agent is configured to "
                     f"use the same URL."
+                )
+            else:
+                self._update_ui_state(running=False)
+                self.info_text.setPlainText(
+                    f"Failed to start server on port {self.port}.\n\n"
+                    f"The port may already be in use. Try a different port."
                 )
 
     def _stop_server(self):

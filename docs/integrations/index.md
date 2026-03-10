@@ -11,7 +11,7 @@ All integrations use the same simple command:
 pip install napari-mcp
 
 # Auto-configure your application
-napari-mcp-install <application-name>
+napari-mcp-install install <application-name>
 ```
 
 ## Supported Platforms
@@ -31,7 +31,7 @@ napari-mcp-install <application-name>
 | Feature | Claude Desktop | Claude Code | Cursor | Cline | Gemini/Codex |
 |---------|----------------|-------------|--------|-------|--------------|
 | **Visual napari window** | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full |
-| **All MCP tools** | ✅ 20+ tools | ✅ 20+ tools | ✅ 20+ tools | ✅ 20+ tools | ✅ 20+ tools |
+| **All MCP tools** | ✅ 16 tools | ✅ 16 tools | ✅ 16 tools | ✅ 16 tools | ✅ 16 tools |
 | **File system access** | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full |
 | **Code execution** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
 | **Package installation** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
@@ -50,13 +50,13 @@ pip install napari-mcp
 
 ```bash
 # For your specific application
-napari-mcp-install <app-name>
+napari-mcp-install install <app-name>
 
 # See all options
-napari-mcp-install --help
+napari-mcp-install install --help
 
 # Preview changes before applying
-napari-mcp-install <app-name> --dry-run
+napari-mcp-install install <app-name> --dry-run
 ```
 
 ### Step 3: Restart & Test
@@ -125,7 +125,7 @@ All platforms support environment variables for advanced configuration:
 
 ```bash
 export QT_QPA_PLATFORM=offscreen  # For headless servers
-export NAPARI_ASYNC=1             # Enable async operations
+
 export MCP_LOG_LEVEL=INFO         # Debug MCP communication
 ```
 
@@ -145,7 +145,7 @@ export MCP_LOG_LEVEL=INFO         # Debug MCP communication
 !!! failure "Configuration not detected"
     ```bash
     # List what would be configured
-    napari-mcp-install <app> --dry-run
+    napari-mcp-install install <app> --dry-run
 
     # Check current installations
     napari-mcp-install list

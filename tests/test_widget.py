@@ -162,3 +162,42 @@ class TestWidgetIntegration:
 
             with pytest.raises(RuntimeError, match="No napari viewer found"):
                 MCPControlWidget()
+
+    def test_port_change_replaces_text(self, make_napari_viewer, qtbot):
+        """Port change should replace info text, not append to it."""
+        from napari_mcp.widget import MCPControlWidget
+
+        viewer = make_napari_viewer()
+        widget = MCPControlWidget(viewer, port=9999)
+        qtbot.addWidget(widget)
+
+        # Change port multiple times
+        widget._on_port_changed(8888)
+        widget._on_port_changed(7777)
+        widget._on_port_changed(6666)
+
+        text = widget.info_text.toPlainText()
+        # Should only contain ONE port message (the last one), not three
+        assert text.count("Port set to") == 1
+        assert "6666" in text
+
+    def test_start_server_failure_updates_ui(self, make_napari_viewer, qtbot):
+        """If server.start() fails, UI should show error and remain startable."""
+        from napari_mcp.widget import MCPControlWidget
+
+        viewer = make_napari_viewer()
+        widget = MCPControlWidget(viewer, port=9999)
+        qtbot.addWidget(widget)
+
+        # Mock NapariBridgeServer to make start() return False
+        with patch("napari_mcp.widget.NapariBridgeServer") as MockServer:
+            mock_server = MockServer.return_value
+            mock_server.start.return_value = False
+            mock_server.is_running = False
+
+            widget._start_server()
+
+            # UI should show error state
+            assert widget.start_button.isEnabled() is True
+            assert widget.stop_button.isEnabled() is False
+            assert "Failed" in widget.info_text.toPlainText()

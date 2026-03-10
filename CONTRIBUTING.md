@@ -19,7 +19,7 @@ Thank you for your interest in contributing to napari-mcp! This document provide
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
    # Install in development mode
-   uv pip install -e ".[test]"
+   uv pip install -e ".[dev]"
    ```
 
 3. **Install pre-commit hooks**
@@ -35,7 +35,7 @@ Thank you for your interest in contributing to napari-mcp! This document provide
 uv run pytest
 
 # Run with coverage
-uv run pytest --cov=napari_mcp_server --cov-report=html
+uv run pytest --cov=src --cov-report=html
 
 # Run only fast tests (no GUI)
 uv run pytest -m "not realgui"
@@ -56,7 +56,7 @@ ruff format src/ tests/
 ruff check src/ tests/ --fix
 
 # Type checking
-mypy src/napari_mcp_server.py --ignore-missing-imports
+mypy src/napari_mcp/ --ignore-missing-imports
 
 # Security scanning
 bandit -r src/
@@ -174,32 +174,41 @@ Brief description of the changes
 ### Specific Guidelines
 
 ```python
-# ✅ Good: Clear function signature with type hints
-async def add_image(
-    path: str,
-    name: Optional[str] = None,
-    colormap: Optional[str] = None
-) -> Dict[str, Any]:
-    """Add an image layer from a file path.
+# ✅ Good: Clear function signature with type hints and NumPy docstrings
+async def add_layer(
+    layer_type: str,
+    path: str | None = None,
+    name: str | None = None,
+    colormap: str | None = None,
+) -> dict[str, Any]:
+    """Add a layer to the viewer.
 
-    Args:
-        path: Path to an image readable by imageio
-        name: Optional layer name
-        colormap: Optional napari colormap name
+    Parameters
+    ----------
+    layer_type : str
+        One of: "image", "labels", "points", "shapes", etc.
+    path : str | None, optional
+        Path to an image readable by imageio.
+    name : str | None, optional
+        Layer name.
+    colormap : str | None, optional
+        Napari colormap name.
 
-    Returns:
-        Dict with status, name, and shape information
+    Returns
+    -------
+    dict[str, Any]
+        Dict with status, name, and shape information.
     """
 
 # ❌ Bad: No type hints, unclear parameters
-def add_image(path, name=None, colormap=None):
+def add_layer(type, path=None, name=None):
     # Does stuff
     return result
 ```
 
 ### Naming Conventions
 
-- **Functions**: `snake_case` (e.g., `add_image`, `set_layer_properties`)
+- **Functions**: `snake_case` (e.g., `add_layer`, `set_layer_properties`)
 - **Variables**: `snake_case` (e.g., `layer_name`, `current_zoom`)
 - **Constants**: `UPPER_CASE` (e.g., `DEFAULT_TIMEOUT`)
 - **Classes**: `PascalCase` (e.g., `LayerManager`)
@@ -234,16 +243,18 @@ tests/
 
 ```python
 import pytest
-from napari_mcp_server import add_image
+from napari_mcp import server as napari_mcp_server
 
 @pytest.mark.asyncio
-async def test_add_image_success():
-    """Test successful image addition."""
+async def test_add_layer_success():
+    """Test successful layer addition."""
     # Arrange
     test_image_path = "test_data/sample.png"
 
     # Act
-    result = await add_image(test_image_path, name="test_image")
+    result = await napari_mcp_server.add_layer(
+        layer_type="image", path=test_image_path, name="test_image"
+    )
 
     # Assert
     assert result["status"] == "ok"
@@ -252,8 +263,8 @@ async def test_add_image_success():
 
 @pytest.mark.realgui
 @pytest.mark.asyncio
-async def test_add_image_real_gui():
-    """Test image addition with real napari GUI."""
+async def test_add_layer_real_gui():
+    """Test layer addition with real napari GUI."""
     # This test requires RUN_REAL_NAPARI_TESTS=1
     # and will be skipped in headless CI
 ```

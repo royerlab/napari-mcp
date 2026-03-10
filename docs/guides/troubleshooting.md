@@ -46,7 +46,7 @@ The `napari-mcp-install` CLI tool automates configuration. Here are common issue
     **Solutions:**
     1. **Check what would be created:**
        ```bash
-       napari-mcp-install <app> --dry-run
+       napari-mcp-install install <app> --dry-run
        ```
 
     2. **Verify installer detected correct path:**
@@ -84,7 +84,7 @@ The `napari-mcp-install` CLI tool automates configuration. Here are common issue
     napari-mcp-install list
 
     # Force reinstall
-    napari-mcp-install <app> --force
+    napari-mcp-install install <app> --force
 
     # Or manually check/edit config
     cat ~/.config/Claude/claude_desktop_config.json
@@ -122,10 +122,10 @@ The `napari-mcp-install` CLI tool automates configuration. Here are common issue
     pip install napari-mcp
 
     # Then configure
-    napari-mcp-install <app> --persistent
+    napari-mcp-install install <app> --persistent
 
     # Or specify exact Python path
-    napari-mcp-install <app> --python-path /full/path/to/python
+    napari-mcp-install install <app> --python-path /full/path/to/python
     ```
 
 ### Verification Commands
@@ -135,14 +135,14 @@ The `napari-mcp-install` CLI tool automates configuration. Here are common issue
 napari-mcp-install list
 
 # Preview what would be installed
-napari-mcp-install <app> --dry-run
+napari-mcp-install install <app> --dry-run
 
 # Check installer version
 napari-mcp-install --version
 
 # Get help
 napari-mcp-install --help
-napari-mcp-install <command> --help
+napari-mcp-install install --help
 ```
 
 ---
@@ -172,7 +172,7 @@ napari-mcp-install <command> --help
     pip install -e . --force-reinstall
 
     # Or use Python module directly
-    python -m napari_mcp_server
+    python -m napari_mcp.server
 
     # Check if it's in your PATH
     which napari-mcp
@@ -183,11 +183,11 @@ napari-mcp-install <command> --help
 
     **Solution:**
     ```bash
-    # Make file executable
-    chmod +x napari_mcp_server.py
+    # Reinstall the package
+    pip install --force-reinstall napari-mcp
 
-    # Or run with Python directly
-    python napari_mcp_server.py
+    # Or run with Python module directly
+    python -m napari_mcp.server
     ```
 
 ### Napari GUI Issues
@@ -216,7 +216,7 @@ napari-mcp-install <command> --help
     echo $DISPLAY
 
     # Test basic Qt
-    python -c "from PyQt6.QtWidgets import QApplication; app = QApplication([]); print('Qt works')"
+    python -c "from qtpy.QtWidgets import QApplication; app = QApplication([]); print('Qt works')"
 
     # Test napari
     python -c "import napari; viewer = napari.Viewer(); print('Napari works')"
@@ -263,11 +263,11 @@ napari-mcp-install <command> --help
 
     3. **File paths absolute?**
        ```json
-       // Wrong - relative path
-       "args": ["fastmcp", "run", "napari_mcp_server.py"]
+       // Wrong - missing package specifier
+       "args": ["run", "napari-mcp"]
 
-       // Correct - absolute path
-       "args": ["fastmcp", "run", "/full/path/to/napari_mcp_server.py"]
+       // Correct - full uv invocation
+       "args": ["run", "--with", "napari-mcp", "napari-mcp"]
        ```
 
     4. **Claude Desktop restarted?**
@@ -280,31 +280,30 @@ napari-mcp-install <command> --help
     **Debug steps:**
     ```bash
     # Test server starts manually
-    uv run --with fastmcp fastmcp run napari_mcp_server.py
+    napari-mcp
 
-    # Check for error messages
-    # Look for FastMCP startup banner
+    # Or via uv
+    uv run --with napari-mcp napari-mcp
 
-    # Test MCP protocol
-    echo '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}' | \
-      uv run --with fastmcp fastmcp run napari_mcp_server.py
+    # Check for error messages in verbose mode
+    MCP_LOG_LEVEL=DEBUG napari-mcp
     ```
 
 ### Cursor & Claude Code
 
-!!! failure "FastMCP CLI installation failed"
-    **Problem:** `fastmcp install` command fails.
+!!! failure "CLI installer failed"
+    **Problem:** `napari-mcp-install` command fails.
 
     **Solutions:**
     ```bash
-    # Update fastmcp
-    pip install --upgrade fastmcp
+    # Reinstall napari-mcp
+    pip install --upgrade napari-mcp
 
     # Check installation
-    fastmcp --version
+    napari-mcp-install --version
 
-    # Manual installation
-    fastmcp install cursor napari_mcp_server.py --with napari --with imageio
+    # Manual installation for a specific app
+    napari-mcp-install install cursor
     ```
 
 !!! failure "Server not appearing in IDE"
@@ -312,12 +311,11 @@ napari-mcp-install <command> --help
 
     **Debug:**
     ```bash
-    # Check installation location
-    fastmcp list
+    # Check current installations
+    napari-mcp-install list
 
-    # Reinstall for specific IDE
-    fastmcp uninstall cursor napari
-    fastmcp install cursor napari_mcp_server.py --with napari
+    # Force reinstall for specific IDE
+    napari-mcp-install install cursor --force
     ```
 
 ## 📦 Dependency Issues
@@ -334,9 +332,8 @@ napari-mcp-install <command> --help
     source fresh-env/bin/activate
     pip install -e .
 
-    # Or specify versions
-    uv run --with "napari>=0.5.5" --with "PyQt6>=6.5.0" \
-      fastmcp run napari_mcp_server.py
+    # Or use uv with specific versions
+    uv run --with "napari>=0.5.5" --with "PyQt6>=6.5.0" --with napari-mcp napari-mcp
     ```
 
 !!! failure "Qt backend conflicts"
@@ -393,7 +390,7 @@ napari-mcp-install <command> --help
     napari-mcp  # Faster than uv run
 
     # Check startup time
-    time uv run --with napari fastmcp run napari_mcp_server.py
+    time uv run --with napari-mcp napari-mcp
     ```
 
 ### Memory Issues
@@ -407,7 +404,7 @@ napari-mcp-install <command> --help
     ps aux | grep napari
 
     # Python memory profiling
-    python -m memory_profiler napari_mcp_server.py
+    python -m memory_profiler -m napari_mcp.server
     ```
 
     **Solutions:**
@@ -425,8 +422,9 @@ napari-mcp-install <command> --help
 
     **Solution:**
     ```bash
-    # Remove quarantine attribute
-    xattr -d com.apple.quarantine napari_mcp_server.py
+    # If installed via pip, this shouldn't occur.
+    # For uv-cached files, try:
+    pip install --force-reinstall napari-mcp
 
     # Or allow in System Preferences > Security & Privacy
     ```
@@ -454,7 +452,7 @@ napari-mcp-install <command> --help
     Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
     # Or run directly
-    python napari_mcp_server.py
+    python -m napari_mcp.server
     ```
 
 !!! failure "Path length limitations"
@@ -474,7 +472,7 @@ napari-mcp-install <command> --help
     ```bash
     # Virtual display
     sudo apt-get install xvfb
-    xvfb-run -a python napari_mcp_server.py
+    xvfb-run -a napari-mcp
 
     # Or use offscreen
     export QT_QPA_PLATFORM=offscreen
@@ -487,13 +485,12 @@ napari-mcp-install <command> --help
 ```bash
 # Enable verbose logging
 export MCP_LOG_LEVEL=DEBUG
-export NAPARI_ASYNC=1
 
-# Python debugging
-python -u napari_mcp_server.py  # Unbuffered output
+# Run with debug output
+napari-mcp
 
-# FastMCP debugging
-fastmcp run --debug napari_mcp_server.py
+# Or via Python module directly
+python -u -m napari_mcp.server  # Unbuffered output
 ```
 
 ### Testing Commands
@@ -506,7 +503,7 @@ python -c "import napari; print('✅ napari works')"
 python -c "import fastmcp; print('✅ FastMCP works')"
 
 # Test Qt
-python -c "from PyQt6.QtWidgets import QApplication; app = QApplication([]); print('✅ Qt works')"
+python -c "from qtpy.QtWidgets import QApplication; app = QApplication([]); print('✅ Qt works')"
 
 # Full integration test
 python -c "

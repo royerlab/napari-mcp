@@ -81,9 +81,9 @@ class TestExternalViewerDetection:
         mock_client.call_tool.return_value = mock_result
 
         # Test detection
-        client, info = await state.detect_external_viewer()
+        found, info = await state.detect_external_viewer()
 
-        assert client is not None
+        assert found is True
         assert info["session_type"] == "napari_bridge_session"
         assert info["viewer"]["title"] == "External Viewer"
         assert info["bridge_port"] == 9999
@@ -114,9 +114,9 @@ class TestExternalViewerDetection:
         ]
         mock_client.call_tool.return_value = mock_result
 
-        client, info = await state.detect_external_viewer()
+        found, info = await state.detect_external_viewer()
 
-        assert client is None
+        assert found is False
         assert info is None
 
     @pytest.mark.asyncio
@@ -127,9 +127,9 @@ class TestExternalViewerDetection:
 
         mock_client_class.side_effect = Exception("Connection refused")
 
-        client, info = await state.detect_external_viewer()
+        found, info = await state.detect_external_viewer()
 
-        assert client is None
+        assert found is False
         assert info is None
 
     @pytest.mark.asyncio
@@ -137,8 +137,8 @@ class TestExternalViewerDetection:
         """Test that STANDALONE mode skips detection entirely."""
         state = ServerState(mode=StartupMode.STANDALONE)
 
-        client, info = await state.detect_external_viewer()
-        assert client is None
+        found, info = await state.detect_external_viewer()
+        assert found is False
         assert info is None
 
     def test_detect_external_viewer_sync(self):
@@ -253,7 +253,7 @@ class TestViewerDetectionAndSelection:
         from napari_mcp import server as napari_mcp_server
 
         # In STANDALONE mode, external is always unavailable
-        result = await napari_mcp_server.detect_viewers()
+        result = await napari_mcp_server.init_viewer(detect_only=True)
 
         assert result["status"] == "ok"
         assert result["viewers"]["external"]["available"] is False
@@ -291,7 +291,7 @@ class TestViewerDetectionAndSelection:
         ]
         mock_client.call_tool.return_value = mock_result
 
-        result = await napari_mcp_server.detect_viewers()
+        result = await napari_mcp_server.init_viewer(detect_only=True)
 
         assert result["status"] == "ok"
         assert result["viewers"]["external"]["available"] is True

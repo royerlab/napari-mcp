@@ -80,7 +80,7 @@ class BaseInstaller(ABC):
         dict[str, Any]
             Extra configuration fields (e.g., timeout for Gemini).
         """
-        return {}
+        ...
 
     def validate_environment(self) -> bool:
         """Validate the installation environment.

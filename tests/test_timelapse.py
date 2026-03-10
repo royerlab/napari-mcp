@@ -19,9 +19,11 @@ async def test_timelapse_screenshot_basic(make_napari_viewer, monkeypatch):
     assert layer is not None
 
     # Invoke via the tool interface to ensure ctx is injected automatically
-    tool = await napari_mcp_server.server.get_tool("timelapse_screenshot")
+    tool = await napari_mcp_server.server.get_tool("screenshot")
     # Sweep all frames
-    result = await tool.fn(0, ":", True, False)
+    result = await tool.fn(
+        axis=0, slice_range=":", canvas_only=True, interpolate_to_fit=False
+    )
 
     assert isinstance(result, list)
     assert len(result) == 5
@@ -79,14 +81,18 @@ async def test_timelapse_screenshot_interpolate_to_fit_enforces_cap(
     monkeypatch.setattr(PIL.Image.Image, "save", fake_save)
 
     try:
-        tool = await napari_mcp_server.server.get_tool("timelapse_screenshot")
+        tool = await napari_mcp_server.server.get_tool("screenshot")
 
         # Without interpolation: should return all frames (may exceed cap)
-        res_no = await tool.fn(0, ":", True, False)
+        res_no = await tool.fn(
+            axis=0, slice_range=":", canvas_only=True, interpolate_to_fit=False
+        )
         assert len(res_no) == t
 
         # With interpolation: should fit within cap and also return all frames
-        res_yes = await tool.fn(0, ":", True, True)
+        res_yes = await tool.fn(
+            axis=0, slice_range=":", canvas_only=True, interpolate_to_fit=True
+        )
         assert len(res_yes) == t
 
         total_b64 = _b64_len_list(res_yes)
@@ -121,10 +127,11 @@ async def test_timelapse_screenshot_invalid_slice_range(make_napari_viewer):
     img = np.zeros((5, 32, 32), dtype=np.uint8)
     viewer.add_image(img, name="timelapse")
 
-    tool = await napari_mcp_server.server.get_tool("timelapse_screenshot")
+    tool = await napari_mcp_server.server.get_tool("screenshot")
 
-    with pytest.raises(ValueError, match="Invalid slice range"):
-        await tool.fn(0, "1:2:3:4", True, False)
+    result = await tool.fn(axis=0, slice_range="1:2:3:4", canvas_only=True)
+    assert result["status"] == "error"
+    assert "Invalid slice range" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -138,10 +145,11 @@ async def test_timelapse_screenshot_step_zero(make_napari_viewer):
     img = np.zeros((5, 32, 32), dtype=np.uint8)
     viewer.add_image(img, name="timelapse")
 
-    tool = await napari_mcp_server.server.get_tool("timelapse_screenshot")
+    tool = await napari_mcp_server.server.get_tool("screenshot")
 
-    with pytest.raises(ValueError, match="step cannot be 0"):
-        await tool.fn(0, "::0", True, False)
+    result = await tool.fn(axis=0, slice_range="::0", canvas_only=True)
+    assert result["status"] == "error"
+    assert "step cannot be 0" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -155,10 +163,10 @@ async def test_timelapse_screenshot_negative_index(make_napari_viewer):
     img = np.linspace(0, 255, 5 * 32 * 32, dtype=np.uint8).reshape(5, 32, 32)
     viewer.add_image(img, name="timelapse")
 
-    tool = await napari_mcp_server.server.get_tool("timelapse_screenshot")
+    tool = await napari_mcp_server.server.get_tool("screenshot")
 
     # "-1" should select only the last frame
-    result = await tool.fn(0, "-1", True, False)
+    result = await tool.fn(axis=0, slice_range="-1", canvas_only=True)
     assert isinstance(result, list)
     assert len(result) == 1
 
@@ -174,9 +182,9 @@ async def test_timelapse_screenshot_2d_image(make_napari_viewer):
     img = np.zeros((32, 32), dtype=np.uint8)
     viewer.add_image(img, name="flat")
 
-    tool = await napari_mcp_server.server.get_tool("timelapse_screenshot")
+    tool = await napari_mcp_server.server.get_tool("screenshot")
 
     # Single index "0" on axis 0 of a 2D image
-    result = await tool.fn(0, "0", True, False)
+    result = await tool.fn(axis=0, slice_range="0", canvas_only=True)
     assert isinstance(result, list)
     assert len(result) == 1

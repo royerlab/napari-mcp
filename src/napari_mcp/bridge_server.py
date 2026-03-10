@@ -1,16 +1,18 @@
-"""MCP Server runner for napari plugin."""
+"""Bridge MCP server for the napari plugin.
+
+Creates a ``ServerState`` and calls ``create_server()`` to build the base
+server, then overrides ``session_information``, ``add_layer``, and
+``execute_code`` with thread-safe versions that dispatch to the Qt main thread
+via ``QtBridge``.
+"""
 
 from __future__ import annotations
 
-import ast
 import asyncio
-import contextlib
 import logging
 import threading
-import traceback
 from concurrent.futures import Future
 from concurrent.futures import TimeoutError as FutureTimeoutError
-from io import StringIO
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -24,8 +26,14 @@ else:
 from qtpy.QtCore import QObject, QThread, Signal, Slot
 from qtpy.QtWidgets import QApplication
 
-from napari_mcp.output import truncate_output
-from napari_mcp.server import _parse_bool, create_server
+from napari_mcp._helpers import (
+    build_layer_detail,
+    build_truncated_response,
+    create_layer_on_viewer,
+    resolve_layer_type,
+    run_code,
+)
+from napari_mcp.server import create_server
 from napari_mcp.state import ServerState, StartupMode
 
 
@@ -108,6 +116,11 @@ class NapariBridgeServer:
         # Create server with all shared tools bound to this state
         self.server = create_server(self.state)
 
+        # Remove lifecycle tools that should not be available in bridge mode
+        # (the viewer is managed by napari, not the agent)
+        for name in ("close_viewer", "init_viewer"):
+            self.server._tool_manager._tools.pop(name, None)
+
         # Override the 3 tools that differ in bridge mode
         self._register_bridge_overrides()
 
@@ -136,21 +149,9 @@ class NapariBridgeServer:
                     "grid_enabled": self.viewer.grid.enabled,
                 }
 
-                layer_details = []
-                for layer in self.viewer.layers:
-                    layer_detail: dict[str, Any] = {
-                        "name": layer.name,
-                        "type": layer.__class__.__name__,
-                        "visible": _parse_bool(getattr(layer, "visible", True)),
-                        "opacity": float(getattr(layer, "opacity", 1.0)),
-                    }
-                    if hasattr(layer, "data") and hasattr(layer.data, "shape"):
-                        layer_detail["data_shape"] = list(layer.data.shape)
-                    if hasattr(layer, "colormap"):
-                        layer_detail["colormap"] = getattr(
-                            layer.colormap, "name", str(layer.colormap)
-                        )
-                    layer_details.append(layer_detail)
+                layer_details = [
+                    build_layer_detail(layer) for layer in self.viewer.layers
+                ]
 
                 return {
                     "status": "ok",
@@ -163,57 +164,99 @@ class NapariBridgeServer:
             return self.qt_bridge.run_in_main_thread(get_info)
 
         @self.server.tool()
-        async def add_image(
-            data: list | None = None,
+        async def add_layer(
+            layer_type: str,
             path: str | None = None,
+            data: list | None = None,
+            data_var: str | None = None,
             name: str | None = None,
             colormap: str | None = None,
             blending: str | None = None,
             channel_axis: int | str | None = None,
+            size: float | str | None = None,
+            shape_type: str | None = None,
+            edge_color: str | None = None,
+            face_color: str | None = None,
+            edge_width: float | str | None = None,
         ):
-            """Add an image layer from data or file path."""
-            if path:
-                # Use file-based loading directly via Qt bridge
-                import imageio.v3 as iio
-
-                img_data = iio.imread(path)
-
-                def _add_from_file():
-                    layer = self.viewer.add_image(
-                        img_data,
-                        name=name,
-                        colormap=colormap,
-                        blending=blending,
-                        channel_axis=int(channel_axis)
-                        if channel_axis is not None
-                        else None,
-                    )
-                    return {
-                        "status": "ok",
-                        "name": layer.name,
-                        "shape": list(np.shape(img_data)),
-                    }
-
-                return self.qt_bridge.run_in_main_thread(_add_from_file)
-
-            if data is None:
+            """Add a layer via the bridge (Qt main thread)."""
+            lt = resolve_layer_type(layer_type)
+            if lt is None:
                 return {
                     "status": "error",
-                    "message": "Either data or path must be provided",
+                    "message": (
+                        f"Unknown layer_type '{layer_type}'. "
+                        f"Valid types: image, labels, points, shapes, vectors, tracks, surface"
+                    ),
                 }
 
-            arr = np.asarray(data)
+            # Validate only one data source
+            sources = sum([data_var is not None, data is not None, path is not None])
+            if sources > 1:
+                return {
+                    "status": "error",
+                    "message": "Provide only ONE of 'path', 'data', or 'data_var', not multiple.",
+                }
 
-            def add_layer():
-                kwargs: dict[str, Any] = {"name": name, "colormap": colormap}
-                if blending is not None:
-                    kwargs["blending"] = blending
-                if channel_axis is not None:
-                    kwargs["channel_axis"] = int(channel_axis)
-                layer = self.viewer.add_image(arr, **kwargs)
-                return {"status": "ok", "name": layer.name, "shape": list(arr.shape)}
+            # Resolve data
+            resolved = None
+            if path and lt in ("image", "labels"):
+                from pathlib import Path as _Path
 
-            return self.qt_bridge.run_in_main_thread(add_layer)
+                import imageio.v3 as iio
+
+                p = _Path(path).expanduser().resolve(strict=False)
+                if not p.exists():
+                    return {
+                        "status": "error",
+                        "message": f"File not found: {p}",
+                    }
+                try:
+                    resolved = iio.imread(str(p))
+                except Exception as e:
+                    return {
+                        "status": "error",
+                        "message": f"Failed to read file: {e}",
+                    }
+            elif data_var:
+                if data_var not in self.state.exec_globals:
+                    return {
+                        "status": "error",
+                        "message": f"Variable '{data_var}' not found in execution namespace",
+                    }
+                resolved = self.state.exec_globals[data_var]
+            elif data is not None:
+                resolved = data
+
+            if resolved is None:
+                return {
+                    "status": "error",
+                    "message": "Provide 'path', 'data', or 'data_var'.",
+                }
+
+            def _do_add():
+                return create_layer_on_viewer(
+                    self.viewer,
+                    resolved,
+                    lt,
+                    name=name,
+                    colormap=colormap,
+                    blending=blending,
+                    channel_axis=channel_axis,
+                    size=size,
+                    shape_type=shape_type,
+                    edge_color=edge_color,
+                    face_color=face_color,
+                    edge_width=edge_width,
+                )
+
+            try:
+                return self.qt_bridge.run_in_main_thread(_do_add)
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Failed to add {layer_type} layer: {e}",
+                }
 
         @self.server.tool()
         async def execute_code(code: str, line_limit: int | str = 30):
@@ -229,62 +272,17 @@ class NapariBridgeServer:
             """
 
             def _run_on_qt():
-                """Run code on Qt main thread; returns raw (status, stdout, stderr, result_repr, error)."""
+                """Run code on Qt main thread using shared helper."""
                 self.state.exec_globals.setdefault("__builtins__", __builtins__)
                 self.state.exec_globals["viewer"] = self.viewer
                 self.state.exec_globals.setdefault("napari", None)
                 self.state.exec_globals.setdefault("np", np)
-
-                stdout_buf = StringIO()
-                stderr_buf = StringIO()
-                result_repr = None
-
-                try:
-                    with (
-                        contextlib.redirect_stdout(stdout_buf),
-                        contextlib.redirect_stderr(stderr_buf),
-                    ):
-                        parsed = ast.parse(code, mode="exec")
-                        if parsed.body and isinstance(parsed.body[-1], ast.Expr):
-                            if len(parsed.body) > 1:
-                                exec_ast = ast.Module(
-                                    body=parsed.body[:-1], type_ignores=[]
-                                )
-                                exec(
-                                    compile(exec_ast, "<bridge-exec>", "exec"),
-                                    self.state.exec_globals,
-                                )
-                            last_expr = ast.Expression(body=parsed.body[-1].value)
-                            value = eval(
-                                compile(last_expr, "<bridge-eval>", "eval"),
-                                self.state.exec_globals,
-                            )
-                            result_repr = repr(value)
-                        else:
-                            exec(
-                                compile(parsed, "<bridge-exec>", "exec"),
-                                self.state.exec_globals,
-                            )
-
-                    return (
-                        "ok",
-                        stdout_buf.getvalue(),
-                        stderr_buf.getvalue(),
-                        result_repr,
-                        None,
-                    )
-                except Exception as e:
-                    tb = traceback.format_exc()
-                    return (
-                        "error",
-                        stdout_buf.getvalue(),
-                        stderr_buf.getvalue() + tb,
-                        None,
-                        e,
-                    )
+                return run_code(
+                    code, self.state.exec_globals, source_label="<bridge-exec>"
+                )
 
             try:
-                status, stdout_full, stderr_full, result_repr, error = (
+                stdout_full, stderr_full, result_repr, error = (
                     self.qt_bridge.run_in_main_thread(_run_on_qt, timeout=600.0)
                 )
             except TimeoutError:
@@ -307,54 +305,25 @@ class NapariBridgeServer:
                     ),
                 }
 
-            # Store full output
+            status = "error" if error else "ok"
             output_id = await self.state.store_output(
                 tool_name="execute_code",
                 stdout=stdout_full,
                 stderr=stderr_full,
                 result_repr=result_repr,
                 code=code,
-                **({"error": True} if status == "error" else {}),
+                **({"error": True} if error else {}),
             )
 
-            # Build response with truncation (same shape as server's execute_code)
-            response: dict[str, Any] = {
-                "status": status,
-                "output_id": output_id,
-            }
-            if result_repr is not None:
-                response["result_repr"] = result_repr
-
-            if line_limit == -1:
-                response["warning"] = (
-                    "Unlimited output requested. This may consume a large number "
-                    "of tokens. Consider using read_output for large outputs."
-                )
-                response["stdout"] = stdout_full
-                response["stderr"] = stderr_full
-            else:
-                stdout_truncated, stdout_was_truncated = truncate_output(
-                    stdout_full, int(line_limit)
-                )
-                stderr_truncated, stderr_was_truncated = truncate_output(
-                    stderr_full, int(line_limit)
-                )
-                response["stdout"] = stdout_truncated
-                if status == "error" and error is not None:
-                    error_summary = f"{type(error).__name__}: {error}"
-                    if error_summary not in stderr_truncated:
-                        if stderr_truncated and not stderr_truncated.endswith("\n"):
-                            stderr_truncated += "\n"
-                        stderr_truncated += error_summary + "\n"
-                response["stderr"] = stderr_truncated
-                if stdout_was_truncated or stderr_was_truncated:
-                    response["truncated"] = True
-                    response["message"] = (
-                        f"Output truncated to {line_limit} lines. "
-                        f"Use read_output('{output_id}') to retrieve full output."
-                    )
-
-            return response
+            return build_truncated_response(
+                status=status,
+                output_id=output_id,
+                stdout_full=stdout_full,
+                stderr_full=stderr_full,
+                result_repr=result_repr,
+                line_limit=line_limit,
+                error=error,
+            )
 
     def _run_server_thread(self):
         """Run the server in a separate thread with its own event loop."""

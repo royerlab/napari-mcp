@@ -71,10 +71,10 @@ class TestServerState:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_detect_external_standalone_returns_none(self):
+    async def test_detect_external_standalone_returns_false(self):
         state = ServerState(mode=StartupMode.STANDALONE)
-        client, info = await state.detect_external_viewer()
-        assert client is None
+        found, info = await state.detect_external_viewer()
+        assert found is False
         assert info is None
 
 

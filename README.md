@@ -97,15 +97,13 @@ Want to automate image processing with Python scripts? Use any LLM (OpenAI, Anth
 
 ## 🛠 Available MCP Tools
 
-The server exposes 20+ tools for complete napari control:
+The server exposes 16 tools for complete napari control:
 
 ### Core Functions
-- **Session Management**: `detect_viewers`, `init_viewer`, `close_viewer`, `session_information`
-- **Layer Operations**: `add_image`, `add_labels`, `add_points`, `list_layers`, `remove_layer`
-- **Viewer Controls**: `set_camera`, `reset_view`, `set_ndisplay`, `set_dims_current_step`
-- **Utilities**: `screenshot`, `execute_code`, `install_packages`
-
-**→ See [API Reference](docs/api/index.md) for complete documentation**
+- **Session Management**: `init_viewer`, `close_viewer`, `session_information`
+- **Layer Operations**: `add_layer`, `list_layers`, `get_layer`, `remove_layer`, `set_layer_properties`, `reorder_layer`, `apply_to_layers`, `save_layer_data`
+- **Viewer Controls**: `configure_viewer`
+- **Utilities**: `screenshot`, `execute_code`, `install_packages`, `read_output`
 
 ## ⚠️ Security Notice
 
@@ -128,7 +126,7 @@ The server exposes 20+ tools for complete napari control:
 - **[Integration Guides](docs/integrations/index.md)** - Setup for specific AI applications
 - **[Python Examples](docs/examples/README.md)** - Automate workflows with custom scripts
 - **[Troubleshooting](docs/guides/troubleshooting.md)** - Common issues and solutions
-- **[API Reference](docs/api/index.md)** - Complete tool documentation
+- **[API Reference](https://royerlab.github.io/napari-mcp/api/)** - Complete tool documentation
 
 ## 🧪 Development Setup
 
@@ -139,7 +137,7 @@ git clone https://github.com/royerlab/napari-mcp.git
 cd napari-mcp
 
 # Install with development dependencies
-pip install -e ".[test,dev]"
+pip install -e ".[dev]"
 
 # Run tests
 pytest -m "not realgui"  # Skip GUI tests
@@ -160,11 +158,13 @@ Contributions are welcome! Please:
 
 ## 📋 Architecture
 
-- **FastMCP Server**: Handles MCP protocol communication
-- **Napari Integration**: Manages viewer lifecycle and operations
-- **Qt Event Loop**: Asynchronous GUI event processing
-- **Tool Layer**: Exposes napari functionality as MCP tools
-- **External Bridge**: Optional connection to existing napari viewers
+- **`state.py`** — `ServerState` holding all mutable state (viewer, locks, execution namespace)
+- **`server.py`** — `create_server(state)` factory; tools defined as closures over state
+- **`qt_helpers.py`** — Qt application and viewer lifecycle management
+- **`output.py`** — Output truncation utility
+- **`bridge_server.py`** — Plugin bridge server (overrides 3 tools for Qt thread safety)
+- **`viewer_protocol.py`** — `ViewerProtocol` for typed viewer backends
+- **`cli/`** — `napari-mcp-install` CLI for configuring AI applications
 
 Key features:
 - **Thread-safe**: All napari operations are serialized
