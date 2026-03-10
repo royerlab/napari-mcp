@@ -78,6 +78,64 @@ class TestServerState:
         assert info is None
 
 
+class TestRequestShutdown:
+    """Test ServerState.request_shutdown lifecycle."""
+
+    def test_initial_shutdown_state(self):
+        state = ServerState()
+        assert state._shutdown_requested is False
+        assert state._event_loop is None
+
+    def test_shutdown_without_event_loop(self):
+        """request_shutdown should not raise when no event loop is set."""
+        state = ServerState()
+        state.request_shutdown()
+        assert state._shutdown_requested is True
+
+    def test_shutdown_is_idempotent(self):
+        """Calling request_shutdown twice should only act once."""
+        state = ServerState()
+        state.request_shutdown()
+        assert state._shutdown_requested is True
+        # Second call should be a no-op (no error)
+        state.request_shutdown()
+        assert state._shutdown_requested is True
+
+    def test_shutdown_with_closed_loop(self):
+        """request_shutdown should not raise when the loop is already closed."""
+        import asyncio
+
+        loop = asyncio.new_event_loop()
+        loop.close()
+        state = ServerState()
+        state._event_loop = loop
+        # Should not raise
+        state.request_shutdown()
+        assert state._shutdown_requested is True
+
+    def test_shutdown_schedules_delayed_stop(self):
+        """request_shutdown should schedule a delayed loop.stop via call_later."""
+        import asyncio
+        from unittest.mock import MagicMock
+
+        loop = MagicMock(spec=asyncio.AbstractEventLoop)
+        loop.is_closed.return_value = False
+
+        state = ServerState()
+        state._event_loop = loop
+
+        state.request_shutdown()
+
+        loop.call_soon_threadsafe.assert_called_once()
+        # The argument should be a lambda that calls call_later
+        scheduled_fn = loop.call_soon_threadsafe.call_args[0][0]
+        scheduled_fn()
+        loop.call_later.assert_called_once()
+        delay_arg, stop_fn = loop.call_later.call_args[0]
+        assert delay_arg == 1.0
+        assert stop_fn is loop.stop
+
+
 class TestServerModuleInit:
     """Test that server module initializes correctly at import time."""
 

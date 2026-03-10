@@ -101,6 +101,7 @@ markers = [
   "unit: marks unit tests",
   "smoke: marks smoke tests for quick validation",
   "isolated: marks tests that must run in complete isolation",
+  "benchmark: marks performance benchmark tests",
 ]
 filterwarnings = [
   "ignore::DeprecationWarning:napari.*",

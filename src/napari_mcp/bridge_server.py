@@ -200,7 +200,12 @@ class NapariBridgeServer:
 
             # Resolve data
             resolved = None
-            if path and lt in ("image", "labels"):
+            if path:
+                if lt not in ("image", "labels"):
+                    return {
+                        "status": "error",
+                        "message": f"'path' is only supported for image/labels, not {layer_type}",
+                    }
                 from pathlib import Path as _Path
 
                 import imageio.v3 as iio
@@ -229,6 +234,11 @@ class NapariBridgeServer:
                 resolved = data
 
             if resolved is None:
+                if lt == "surface":
+                    return {
+                        "status": "error",
+                        "message": "'data_var' is required for surface layers.",
+                    }
                 return {
                     "status": "error",
                     "message": "Provide 'path', 'data', or 'data_var'.",
@@ -273,9 +283,11 @@ class NapariBridgeServer:
 
             def _run_on_qt():
                 """Run code on Qt main thread using shared helper."""
+                import napari
+
                 self.state.exec_globals.setdefault("__builtins__", __builtins__)
                 self.state.exec_globals["viewer"] = self.viewer
-                self.state.exec_globals.setdefault("napari", None)
+                self.state.exec_globals.setdefault("napari", napari)
                 self.state.exec_globals.setdefault("np", np)
                 return run_code(
                     code, self.state.exec_globals, source_label="<bridge-exec>"

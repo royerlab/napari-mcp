@@ -204,7 +204,8 @@ class TestToolListCompleteness:
         missing = {t for t in EXPECTED_TOOLS if f"`{t}`" not in content}
         assert not missing, f"README.md missing tools: {missing}"
 
-    def test_expected_tools_matches_server(self):
+    @pytest.mark.asyncio
+    async def test_expected_tools_matches_server(self):
         """EXPECTED_TOOLS stays in sync with actually registered tools."""
         from napari_mcp.server import create_server
         from napari_mcp.state import ServerState
@@ -212,11 +213,7 @@ class TestToolListCompleteness:
         state = ServerState()
         srv = create_server(state)
 
-        import asyncio
-
-        registered = set(
-            asyncio.get_event_loop().run_until_complete(srv.get_tools()).keys()
-        )
+        registered = set((await srv.get_tools()).keys())
         assert registered == EXPECTED_TOOLS, (
             f"Mismatch — registered: {registered - EXPECTED_TOOLS}, "
             f"expected but missing: {EXPECTED_TOOLS - registered}"

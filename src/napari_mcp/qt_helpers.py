@@ -47,6 +47,7 @@ def connect_window_destroyed_signal(state: ServerState, viewer: Any) -> None:
         def _on_destroyed(*_args: Any) -> None:
             state.viewer = None
             state.window_close_connected = False
+            state.request_shutdown()
 
         qt_win.destroyed.connect(_on_destroyed)  # type: ignore[attr-defined]
         state.window_close_connected = True
