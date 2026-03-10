@@ -348,7 +348,8 @@ def build_truncated_response(
     result_repr : str or None
         The repr of the last expression result.
     line_limit : int or str
-        Maximum lines (-1 for unlimited).
+        Maximum lines (-1 for unlimited). Strings are converted to int;
+        invalid values fall back to 30.
     error : Exception or None
         The exception, if status == "error".
 
@@ -364,7 +365,12 @@ def build_truncated_response(
     if result_repr is not None:
         response["result_repr"] = result_repr
 
-    if line_limit == -1 or str(line_limit) == "-1":
+    try:
+        line_limit = int(line_limit)
+    except (ValueError, TypeError):
+        line_limit = 30
+
+    if line_limit == -1:
         response["warning"] = (
             "Unlimited output requested. This may consume a large number "
             "of tokens. Consider using read_output for large outputs."
@@ -372,7 +378,7 @@ def build_truncated_response(
         response["stdout"] = stdout_full
         response["stderr"] = stderr_full
     else:
-        limit = int(line_limit)
+        limit = line_limit
         stdout_truncated, stdout_was_truncated = truncate_output(stdout_full, limit)
         stderr_truncated, stderr_was_truncated = truncate_output(stderr_full, limit)
         response["stdout"] = stdout_truncated

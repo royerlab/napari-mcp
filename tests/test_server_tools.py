@@ -945,3 +945,143 @@ class TestBugFixRegressions:
         res = await s.add_layer("image", path=str(tmp_path / "does_not_exist.tif"))
         assert res["status"] == "error"
         assert "not found" in res["message"].lower()
+
+
+# ── _parse_numpy_slicing (indirect via get_layer) ────────────────────────
+
+
+class TestParseNumpySlicing:
+    """Test _parse_numpy_slicing indirectly through get_layer with slicing."""
+
+    async def test_single_index(self, make_napari_viewer):
+        v = _viewer(make_napari_viewer)
+        data = np.arange(60).reshape(3, 4, 5).astype(np.float32)
+        v.add_image(data, name="vol")
+        res = await s.get_layer("vol", slicing="1")
+        assert res["status"] == "ok"
+        assert res["slice_shape"] == [4, 5]
+
+    async def test_slice_with_step(self, make_napari_viewer):
+        v = _viewer(make_napari_viewer)
+        data = np.arange(20).reshape(4, 5).astype(np.float32)
+        v.add_image(data, name="img")
+        res = await s.get_layer("img", slicing="0:4:2, :")
+        assert res["status"] == "ok"
+        assert res["slice_shape"] == [2, 5]
+
+    async def test_empty_slicing_returns_error(self, make_napari_viewer):
+        v = _viewer(make_napari_viewer)
+        v.add_image(np.zeros((5, 5), dtype=np.uint8), name="img")
+        res = await s.get_layer("img", slicing="")
+        assert "slice_error" in res
+
+    async def test_too_many_colons_returns_error(self, make_napari_viewer):
+        v = _viewer(make_napari_viewer)
+        v.add_image(np.zeros((5, 5), dtype=np.uint8), name="img")
+        res = await s.get_layer("img", slicing="1:2:3:4")
+        assert "slice_error" in res
+
+    async def test_non_numeric_returns_error(self, make_napari_viewer):
+        v = _viewer(make_napari_viewer)
+        v.add_image(np.zeros((5, 5), dtype=np.uint8), name="img")
+        res = await s.get_layer("img", slicing="abc")
+        assert "slice_error" in res
+
+    async def test_open_ended_slice(self, make_napari_viewer):
+        v = _viewer(make_napari_viewer)
+        data = np.arange(20).reshape(4, 5).astype(np.float32)
+        v.add_image(data, name="img")
+        res = await s.get_layer("img", slicing=":, 3")
+        assert res["status"] == "ok"
+        assert res["slice_shape"] == [4]
+
+
+# ── get_layer max_elements cap ────────────────────────────────────────────
+
+
+class TestGetLayerMaxElementsCap:
+    """Test that max_elements is capped at 1,000,000."""
+
+    async def test_negative_capped(self, make_napari_viewer):
+        """max_elements=-1 should be capped to 1,000,000."""
+        v = _viewer(make_napari_viewer)
+        v.add_image(np.zeros((10, 10), dtype=np.uint8), name="img")
+        # Should not raise — -1 is capped internally
+        res = await s.get_layer("img", include_data=True, max_elements=-1)
+        assert res["status"] == "ok"
+
+    async def test_large_value_capped(self, make_napari_viewer):
+        """max_elements=2000000 should be capped to 1,000,000."""
+        v = _viewer(make_napari_viewer)
+        v.add_image(np.zeros((10, 10), dtype=np.uint8), name="img")
+        res = await s.get_layer("img", include_data=True, max_elements=2_000_000)
+        assert res["status"] == "ok"
+
+
+# ── execute_code line_limit normalization ─────────────────────────────────
+
+
+class TestExecuteCodeLineLimitNormalization:
+    """Test that line_limit is properly normalized from string to int."""
+
+    async def test_string_int(self, make_napari_viewer):
+        _viewer(make_napari_viewer)
+        res = await s.execute_code("print('hello')", line_limit="30")
+        assert res["status"] == "ok"
+        assert "hello" in res["stdout"]
+
+    async def test_string_minus_one(self, make_napari_viewer):
+        _viewer(make_napari_viewer)
+        res = await s.execute_code("print('hello')", line_limit="-1")
+        assert "warning" in res
+
+    async def test_invalid_string_falls_back(self, make_napari_viewer):
+        _viewer(make_napari_viewer)
+        res = await s.execute_code("print('hello')", line_limit="invalid")
+        assert res["status"] == "ok"
+        # Should not crash — falls back to default 30
+
+
+# ── save_layer_data format coverage ───────────────────────────────────────
+
+
+class TestSaveLayerDataFormats:
+    """Additional format coverage for save_layer_data."""
+
+    async def test_png(self, make_napari_viewer, tmp_path):
+        v = _viewer(make_napari_viewer)
+        v.add_image(np.zeros((10, 10), dtype=np.uint8), name="img")
+        out = tmp_path / "img.png"
+        res = await s.save_layer_data("img", str(out))
+        assert res["status"] == "ok"
+        assert Path(res["path"]).exists()
+        assert res["format"] == "png"
+
+    async def test_jpg(self, make_napari_viewer, tmp_path):
+        v = _viewer(make_napari_viewer)
+        v.add_image(np.random.randint(0, 255, (10, 10), dtype=np.uint8), name="img")
+        out = tmp_path / "img.jpg"
+        res = await s.save_layer_data("img", str(out))
+        assert res["status"] == "ok"
+        assert Path(res["path"]).exists()
+
+    async def test_csv_tracks(self, make_napari_viewer, tmp_path):
+        v = _viewer(make_napari_viewer)
+        # Tracks need 4D: track_id, t, y, x
+        data = np.array(
+            [[0, 0, 0, 0], [0, 1, 1, 1], [1, 0, 2, 2], [1, 1, 3, 3]], dtype=float
+        )
+        v.add_tracks(data, name="trk")
+        out = tmp_path / "trk.csv"
+        res = await s.save_layer_data("trk", str(out))
+        assert res["status"] == "ok"
+        lines = out.read_text().strip().splitlines()
+        assert "track_id" in lines[0]
+
+    async def test_labels_tiff(self, make_napari_viewer, tmp_path):
+        v = _viewer(make_napari_viewer)
+        v.add_labels(np.array([[0, 1], [2, 0]], dtype=np.int32), name="seg")
+        out = tmp_path / "seg.tiff"
+        res = await s.save_layer_data("seg", str(out))
+        assert res["status"] == "ok"
+        assert Path(res["path"]).exists()

@@ -384,18 +384,12 @@ class TestOutputEviction:
             napari_mcp_server._state.next_output_id = orig_id
 
 
-class TestTruncateOutputBackwardCompat:
-    """Test backward-compatible access to truncate_output."""
+class TestTruncateOutputCanonicalImport:
+    """Test canonical import of truncate_output from output module."""
 
-    def test_server_module_alias(self):
+    def test_output_module_import(self):
         from napari_mcp.output import truncate_output
-        from napari_mcp.server import _truncate_output
 
-        assert _truncate_output is truncate_output
-
-    def test_alias_works_correctly(self):
-        from napari_mcp.server import _truncate_output
-
-        result, was_truncated = _truncate_output("a\nb\n", 1)
+        result, was_truncated = truncate_output("a\nb\n", 1)
         assert was_truncated is True
         assert result == "a\n"

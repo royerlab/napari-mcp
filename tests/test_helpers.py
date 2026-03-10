@@ -432,6 +432,32 @@ class TestBuildTruncatedResponse:
         )
         assert "warning" in resp
 
+    def test_invalid_line_limit_falls_back(self):
+        """Invalid line_limit string should fall back to 30, not crash."""
+        resp = build_truncated_response(
+            status="ok",
+            output_id="id1",
+            stdout_full="hello\n",
+            stderr_full="",
+            result_repr=None,
+            line_limit="invalid",
+        )
+        assert resp["status"] == "ok"
+        assert resp["stdout"] == "hello\n"
+        assert "truncated" not in resp  # 1 line < 30 limit
+
+    def test_none_line_limit_falls_back(self):
+        """None line_limit should fall back to 30, not crash."""
+        resp = build_truncated_response(
+            status="ok",
+            output_id="id1",
+            stdout_full="hello\n",
+            stderr_full="",
+            result_repr=None,
+            line_limit=None,
+        )
+        assert resp["status"] == "ok"
+
 
 # ---------------------------------------------------------------------------
 # parse_bool (already tested via test_property_based.py, but add edge cases)
@@ -495,6 +521,13 @@ class TestPackageNameRegex:
             "pkg;rm -rf /",
             "",
             " ",
+            # Security: pip flag injection
+            "--target /tmp/evil",
+            "-e git+https://evil.com/repo",
+            # Security: URL-based specifiers
+            "package @ https://evil.com/payload.tar.gz",
+            # Security: newline injection
+            "package\nmalicious",
         ],
     )
     def test_invalid_packages(self, pkg):
