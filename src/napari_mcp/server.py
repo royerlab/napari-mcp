@@ -99,7 +99,15 @@ def create_server(state: ServerState | None = None) -> FastMCP:
         state = ServerState()
     _state = state
 
-    server = FastMCP("Napari MCP Server")
+    @contextlib.asynccontextmanager
+    async def _lifespan(_server: FastMCP):  # type: ignore[type-arg]
+        state._event_loop = asyncio.get_running_loop()
+        try:
+            yield {}
+        finally:
+            state._event_loop = None
+
+    server = FastMCP("Napari MCP Server", lifespan=_lifespan)
 
     # Dict to collect raw async functions before @server.tool() wraps them.
     # Used at the end to expose backward-compatible module-level names.
@@ -204,17 +212,14 @@ def create_server(state: ServerState | None = None) -> FastMCP:
             if title:
                 v.title = title
             if width or height:
-                w = (
-                    int(width)
-                    if width is not None
-                    else v.window.qt_viewer.canvas.size().width()
-                )
-                h = (
-                    int(height)
-                    if height is not None
-                    else v.window.qt_viewer.canvas.size().height()
-                )
-                v.window.qt_viewer.canvas.native.resize(w, h)
+                try:
+                    qt_win = v.window._qt_window  # type: ignore[attr-defined]
+                    cur_size = qt_win.size()
+                    w = int(width) if width is not None else cur_size.width()
+                    h = int(height) if height is not None else cur_size.height()
+                    qt_win.resize(w, h)
+                except Exception:
+                    pass  # Resize is best-effort
 
             app = ensure_qt_app(state)
             with contextlib.suppress(Exception):
@@ -263,6 +268,9 @@ def create_server(state: ServerState | None = None) -> FastMCP:
                 with contextlib.suppress(asyncio.CancelledError):
                     await state.qt_pump_task
             state.qt_pump_task = None
+
+            # Schedule server shutdown now that the viewer is gone
+            state.request_shutdown()
 
             return result
 

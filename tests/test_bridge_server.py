@@ -539,6 +539,53 @@ class TestBridgeServerLayerOperations:
             assert result["name"] == "nonexistent"
 
 
+class TestBridgeAddLayerValidation:
+    """Test bridge add_layer validation matches standalone server."""
+
+    @pytest.mark.asyncio
+    async def test_path_rejected_for_non_image_types(self, bridge_server):
+        """Bridge add_layer should reject path for non-image/labels types."""
+        tools = await bridge_server.server.get_tools()
+        tool = tools["add_layer"]
+
+        result = await tool.fn(layer_type="points", path="/some/file.csv")
+        assert result["status"] == "error"
+        assert "only supported for image/labels" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_surface_requires_data_var(self, bridge_server):
+        """Bridge add_layer should require data_var for surface layers."""
+        tools = await bridge_server.server.get_tools()
+        tool = tools["add_layer"]
+
+        result = await tool.fn(layer_type="surface")
+        assert result["status"] == "error"
+        assert "data_var" in result["message"]
+        assert "surface" in result["message"].lower()
+
+    @pytest.mark.asyncio
+    async def test_multiple_data_sources_rejected(self, bridge_server):
+        """Bridge add_layer should reject multiple data sources."""
+        tools = await bridge_server.server.get_tools()
+        tool = tools["add_layer"]
+
+        result = await tool.fn(
+            layer_type="image", data=[[1, 2]], data_var="x", path="/nonexistent/img.tif"
+        )
+        assert result["status"] == "error"
+        assert "only ONE" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_unknown_layer_type_rejected(self, bridge_server):
+        """Bridge add_layer should reject unknown layer types."""
+        tools = await bridge_server.server.get_tools()
+        tool = tools["add_layer"]
+
+        result = await tool.fn(layer_type="mesh", data=[[1, 2]])
+        assert result["status"] == "error"
+        assert "Unknown" in result["message"]
+
+
 class TestBridgeExecuteCodeParity:
     """Test that bridge execute_code matches server response shape."""
 
@@ -613,6 +660,50 @@ class TestBridgeExecuteCodeParity:
             assert result["status"] == "ok"
             assert "warning" in result
             assert "large number of tokens" in result["warning"]
+
+
+class TestBridgeExecNamespace:
+    """Test that bridge execute_code injects correct namespace."""
+
+    @pytest.mark.asyncio
+    async def test_napari_module_available(self, bridge_server):
+        """Regression: bridge used to inject napari=None instead of the real module."""
+        with patch.object(bridge_server.qt_bridge, "run_in_main_thread") as mock_run:
+
+            def execute_directly(func, **kwargs):
+                return func()
+
+            mock_run.side_effect = execute_directly
+
+            tools = await bridge_server.server.get_tools()
+            for name, tool in tools.items():
+                if name == "execute_code":
+                    result = await tool.fn("type(napari).__name__")
+                    break
+            else:
+                pytest.fail("execute_code tool not found")
+
+            assert result["status"] == "ok"
+            assert result["result_repr"] == "'module'"
+
+    @pytest.mark.asyncio
+    async def test_np_available(self, bridge_server):
+        """numpy should be available as 'np' in the exec namespace."""
+        with patch.object(bridge_server.qt_bridge, "run_in_main_thread") as mock_run:
+
+            def execute_directly(func, **kwargs):
+                return func()
+
+            mock_run.side_effect = execute_directly
+
+            tools = await bridge_server.server.get_tools()
+            for name, tool in tools.items():
+                if name == "execute_code":
+                    result = await tool.fn("int(np.array([1, 2, 3]).sum())")
+                    break
+
+            assert result["status"] == "ok"
+            assert result["result_repr"] == "6"
 
 
 class TestBridgeServerState:

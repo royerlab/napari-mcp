@@ -76,5 +76,5 @@ class ClineCursorInstaller(BaseInstaller):
             "\n[yellow]Note: This configures Cline extension in Cursor IDE[/yellow]"
         )
         console.print(
-            "[yellow]For Cursor's native MCP support, use: napari-mcp-install cursor[/yellow]"
+            "[yellow]For Cursor's native MCP support, use: napari-mcp-install install cursor[/yellow]"
         )

@@ -1,6 +1,5 @@
 """Pytest configuration for napari-mcp tests."""
 
-import contextlib
 import logging
 
 import pytest
@@ -67,6 +66,8 @@ def reset_server_state(monkeypatch):
         fresh_state.window_close_connected = False
         fresh_state.exec_globals = {}
         fresh_state.qt_pump_task = None
+        fresh_state._shutdown_requested = False
+        fresh_state._event_loop = None
 
     except ImportError:
         yield
@@ -82,13 +83,8 @@ def _materialize_viewer_when_requested(request):
             factory = request.getfixturevalue("make_napari_viewer")
             created = getattr(request.node, "_auto_created_napari_viewer", False)
             if not created:
-                viewer = factory()
+                factory()
                 request.node._auto_created_napari_viewer = True
-                with contextlib.suppress(Exception):
-                    if hasattr(viewer, "window") and hasattr(
-                        viewer.window, "_qt_window"
-                    ):
-                        pass
         except Exception:
             logger.debug("Failed to auto-create napari viewer", exc_info=True)
 

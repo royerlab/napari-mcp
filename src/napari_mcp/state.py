@@ -47,6 +47,10 @@ class ServerState:
         self.window_close_connected: bool = False
         self.gui_executor: Any | None = None
 
+        # Server lifecycle
+        self._event_loop: asyncio.AbstractEventLoop | None = None
+        self._shutdown_requested: bool = False
+
         # Execution namespace (persists across execute_code calls)
         self.exec_globals: dict[str, Any] = {}
 
@@ -60,6 +64,31 @@ class ServerState:
             )
         except Exception:
             self.max_output_items = 1000
+
+    def request_shutdown(self, delay: float = 1.0) -> None:
+        """Request the MCP server to shut down.
+
+        Safe to call from any thread (e.g. the Qt main thread when the
+        viewer window is destroyed).
+
+        Parameters
+        ----------
+        delay : float
+            Seconds to wait before stopping the event loop.  A short delay
+            allows any in-flight MCP responses (e.g. from ``close_viewer``)
+            to be flushed before the loop halts.
+        """
+        if self._shutdown_requested:
+            return
+        self._shutdown_requested = True
+        logger.info("Server shutdown requested (viewer closed)")
+
+        loop = self._event_loop
+        if loop is not None and not loop.is_closed():
+            try:
+                loop.call_soon_threadsafe(lambda: loop.call_later(delay, loop.stop))
+            except RuntimeError:
+                pass
 
     def gui_execute(self, operation: Any) -> Any:
         """Run operation through GUI executor if set, else directly."""
