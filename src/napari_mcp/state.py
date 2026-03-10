@@ -8,7 +8,10 @@ import json
 import logging
 import os
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from napari_mcp.viewer_protocol import ViewerProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +24,7 @@ class StartupMode(Enum):
 
 
 class ServerState:
-    """Encapsulates all mutable state for one MCP server instance.
-
-    Replaces the module-level globals that previously lived in server.py.
-    """
+    """Encapsulates all mutable state for one MCP server instance."""
 
     def __init__(
         self,
@@ -32,7 +32,7 @@ class ServerState:
         bridge_port: int | None = None,
     ):
         # Viewer
-        self.viewer: Any | None = None
+        self.viewer: ViewerProtocol | None = None
         self.viewer_lock: asyncio.Lock = asyncio.Lock()
 
         # Mode
@@ -143,10 +143,17 @@ class ServerState:
 
     async def detect_external_viewer(
         self,
-    ) -> tuple[Any | None, dict[str, Any] | None]:
-        """Detect if an external napari viewer is available via MCP bridge."""
+    ) -> tuple[bool, dict[str, Any] | None]:
+        """Detect if an external napari viewer is available via MCP bridge.
+
+        Returns
+        -------
+        tuple of (found, info)
+            found is True if an external bridge was detected, False otherwise.
+            info is the session information dict when found, else None.
+        """
         if self.mode != StartupMode.AUTO_DETECT:
-            return None, None
+            return False, None
 
         try:
             from fastmcp import Client
@@ -164,10 +171,10 @@ class ServerState:
                         )
                         info_dict = json.loads(info) if isinstance(info, str) else info
                         if info_dict.get("session_type") == "napari_bridge_session":
-                            return client, info_dict
-                return None, None
+                            return True, info_dict
+                return False, None
         except Exception:
-            return None, None
+            return False, None
 
     async def external_session_information(self) -> dict[str, Any]:
         """Get session information from the external viewer."""

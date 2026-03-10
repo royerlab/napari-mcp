@@ -11,7 +11,7 @@ The easiest way is using the automated installer:
 
 ```bash
 pip install napari-mcp
-napari-mcp-install <application>
+napari-mcp-install install <application>
 ```
 
 **→ See [Quick Start](quickstart.md) for step-by-step instructions**
@@ -170,10 +170,10 @@ git clone https://github.com/royerlab/napari-mcp.git
 cd napari-mcp
 
 # Install in editable mode with dev dependencies
-pip install -e ".[test,dev]"
+pip install -e ".[dev]"
 
 # Or with uv (recommended)
-uv pip install -e ".[test,dev]"
+uv pip install -e ".[dev]"
 ```
 
 ### Configure for Development
@@ -231,7 +231,7 @@ napari-mcp-env\Scripts\activate
 pip install napari-mcp
 
 # Configure
-napari-mcp-install <app> --persistent
+napari-mcp-install install <app> --persistent
 ```
 
 ### Using conda
@@ -247,7 +247,7 @@ conda activate napari-mcp
 pip install napari-mcp
 
 # Configure
-napari-mcp-install <app> --persistent
+napari-mcp-install install <app> --persistent
 ```
 
 ---
@@ -278,7 +278,7 @@ napari-mcp can also be used as a **napari plugin** for direct integration with a
 
 4. **Configure your AI app**:
    ```bash
-   napari-mcp-install <app>
+   napari-mcp-install install <app>
    ```
    The installer auto-configures to detect your bridge server.
 
@@ -380,7 +380,7 @@ napari-mcp-install list
 python -m json.tool < config-file.json
 
 # Force reinstall
-napari-mcp-install <app> --force
+napari-mcp-install install <app> --force
 ```
 
 ### Python Environment Issues
@@ -393,7 +393,7 @@ python --version  # Should be 3.10+
 python -c "import napari_mcp; print('OK')"
 
 # Use specific Python
-napari-mcp-install <app> --python-path $(which python)
+napari-mcp-install install <app> --python-path $(which python)
 ```
 
 **→ See [Troubleshooting Guide](../guides/troubleshooting.md) for comprehensive help**

@@ -19,7 +19,7 @@ export OPENAI_API_KEY="your-key-here"
 python openai_integration.py
 
 # Or with uv (zero-install)
-uv run --with openai --with mcp python openai_integration.py
+uv run --with napari-mcp --with openai --with mcp python openai_integration.py
 ```
 
 **What it does:**
@@ -45,7 +45,7 @@ export ANTHROPIC_API_KEY="your-key-here"
 python anthropic_integration.py
 
 # Or with uv (zero-install)
-uv run --with anthropic --with mcp python anthropic_integration.py
+uv run --with napari-mcp --with anthropic --with mcp python anthropic_integration.py
 ```
 
 **What it does:**
@@ -68,7 +68,7 @@ uv run --with anthropic --with mcp python anthropic_integration.py
 python direct_mcp_client.py
 
 # Or with uv
-uv run --with mcp python direct_mcp_client.py
+uv run --with napari-mcp --with mcp python direct_mcp_client.py
 ```
 
 **What it does:**

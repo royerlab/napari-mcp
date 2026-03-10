@@ -12,12 +12,18 @@ except Exception:  # pragma: no cover - fallback path
         __version__ = "0.0.0"
 
 # Import main components
-from .bridge_server import NapariBridgeServer
 from .server import create_server
 from .server import main as server_main
 from .state import ServerState, StartupMode
 from .viewer_protocol import ViewerProtocol
-from .widget import MCPControlWidget
+
+# Qt-dependent components may not be available in headless environments
+try:
+    from .bridge_server import NapariBridgeServer
+    from .widget import MCPControlWidget
+except ImportError:  # pragma: no cover
+    NapariBridgeServer = None  # type: ignore[assignment,misc]
+    MCPControlWidget = None  # type: ignore[assignment,misc]
 
 __all__ = [
     "NapariBridgeServer",

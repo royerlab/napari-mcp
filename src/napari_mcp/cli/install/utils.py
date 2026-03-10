@@ -224,9 +224,6 @@ def check_existing_server(
     bool
         True if server exists, False otherwise.
     """
-    if "mcpServers" not in config:
-        return False
-
     return server_name in config.get("mcpServers", {})
 
 
@@ -312,28 +309,6 @@ def validate_python_environment(python_path: str) -> bool:
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
         console.print(f"[red]Error validating Python environment: {e}[/red]")
         return False
-
-
-def detect_python_environment() -> str | None:
-    """Detect the current Python environment type.
-
-    Returns
-    -------
-    Optional[str]
-        Environment type ('conda', 'venv', 'system'), or None if detection fails.
-    """
-    # Check for Conda environment
-    if os.environ.get("CONDA_DEFAULT_ENV"):
-        return "conda"
-
-    # Check for virtual environment
-    if hasattr(sys, "real_prefix") or (
-        hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
-    ):
-        return "venv"
-
-    # Otherwise it's likely system Python
-    return "system"
 
 
 def get_app_display_name(app_key: str) -> str:

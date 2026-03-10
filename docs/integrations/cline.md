@@ -141,7 +141,7 @@ You can pre-approve specific tools to skip confirmation prompts:
     "napari-mcp": {
       "command": "python",
       "args": ["-m", "napari_mcp.server"],
-      "always Allow": [],
+      "alwaysAllow": [],
       "disabled": false
     }
   }

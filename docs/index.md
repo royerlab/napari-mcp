@@ -99,15 +99,14 @@ Restart your AI application and try:
 
 ## 🛠️ Available Tools
 
-The server exposes 20+ MCP tools for complete napari control:
+The server exposes 16 MCP tools for complete napari control:
 
 | Category | Tools | Description |
 |----------|-------|-------------|
-| **Session** | `detect_viewers`, `init_viewer`, `close_viewer`, `session_information` | Viewer lifecycle management |
-| **Layers** | `add_image`, `add_labels`, `add_points`, `list_layers` | Layer creation and management |
-| **Properties** | `set_layer_properties`, `reorder_layer`, `set_active_layer` | Layer customization |
-| **Navigation** | `set_camera`, `reset_view`, `set_ndisplay`, `set_dims_current_step` | Viewer navigation |
-| **Utilities** | `screenshot`, `timelapse_screenshot`, `execute_code`, `install_packages` | Advanced functionality |
+| **Session** | `init_viewer`, `close_viewer`, `session_information` | Viewer lifecycle management |
+| **Layers** | `add_layer`, `list_layers`, `get_layer`, `remove_layer`, `set_layer_properties`, `reorder_layer`, `apply_to_layers`, `save_layer_data` | Layer CRUD and batch ops |
+| **Navigation** | `configure_viewer` | Camera, dims, grid, display modes |
+| **Utilities** | `screenshot`, `execute_code`, `install_packages`, `read_output` | Screenshots, code, packages |
 
 **→ See the [API Reference](api/index.md) for complete documentation**
 
@@ -176,7 +175,7 @@ The server exposes 20+ MCP tools for complete napari control:
 ## 🎉 Ready to Start?
 
 1. **Install the package** - `pip install napari-mcp`
-2. **Configure your AI app** - `napari-mcp-install <app-name>`
+2. **Configure your AI app** - `napari-mcp-install install <app-name>`
 3. **Start exploring** - Load images, analyze data, take screenshots
 4. **Share your workflows** - Document and reproduce your analysis
 

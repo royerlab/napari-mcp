@@ -5,7 +5,8 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 
-from napari_mcp.server import _parse_bool, _truncate_output
+from napari_mcp.output import truncate_output as _truncate_output
+from napari_mcp.server import _parse_bool
 
 
 class TestPropertyBasedParseBool:

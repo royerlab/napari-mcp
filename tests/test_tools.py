@@ -1,9 +1,38 @@
+"""Integration and structural tests for the MCP tool registry.
+
+- E2E workflow exercising all 16 tools in sequence
+- MCP dispatch verification (tools callable via server.get_tool)
+- Server factory (create_server returns FastMCP, sets state, registers tools)
+- README completeness (every tool name appears in README)
+"""
+
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from napari_mcp import server as napari_mcp_server
+
+# Authoritative set of all registered MCP tool names.
+# Update this when adding/removing tools in server.py.
+EXPECTED_TOOLS = {
+    "add_layer",
+    "apply_to_layers",
+    "close_viewer",
+    "configure_viewer",
+    "execute_code",
+    "get_layer",
+    "init_viewer",
+    "install_packages",
+    "list_layers",
+    "read_output",
+    "remove_layer",
+    "reorder_layer",
+    "save_layer_data",
+    "screenshot",
+    "session_information",
+    "set_layer_properties",
+}
 
 
 def test_version_import() -> None:
@@ -16,213 +45,142 @@ def test_version_import() -> None:
 
 @pytest.mark.asyncio
 async def test_all_tools_end_to_end(make_napari_viewer, tmp_path: Path) -> None:
-    # Create a napari viewer using the built-in fixture
+    """Smoke test: exercise every tool in a realistic workflow."""
     viewer = make_napari_viewer()
-
-    # Set the viewer in the server state
     napari_mcp_server._state.viewer = viewer
 
-    # init viewer
-    res = await napari_mcp_server.init_viewer(title="Test Viewer")
-    assert res["status"] == "ok"
-    assert isinstance(res["layers"], list)
-
-    # create sample image (T, Y, X) to exercise dims slider
-    img = np.linspace(0, 255, 5 * 32 * 32, dtype=np.uint8).reshape(5, 32, 32)
-    img_path = tmp_path / "img.tif"
     import imageio.v3 as iio
 
-    iio.imwrite(img_path, img)
-
-    # add image
-    res = await napari_mcp_server.add_image(str(img_path), name="img")
-    assert res["status"] == "ok"
-    assert res["name"] == "img"
-
-    # add labels
-    labels = np.random.randint(0, 4, size=(32, 32), dtype=np.uint8)
-    labels_path = tmp_path / "labels.tif"
-    iio.imwrite(labels_path, labels)
-    res = await napari_mcp_server.add_labels(str(labels_path), name="labels")
+    # init_viewer
+    res = await napari_mcp_server.init_viewer(title="E2E")
     assert res["status"] == "ok"
 
-    # add points
-    res = await napari_mcp_server.add_points([[5, 5], [10, 10]], name="pts", size=5)
-    assert res["status"] == "ok" and res["n_points"] == 2
-
-    # list layers
-    layers = await napari_mcp_server.list_layers()
-    layer_names = {lyr["name"] for lyr in layers}
-    assert {"img", "labels", "pts"}.issubset(layer_names)
-
-    # reorder layers: move labels before img
-    res = await napari_mcp_server.reorder_layer("labels", before="img")
-    assert res["status"] == "ok"
-
-    # set active layer and properties
-    res = await napari_mcp_server.set_active_layer("img")
-    assert res["status"] == "ok" and res["active"] == "img"
-    res = await napari_mcp_server.set_layer_properties(
-        "img", visible=False, opacity=0.5
+    # add_layer (image from file)
+    img = np.linspace(0, 255, 5 * 32 * 32, dtype=np.uint8).reshape(5, 32, 32)
+    iio.imwrite(tmp_path / "img.tif", img)
+    res = await napari_mcp_server.add_layer(
+        "image", path=str(tmp_path / "img.tif"), name="img"
     )
     assert res["status"] == "ok"
 
-    # view controls
-    assert (await napari_mcp_server.reset_view())["status"] == "ok"
-    assert (await napari_mcp_server.set_camera(zoom=1.5))["status"] == "ok"
-    cam = await napari_mcp_server.set_camera(
-        center=[10, 10], zoom=2.0, angles=[0.0, 0.0, 0.0]
+    # add_layer (labels from file)
+    iio.imwrite(tmp_path / "lbl.tif", np.random.randint(0, 4, (32, 32), dtype=np.uint8))
+    assert (
+        await napari_mcp_server.add_layer(
+            "labels", path=str(tmp_path / "lbl.tif"), name="lbl"
+        )
+    )["status"] == "ok"
+
+    # add_layer (points inline)
+    res = await napari_mcp_server.add_layer(
+        "points", data=[[5, 5], [10, 10]], name="pts", size=5
     )
-    assert cam["status"] == "ok"
-    assert "angles" in cam
-    assert isinstance(cam["angles"], list)
+    assert res["n_points"] == 2
 
-    # dims/grid controls
-    # Keep ndisplay at 2 to avoid 3D requirements
-    assert (await napari_mcp_server.set_ndisplay(2))["status"] == "ok"
-    assert (await napari_mcp_server.set_dims_current_step(0, 2))["status"] == "ok"
-    assert (await napari_mcp_server.set_grid(True))["status"] == "ok"
+    # list_layers
+    names = {entry["name"] for entry in await napari_mcp_server.list_layers()}
+    assert {"img", "lbl", "pts"} <= names
 
-    # screenshot returns a valid PNG (FastMCP Image)
-    shot = await napari_mcp_server.screenshot(canvas_only=True)
-    fmt = shot.mimeType
-    assert str(fmt).lower() in ("png", "image/png")
+    # get_layer (metadata)
+    info = await napari_mcp_server.get_layer("img")
+    assert info["type"] == "Image" and info["data_shape"] == [5, 32, 32]
 
-    import base64
+    # get_layer (data + slicing)
+    data = await napari_mcp_server.get_layer("img", slicing="0, :2, :2")
+    assert "data" in data and "statistics" in data
 
-    data = base64.b64decode(shot.data)
-    assert data.startswith(b"\x89PNG\r\n\x1a\n")
+    # set_layer_properties (visibility, opacity, active, rename)
+    await napari_mcp_server.set_layer_properties(
+        "img", visible=False, opacity=0.5, active=True
+    )
+    assert viewer.layers["img"].visible is False
 
-    # rename and remove layers
-    assert (await napari_mcp_server.set_layer_properties("img", new_name="image1"))[
+    # reorder_layer
+    assert (await napari_mcp_server.reorder_layer("lbl", before="img"))[
         "status"
     ] == "ok"
-    assert (await napari_mcp_server.remove_layer("labels"))["status"] == "removed"
 
-    # close viewer
+    # apply_to_layers
+    res = await napari_mcp_server.apply_to_layers(
+        filter_type="Image", properties={"opacity": 0.8}
+    )
+    assert res["count"] == 1
+
+    # configure_viewer
+    assert (
+        await napari_mcp_server.configure_viewer(reset_view=True, ndisplay=2, grid=True)
+    )["status"] == "ok"
+    assert (
+        await napari_mcp_server.configure_viewer(zoom=1.5, dims_axis=0, dims_value=2)
+    )["status"] == "ok"
+
+    # screenshot (single)
+    shot = await napari_mcp_server.screenshot(canvas_only=True)
+    assert str(shot.mimeType).lower() in ("png", "image/png")
+
+    # save_layer_data
+    res = await napari_mcp_server.save_layer_data("pts", str(tmp_path / "pts.csv"))
+    assert res["status"] == "ok"
+
+    # execute_code
+    res = await napari_mcp_server.execute_code("len(viewer.layers)")
+    assert res["status"] == "ok"
+
+    # session_information
+    si = await napari_mcp_server.session_information()
+    assert si["viewer"]["n_layers"] == len(viewer.layers)
+
+    # remove + rename + close
+    await napari_mcp_server.set_layer_properties("img", new_name="image1")
+    assert (await napari_mcp_server.remove_layer("lbl"))["status"] == "removed"
     assert (await napari_mcp_server.close_viewer())["status"] in {"closed", "no_viewer"}
 
 
 @pytest.mark.asyncio
-async def test_execute_code_namespace_and_result(make_napari_viewer) -> None:
-    # Create a napari viewer using the built-in fixture
+async def test_add_layer_error_handling(make_napari_viewer, tmp_path: Path) -> None:
+    """Error paths: bad file, bad data, nonexistent path."""
     viewer = make_napari_viewer()
-
     napari_mcp_server._state.viewer = viewer
 
-    # Simple expression
-    res = await napari_mcp_server.execute_code("1 + 2")
-    assert res["status"] == "ok"
-    assert res.get("result_repr") == "3"
-
-    # Set a variable and verify it's accessible
-    res = await napari_mcp_server.execute_code("x = 42")
-    assert res["status"] == "ok"
-
-    res = await napari_mcp_server.execute_code("x * 2")
-    assert res["status"] == "ok"
-    assert res.get("result_repr") == "84"
-
-    # Import a module in the namespace
-    res = await napari_mcp_server.execute_code("import math")
-    assert res["status"] == "ok"
-
-    res = await napari_mcp_server.execute_code("math.pi")
-    assert res["status"] == "ok"
-    assert res.get("result_repr", "").startswith("3.14")
-
-    # Clean up
-    await napari_mcp_server.close_viewer()
+    assert (await napari_mcp_server.add_layer("image", path="/nonexistent.tif"))[
+        "status"
+    ] == "error"
+    assert (await napari_mcp_server.add_layer("points", data="bad"))[
+        "status"
+    ] == "error"
 
 
 @pytest.mark.asyncio
-async def test_add_layers_error_handling(make_napari_viewer, tmp_path: Path) -> None:
-    # Create a napari viewer using the built-in fixture
+async def test_mcp_tool_dispatch(make_napari_viewer) -> None:
+    """All tools are registered and callable via MCP dispatch."""
     viewer = make_napari_viewer()
-
     napari_mcp_server._state.viewer = viewer
-
-    # Test adding image with bad path - should raise FileNotFoundError
-    with pytest.raises(FileNotFoundError):
-        await napari_mcp_server.add_image("/nonexistent/file.tif", name="bad")
-
-    # Test adding points with bad data - should raise ValueError
-    with pytest.raises(ValueError):
-        await napari_mcp_server.add_points("not_an_array", name="bad_points")
-
-
-@pytest.mark.asyncio
-async def test_mcp_tool_dispatch_local(make_napari_viewer) -> None:
-    """Integration test: verify local server tools are registered and callable via MCP dispatch."""
-    viewer = make_napari_viewer()
-    from napari_mcp import server as napari_mcp_server
-
-    napari_mcp_server._state.viewer = viewer
-
     server = napari_mcp_server.server
 
-    # Verify all expected tools are registered
-    expected_tools = {
-        "add_points",
-        "add_image",
-        "add_labels",
-        "list_layers",
-        "remove_layer",
-        "set_active_layer",
-        "set_camera",
-        "set_ndisplay",
-        "set_grid",
-        "set_dims_current_step",
-        "set_layer_properties",
-        "reorder_layer",
-        "reset_view",
-        "screenshot",
-        "timelapse_screenshot",
-        "execute_code",
-        "session_information",
-        "close_viewer",
-        "detect_viewers",
-        "init_viewer",
-        "install_packages",
-        "read_output",
-    }
-
-    # get_tool should succeed for all expected tools
-    for tool_name in expected_tools:
+    for tool_name in EXPECTED_TOOLS:
         tool = await server.get_tool(tool_name)
         assert tool is not None, f"Tool '{tool_name}' not registered"
         assert callable(tool.fn), f"Tool '{tool_name}' fn is not callable"
 
-    # Exercise a few tools through MCP dispatch (not direct function calls)
-    tool = await server.get_tool("add_points")
-    result = await tool.fn([[5, 5], [10, 10]], name="mcp_dispatch_pts", size=3)
+    # Dispatch through MCP interface (not direct function call)
+    tool = await server.get_tool("add_layer")
+    result = await tool.fn("points", data=[[5, 5]], name="dispatch_pts")
     assert result["status"] == "ok"
-    assert result["n_points"] == 2
 
     tool = await server.get_tool("remove_layer")
-    result = await tool.fn("mcp_dispatch_pts")
-    assert result["status"] == "removed"
-
-    tool = await server.get_tool("session_information")
-    result = await tool.fn()
-    assert result["status"] == "ok"
-    assert "viewer" in result
+    assert (await tool.fn("dispatch_pts"))["status"] == "removed"
 
 
 class TestCreateServer:
-    """Test server factory function."""
-
-    def test_create_server_returns_fastmcp(self):
+    def test_returns_fastmcp(self):
         from fastmcp import FastMCP
 
         from napari_mcp.server import create_server
         from napari_mcp.state import ServerState
 
-        state = ServerState()
-        srv = create_server(state)
-        assert isinstance(srv, FastMCP)
+        assert isinstance(create_server(ServerState()), FastMCP)
 
-    def test_create_server_sets_module_state(self):
+    def test_sets_module_state(self):
         from napari_mcp.server import create_server
         from napari_mcp.state import ServerState
 
@@ -230,52 +188,47 @@ class TestCreateServer:
         create_server(state)
         assert napari_mcp_server._state is state
 
-    def test_create_server_registers_all_tools(self):
+    def test_registers_all_tools(self):
+        from napari_mcp.server import create_server
+        from napari_mcp.state import ServerState
+
+        create_server(ServerState())
+        for name in EXPECTED_TOOLS:
+            fn = getattr(napari_mcp_server, name, None)
+            assert fn is not None and callable(fn), f"Tool {name} missing"
+
+
+class TestToolListCompleteness:
+    def test_readme_lists_all_tools(self):
+        content = (Path(__file__).parent.parent / "README.md").read_text()
+        missing = {t for t in EXPECTED_TOOLS if f"`{t}`" not in content}
+        assert not missing, f"README.md missing tools: {missing}"
+
+    def test_expected_tools_matches_server(self):
+        """EXPECTED_TOOLS stays in sync with actually registered tools."""
         from napari_mcp.server import create_server
         from napari_mcp.state import ServerState
 
         state = ServerState()
-        create_server(state)
+        srv = create_server(state)
 
-        expected_tools = [
-            "detect_viewers",
-            "init_viewer",
-            "close_viewer",
-            "session_information",
-            "list_layers",
-            "add_image",
-            "add_labels",
-            "add_points",
-            "remove_layer",
-            "set_layer_properties",
-            "reorder_layer",
-            "set_active_layer",
-            "reset_view",
-            "set_camera",
-            "set_ndisplay",
-            "set_dims_current_step",
-            "set_grid",
-            "screenshot",
-            "timelapse_screenshot",
-            "execute_code",
-            "install_packages",
-            "read_output",
-        ]
-        for tool_name in expected_tools:
-            fn = getattr(napari_mcp_server, tool_name, None)
-            assert fn is not None, f"Tool {tool_name} not found as module attribute"
-            assert callable(fn), f"Tool {tool_name} is not callable"
+        import asyncio
+
+        registered = set(
+            asyncio.get_event_loop().run_until_complete(srv.get_tools()).keys()
+        )
+        assert registered == EXPECTED_TOOLS, (
+            f"Mismatch — registered: {registered - EXPECTED_TOOLS}, "
+            f"expected but missing: {EXPECTED_TOOLS - registered}"
+        )
 
 
-class TestBackwardCompatStateAccess:
-    """Test that old-style module-level state access still works."""
+class TestDeprecatedInstallCommand:
+    def test_exits_with_error(self):
+        from typer.testing import CliRunner
 
-    def test_read_viewer_via_state(self):
-        napari_mcp_server._state.viewer = "test_viewer"
-        assert napari_mcp_server._state.viewer == "test_viewer"
-        napari_mcp_server._state.viewer = None
+        from napari_mcp.server import app
 
-    def test_read_exec_globals_via_state(self):
-        napari_mcp_server._state.exec_globals["x"] = 1
-        assert napari_mcp_server._state.exec_globals["x"] == 1
-        napari_mcp_server._state.exec_globals.clear()
+        result = CliRunner().invoke(app, ["install"])
+        assert result.exit_code == 1
+        assert "napari-mcp-install" in result.stdout

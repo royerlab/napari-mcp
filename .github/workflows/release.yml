@@ -36,7 +36,7 @@ jobs:
         python-version: "3.11"
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v4
+      uses: astral-sh/setup-uv@v6
       with:
         enable-cache: true
 
@@ -45,6 +45,19 @@ jobs:
         uv build
         ls -la dist/
 
+    - name: Validate version matches tag
+      if: contains(github.ref, 'tags')
+      run: |
+        WHEEL=$(ls dist/*.whl | head -1)
+        WHEEL_VERSION=$(echo "$WHEEL" | sed -n 's/.*-\([0-9][0-9.]*\)-.*/\1/p')
+        TAG_VERSION="${GITHUB_REF_NAME#v}"
+        echo "Wheel version: $WHEEL_VERSION"
+        echo "Tag version: $TAG_VERSION"
+        if [ "$WHEEL_VERSION" != "$TAG_VERSION" ]; then
+          echo "ERROR: Version mismatch! Wheel=$WHEEL_VERSION Tag=$TAG_VERSION"
+          exit 1
+        fi
+
     - name: Check build artifacts
       run: |
         uv pip install --system twine
@@ -52,7 +65,7 @@ jobs:
 
     - name: Create GitHub Release
       if: contains(github.ref, 'tags') && !inputs.dry_run
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: dist/*
         generate_release_notes: true
@@ -72,5 +85,5 @@ jobs:
         echo "🔍 Dry run complete - artifacts built but not published"
         echo "Built artifacts:"
         ls -la dist/
-        echo "Version info:"
-        cat dist/*.whl | head -c 500
+        echo "Wheel contents:"
+        ls -lh dist/

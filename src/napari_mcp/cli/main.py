@@ -300,7 +300,7 @@ def list_installations():
                             details = "Config exists, server not configured"
                     except Exception as e:
                         status = "[red]\u2717[/red]"
-                        details = f"Error: {str(e)[:30]}"
+                        details = f"Error: {e}"
                 else:
                     from .install.utils import check_existing_server, read_json_config
 

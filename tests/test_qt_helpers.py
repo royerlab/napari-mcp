@@ -254,7 +254,7 @@ async def test_proxy_disabled_during_tests():
         "If this fails, tests may be proxying to a live external viewer."
     )
 
-    client, info = await napari_mcp_server._state.detect_external_viewer()
-    assert client is None and info is None, (
-        "detect_external_viewer should return (None, None) during tests."
+    found, info = await napari_mcp_server._state.detect_external_viewer()
+    assert found is False and info is None, (
+        "detect_external_viewer should return (False, None) during tests."
     )

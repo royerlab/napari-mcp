@@ -119,7 +119,7 @@ jobs:
       uses: aganders3/headless-gui@v1
       with:
         run: |
-          uv run pytest tests/ --verbose --dist loadscope --cov=napari_mcp --cov-report=xml --cov-report=term-missing --cov-fail-under=80 --durations=20 --timeout=60
+          uv run pytest tests/ --verbose --cov=napari_mcp --cov-report=xml --cov-report=term-missing --cov-fail-under=80 --durations=20 --timeout=60
 
     - name: Upload coverage
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'

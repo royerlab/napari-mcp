@@ -42,7 +42,6 @@ Homepage = "https://github.com/royerlab/napari-mcp"
 Repository = "https://github.com/royerlab/napari-mcp"
 Documentation = "https://royerlab.github.io/napari-mcp/"
 "Bug Tracker" = "https://github.com/royerlab/napari-mcp/issues"
-Changelog = "https://github.com/royerlab/napari-mcp/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
@@ -183,8 +182,9 @@ convention = "numpy"
   "S311",
   "D",
 ] # Allow asserts, hardcoded passwords, random, and skip docstrings in tests
-"src/napari_mcp/server.py" = ["S102", "S307"]  # exec/eval needed for MCP execute_code
+"src/napari_mcp/server.py" = ["S102", "S307", "A002"]  # exec/eval needed for MCP execute_code; format param
 "src/napari_mcp/bridge_server.py" = ["S102", "S307"]  # exec/eval needed for MCP execute_code
+"src/napari_mcp/_helpers.py" = ["S102", "S307"]  # exec/eval needed for run_code helper
 "src/napari_mcp/cli/install/utils.py" = ["S603", "S607"]  # subprocess needed for python detection
 "src/napari_mcp/cli/install/codex_cli.py" = ["S603", "S607"]  # subprocess needed for codex
 
@@ -200,7 +200,6 @@ dev = [
     "types-toml>=0.10.8.20240310",
 ]
 testing = [
-  "tox",
   "pytest>=8.4.0",
   "pytest-asyncio>=0.23.0",
   "pytest-cov>=4.0.0",

@@ -280,7 +280,7 @@ uv run --with napari-mcp --with napari --help
     3. Use persistent mode instead:
        ```bash
        pip install napari-mcp
-       napari-mcp-install <app> --persistent
+       napari-mcp-install install <app> --persistent
        ```
 
 ### Cache Issues
@@ -303,13 +303,13 @@ uv run --with napari-mcp --with napari --help
 napari-mcp-install list
 
 # Switch to zero-install mode
-napari-mcp-install <app>
+napari-mcp-install install <app>
 
 # Switch to persistent mode
-napari-mcp-install <app> --persistent
+napari-mcp-install install <app> --persistent
 
 # Preview changes
-napari-mcp-install <app> --dry-run
+napari-mcp-install install <app> --dry-run
 ```
 
 ---
