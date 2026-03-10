@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from napari_mcp.server import _parse_bool
+from napari_mcp._helpers import parse_bool as _parse_bool
 from napari_mcp.state import ServerState, StartupMode
 
 

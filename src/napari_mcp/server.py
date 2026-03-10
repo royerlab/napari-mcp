@@ -40,7 +40,6 @@ from napari_mcp._helpers import (
     resolve_layer_type,
     run_code,
 )
-from napari_mcp.output import truncate_output
 from napari_mcp.qt_helpers import (
     connect_window_destroyed_signal,
     ensure_qt_app,
@@ -53,13 +52,6 @@ from napari_mcp.state import ServerState, StartupMode
 # Module logger
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------------
-# Backward-compat aliases used by tests
-# ---------------------------------------------------------------------------
-
-_parse_bool = parse_bool
-_truncate_output = truncate_output
 
 # Regex for validating pip package specifiers (rejects URL-based specifiers)
 _PKG_NAME_RE = re.compile(
@@ -925,7 +917,7 @@ def create_server(state: ServerState | None = None) -> FastMCP:
                     return {"status": "not_found", "name": name}
                 lyr = v.layers[name]
                 if visible is not None and hasattr(lyr, "visible"):
-                    lyr.visible = _parse_bool(visible)
+                    lyr.visible = parse_bool(visible)
                 if opacity is not None and hasattr(lyr, "opacity"):
                     o = float(opacity)
                     if not (0.0 <= o <= 1.0):
@@ -974,7 +966,7 @@ def create_server(state: ServerState | None = None) -> FastMCP:
                     lyr.gamma = g
                 if new_name is not None:
                     lyr.name = new_name
-                if active is not None and _parse_bool(active):
+                if active is not None and parse_bool(active):
                     v.layers.selection = {lyr}
                 process_events(state)
                 return {"status": "ok", "name": lyr.name}
@@ -1088,7 +1080,7 @@ def create_server(state: ServerState | None = None) -> FastMCP:
                             continue
                         try:
                             if key == "visible":
-                                lyr.visible = _parse_bool(val)
+                                lyr.visible = parse_bool(val)
                             elif key == "opacity":
                                 o = float(val)
                                 if 0.0 <= o <= 1.0:
@@ -1233,7 +1225,7 @@ def create_server(state: ServerState | None = None) -> FastMCP:
                         )
 
                 if grid is not None:
-                    v.grid.enabled = _parse_bool(grid)
+                    v.grid.enabled = parse_bool(grid)
                     result["grid"] = bool(v.grid.enabled)
 
                 process_events(state)
@@ -1391,7 +1383,7 @@ def create_server(state: ServerState | None = None) -> FastMCP:
         """
         from PIL import Image
 
-        co = _parse_bool(canvas_only, default=True)
+        co = parse_bool(canvas_only, default=True)
 
         # --- Single screenshot mode ---
         if axis is None and slice_range is None:
@@ -1650,8 +1642,19 @@ def create_server(state: ServerState | None = None) -> FastMCP:
         line_limit : int, default=30
             Maximum number of output lines to return. Use -1 for unlimited output.
             Warning: Using -1 may consume a large number of tokens.
+
+        Note
+        ----
+        In standalone mode, code execution runs synchronously on the main
+        thread (required for Qt/napari operations) and has no timeout.
+        In bridge mode, a 600-second timeout is enforced.
         """
         import napari
+
+        try:
+            line_limit = int(line_limit)
+        except (ValueError, TypeError):
+            line_limit = 30
 
         result = await state.proxy_to_external("execute_code", {"code": code})
         if result is not None:
@@ -1721,6 +1724,11 @@ def create_server(state: ServerState | None = None) -> FastMCP:
         timeout : int, default=240
             Timeout for pip install in seconds.
         """
+        try:
+            line_limit = int(line_limit)
+        except (ValueError, TypeError):
+            line_limit = 30
+
         result = await state.proxy_to_external(
             "install_packages",
             {
