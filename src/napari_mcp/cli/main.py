@@ -17,7 +17,11 @@ from .install import (  # noqa: F401 - accessed via _get_installer_class
     CursorInstaller,
     GeminiCLIInstaller,
 )
-from .install.utils import get_app_display_name, show_installation_summary
+from .install.utils import (
+    get_app_display_name,
+    resolve_napari_requirement,
+    show_installation_summary,
+)
 
 app = typer.Typer(
     name="napari-mcp-install",
@@ -91,6 +95,7 @@ def _create_installer(
     *,
     persistent: bool = False,
     python_path: str | None = None,
+    napari_backend: str | None = None,
     force: bool = False,
     backup: bool = True,
     dry_run: bool = False,
@@ -102,6 +107,7 @@ def _create_installer(
     kwargs = {
         "persistent": persistent,
         "python_path": python_path,
+        "napari_backend": napari_backend,
         "force": force,
         "backup": backup,
         "dry_run": dry_run,
@@ -131,6 +137,16 @@ def install(
         str | None,
         typer.Option("--python-path", help="Custom Python executable path"),
     ] = None,
+    napari_backend: Annotated[
+        str | None,
+        typer.Option(
+            "--backend",
+            help=(
+                "Napari backend for uv installs: all, pyqt5, pyqt6, pyside, "
+                "none, or a custom value"
+            ),
+        ),
+    ] = None,
     force: Annotated[
         bool,
         typer.Option("--force", "-f", help="Skip prompts and force update"),
@@ -153,6 +169,22 @@ def install(
     ] = None,
 ):
     """Install napari-mcp for a target application."""
+    resolved_napari_backend = None
+    if persistent or python_path:
+        if napari_backend:
+            console.print(
+                "[yellow]Warning: --backend is ignored when using --persistent or --python-path[/yellow]"
+            )
+    else:
+        try:
+            resolved_napari_backend = resolve_napari_requirement(
+                napari_backend,
+                prompt_user=(not force and _sys.stdin is not None and _sys.stdin.isatty()),
+            )
+        except ValueError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(1) from exc
+
     if target == InstallTarget.ALL:
         console.print(
             "[bold cyan]Installing napari-mcp for all supported applications...[/bold cyan]\n"
@@ -166,6 +198,7 @@ def install(
                     app_target,
                     persistent=persistent,
                     python_path=python_path,
+                    napari_backend=resolved_napari_backend,
                     force=force,
                     backup=backup,
                     dry_run=dry_run,
@@ -185,6 +218,7 @@ def install(
         target,
         persistent=persistent,
         python_path=python_path,
+        napari_backend=resolved_napari_backend,
         force=force,
         backup=backup,
         dry_run=dry_run,

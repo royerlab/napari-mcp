@@ -29,6 +29,7 @@ class BaseInstaller(ABC):
         server_name: str = "napari-mcp",
         persistent: bool = False,
         python_path: str | None = None,
+        napari_backend: str | None = None,
         force: bool = False,
         backup: bool = True,
         dry_run: bool = False,
@@ -45,6 +46,8 @@ class BaseInstaller(ABC):
             Use Python path instead of uv run.
         python_path : Optional[str]
             Custom Python executable path.
+        napari_backend : Optional[str]
+            Optional napari requirement to add to uv-based installs.
         force : bool
             Skip prompts and force update.
         backup : bool
@@ -57,6 +60,7 @@ class BaseInstaller(ABC):
         self.server_name = server_name
         self.persistent = persistent
         self.python_path = python_path
+        self.napari_backend = napari_backend
         self.force = force
         self.backup = backup
         self.dry_run = dry_run
@@ -140,8 +144,15 @@ class BaseInstaller(ABC):
                 return False, "User cancelled update"
 
             # Build server configuration
+            build_kwargs: dict[str, Any] = {}
+            if self.napari_backend is not None:
+                build_kwargs["napari_requirement"] = self.napari_backend
+
             server_config = build_server_config(
-                self.persistent, self.python_path, self.get_extra_config()
+                self.persistent,
+                self.python_path,
+                self.get_extra_config(),
+                **build_kwargs,
             )
 
             # Show what will be installed

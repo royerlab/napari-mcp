@@ -24,6 +24,9 @@ pip install napari-mcp
 # For Claude Desktop
 napari-mcp-install install claude-desktop
 
+# Include a napari GUI backend in the uv environment
+napari-mcp-install install claude-desktop --backend pyqt6
+
 # For other applications (Claude Code, Cursor, Cline, etc.)
 napari-mcp-install install --help  # See all options
 ```

@@ -20,6 +20,7 @@ class GeminiCLIInstaller(BaseInstaller):
         server_name: str = "napari-mcp",
         persistent: bool = False,
         python_path: str | None = None,
+        napari_backend: str | None = None,
         force: bool = False,
         backup: bool = True,
         dry_run: bool = False,
@@ -36,6 +37,8 @@ class GeminiCLIInstaller(BaseInstaller):
             Use Python path instead of uv run.
         python_path : Optional[str]
             Custom Python executable path.
+        napari_backend : Optional[str]
+            Optional napari requirement to add to uv-based installs.
         force : bool
             Skip prompts and force update.
         backup : bool
@@ -48,13 +51,14 @@ class GeminiCLIInstaller(BaseInstaller):
             Project directory for project-specific installation.
         """
         super().__init__(
-            "gemini",
-            server_name,
-            persistent,
-            python_path,
-            force,
-            backup,
-            dry_run,
+            app_key="gemini",
+            server_name=server_name,
+            persistent=persistent,
+            python_path=python_path,
+            napari_backend=napari_backend,
+            force=force,
+            backup=backup,
+            dry_run=dry_run,
         )
         self.global_install = global_install
         self.project_dir = project_dir

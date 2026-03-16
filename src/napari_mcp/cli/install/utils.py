@@ -10,10 +10,13 @@ from pathlib import Path
 from typing import Any
 
 from rich.console import Console
-from rich.prompt import Confirm
+from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 console = Console()
+
+DEFAULT_NAPARI_BACKEND = "all"
+NAPARI_BACKEND_CHOICES = ("all", "pyqt5", "pyqt6", "pyside", "none", "other")
 
 
 def get_platform() -> str:
@@ -171,6 +174,8 @@ def build_server_config(
     persistent: bool = False,
     python_path: str | None = None,
     extra_args: dict[str, Any] | None = None,
+    *,
+    napari_requirement: str | None = None,
 ) -> dict[str, Any]:
     """Build the server configuration for napari-mcp.
 
@@ -182,6 +187,8 @@ def build_server_config(
         Custom Python executable path.
     extra_args : Optional[dict[str, Any]]
         Additional configuration fields (e.g., for Gemini CLI).
+    napari_requirement : Optional[str]
+        Optional napari dependency to add to uv-based installs.
 
     Returns
     -------
@@ -196,6 +203,15 @@ def build_server_config(
             "command": "uv",
             "args": ["run", "--with", "napari-mcp", "napari-mcp"],
         }
+        if napari_requirement:
+            config["args"] = [
+                "run",
+                "--with",
+                "napari-mcp",
+                "--with",
+                napari_requirement,
+                "napari-mcp",
+            ]
     else:
         # Persistent Python environment
         config = {"command": command, "args": ["-m", "napari_mcp.server"]}
@@ -248,6 +264,127 @@ def prompt_update_existing(app_name: str, config_path: Path) -> bool:
     return Confirm.ask(
         "Do you want to update the existing configuration?", default=False
     )
+
+
+def normalize_napari_requirement(selection: str | None) -> str | None:
+    """Normalize a napari backend selection into a package requirement.
+
+    Parameters
+    ----------
+    selection : Optional[str]
+        Backend preset, ``none``, or a custom napari requirement.
+
+    Returns
+    -------
+    Optional[str]
+        Normalized requirement string, or None when no extra should be added.
+    """
+    if selection is None:
+        return None
+
+    cleaned = selection.strip()
+    if not cleaned:
+        return None
+
+    lowered = cleaned.lower()
+    preset_requirements = {
+        "all": "napari[all]",
+        "pyqt5": "napari[pyqt5]",
+        "pyqt6": "napari[pyqt6]",
+        "pyside": "napari[pyside]",
+    }
+
+    if lowered == "none":
+        return None
+    if lowered in preset_requirements:
+        return preset_requirements[lowered]
+    if cleaned.startswith("napari"):
+        return cleaned
+    return f"napari[{cleaned}]"
+
+
+def prompt_napari_requirement() -> str | None:
+    """Prompt for a napari backend requirement.
+
+    Returns
+    -------
+    Optional[str]
+        Normalized napari requirement, or None when the user selects no backend.
+    """
+    console.print(
+        "\n[cyan]Optional: add napari with a GUI backend to the uv environment[/cyan]"
+    )
+    selection = Prompt.ask(
+        "Choose a napari backend",
+        choices=list(NAPARI_BACKEND_CHOICES),
+        default=DEFAULT_NAPARI_BACKEND,
+    )
+
+    if selection == "other":
+        return prompt_custom_napari_requirement()
+
+    return normalize_napari_requirement(selection)
+
+
+def prompt_custom_napari_requirement() -> str | None:
+    """Prompt for a custom napari requirement.
+
+    Returns
+    -------
+    Optional[str]
+        Normalized custom napari requirement, or None when left blank.
+    """
+    console.print(
+        "[dim]Enter a napari extra like 'pyside6' or a full requirement like 'napari[pyside6]'.[/dim]"
+    )
+    custom_value = Prompt.ask("Custom napari backend", default="").strip()
+    if not custom_value:
+        return None
+    return normalize_napari_requirement(custom_value)
+
+
+def resolve_napari_requirement(
+    selection: str | None,
+    *,
+    prompt_user: bool = False,
+) -> str | None:
+    """Resolve a napari backend selection into a package requirement.
+
+    Parameters
+    ----------
+    selection : Optional[str]
+        Backend preset, ``none``, ``other``, or a custom napari requirement.
+    prompt_user : bool
+        Whether interactive prompting is allowed when needed.
+
+    Returns
+    -------
+    Optional[str]
+        Normalized requirement string, or None when no extra should be added.
+
+    Raises
+    ------
+    ValueError
+        If ``other`` is requested without interactive prompting.
+    """
+    if selection is None:
+        if prompt_user:
+            return prompt_napari_requirement()
+        return normalize_napari_requirement(DEFAULT_NAPARI_BACKEND)
+
+    cleaned = selection.strip()
+    if not cleaned:
+        return normalize_napari_requirement(DEFAULT_NAPARI_BACKEND)
+
+    if cleaned.lower() == "other":
+        if prompt_user:
+            return prompt_custom_napari_requirement()
+        raise ValueError(
+            "Custom backend selection requires interactive input. "
+            "Pass a specific value to --backend instead."
+        )
+
+    return normalize_napari_requirement(cleaned)
 
 
 def show_installation_summary(installations: dict[str, tuple[bool, str]]) -> None:
