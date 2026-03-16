@@ -152,9 +152,15 @@ Run napari MCP without permanent installation using `uv`:
 ```bash
 # Direct execution (for testing)
 uv run --with napari-mcp napari-mcp
+
+# Add a napari GUI backend when needed
+uv run --with napari-mcp --with napari[pyqt6] napari-mcp
 ```
 
-The configuration files use `uv` automatically. See **[Zero Install Guide](zero-install.md)** for details.
+The configuration files use `uv` automatically. You can also ask `napari-mcp-install`
+to include a backend with `--backend all`, `--backend pyqt5`, `--backend pyqt6`,
+`--backend pyside`, `--backend none`, or a custom value.
+See **[Zero Install Guide](zero-install.md)** for details.
 
 ---
 

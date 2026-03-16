@@ -7,7 +7,7 @@ from typing import Any
 from rich.console import Console
 
 from .base import BaseInstaller
-from .utils import expand_path
+from .utils import build_server_config, expand_path
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -87,20 +87,16 @@ class CodexCLIInstaller(BaseInstaller):
                     return False, "User cancelled update"
 
             # Build server configuration for TOML format
-            if self.persistent or self.python_path:
-                from .utils import get_python_executable
+            build_kwargs: dict[str, Any] = {}
+            if self.napari_backend is not None:
+                build_kwargs["napari_requirement"] = self.napari_backend
 
-                command, _ = get_python_executable(self.persistent, self.python_path)
-                server_config = {
-                    "command": command,
-                    "args": ["-m", "napari_mcp.server"],
-                }
-            else:
-                # Use uv for ephemeral environment
-                server_config = {
-                    "command": "uv",
-                    "args": ["run", "--with", "napari-mcp", "napari-mcp"],
-                }
+            server_config = build_server_config(
+                self.persistent,
+                self.python_path,
+                self.get_extra_config(),
+                **build_kwargs,
+            )
 
             # Show what will be installed
             console.print("\n[cyan]Configuration to install:[/cyan]")

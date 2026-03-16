@@ -54,6 +54,15 @@ class TestBaseInstaller:
         assert installer.backup is False
         assert installer.dry_run is True
 
+    def test_initialization_with_napari_backend(self):
+        """Test installer initialization with a uv napari backend."""
+        installer = ConcreteInstaller(
+            app_key="test-app",
+            napari_backend="napari[pyqt6]",
+        )
+
+        assert installer.napari_backend == "napari[pyqt6]"
+
     @patch("napari_mcp.cli.install.base.get_app_display_name")
     def test_app_name_resolution(self, mock_get_name):
         """Test application display name is resolved."""
@@ -135,6 +144,45 @@ class TestBaseInstaller:
         mock_write.assert_called_once()
         # Verify build_server_config was called with correct signature
         mock_build_config.assert_called_with(False, None, {"timeout": 60000})
+
+    @patch("napari_mcp.cli.install.base.read_json_config")
+    @patch("napari_mcp.cli.install.base.write_json_config")
+    @patch("napari_mcp.cli.install.base.build_server_config")
+    @patch("napari_mcp.cli.install.base.get_python_executable")
+    @patch("napari_mcp.cli.install.base.console")
+    def test_install_new_config_with_napari_backend(
+        self, mock_console, mock_get_exe, mock_build_config, mock_write, mock_read
+    ):
+        """Test installing with an extra napari backend requirement."""
+        mock_read.return_value = {}
+        mock_write.return_value = True
+        mock_get_exe.return_value = ("uv", "ephemeral uv")
+        mock_build_config.return_value = {
+            "command": "uv",
+            "args": [
+                "run",
+                "--with",
+                "napari-mcp",
+                "--with",
+                "napari[pyqt6]",
+                "napari-mcp",
+            ],
+        }
+
+        installer = ConcreteInstaller(
+            app_key="test-app",
+            napari_backend="napari[pyqt6]",
+        )
+        success, message = installer.install()
+
+        assert success is True
+        assert "successful" in message.lower()
+        mock_build_config.assert_called_with(
+            False,
+            None,
+            {"timeout": 60000},
+            napari_requirement="napari[pyqt6]",
+        )
 
     @patch("napari_mcp.cli.install.base.read_json_config")
     @patch("napari_mcp.cli.install.base.write_json_config")

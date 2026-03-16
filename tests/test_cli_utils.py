@@ -16,8 +16,11 @@ from napari_mcp.cli.install.utils import (
     get_app_display_name,
     get_platform,
     get_python_executable,
+    normalize_napari_requirement,
+    prompt_napari_requirement,
     prompt_update_existing,
     read_json_config,
+    resolve_napari_requirement,
     show_installation_summary,
     validate_python_environment,
     write_json_config,
@@ -295,6 +298,24 @@ class TestServerConfiguration:
         assert config["timeout"] == 60000
         assert config["cwd"] == "/project"
 
+    def test_build_server_config_with_napari_backend(self):
+        """Test building config with an extra napari backend package."""
+        config = build_server_config(
+            persistent=False,
+            python_path=None,
+            napari_requirement="napari[pyqt6]",
+        )
+
+        assert config["command"] == "uv"
+        assert config["args"] == [
+            "run",
+            "--with",
+            "napari-mcp",
+            "--with",
+            "napari[pyqt6]",
+            "napari-mcp",
+        ]
+
     def test_check_existing_server_found(self):
         """Test checking for existing server configuration."""
         config = {
@@ -356,6 +377,57 @@ class TestPromptUtilities:
         result = prompt_update_existing("Claude Desktop", Path("/test/config.json"))
         assert result is False
         mock_ask.assert_called_once()
+
+    @patch("rich.prompt.Prompt.ask")
+    def test_prompt_napari_requirement_default_all(self, mock_ask):
+        """Test napari backend prompt defaults to all."""
+        mock_ask.return_value = "all"
+        assert prompt_napari_requirement() == "napari[all]"
+
+    @patch("rich.prompt.Prompt.ask")
+    def test_prompt_napari_requirement_other(self, mock_ask):
+        """Test napari backend prompt supports custom values."""
+        mock_ask.side_effect = ["other", "pyside6"]
+        assert prompt_napari_requirement() == "napari[pyside6]"
+
+
+class TestNapariBackendResolution:
+    """Test napari backend normalization and resolution."""
+
+    def test_normalize_napari_requirement_presets(self):
+        """Test known backend presets are normalized correctly."""
+        assert normalize_napari_requirement("all") == "napari[all]"
+        assert normalize_napari_requirement("pyqt5") == "napari[pyqt5]"
+        assert normalize_napari_requirement("pyqt6") == "napari[pyqt6]"
+        assert normalize_napari_requirement("pyside") == "napari[pyside]"
+
+    def test_normalize_napari_requirement_none(self):
+        """Test none disables extra napari dependency installation."""
+        assert normalize_napari_requirement("none") is None
+        assert normalize_napari_requirement(None) is None
+
+    def test_normalize_napari_requirement_custom_values(self):
+        """Test custom backend values are wrapped into napari extras."""
+        assert normalize_napari_requirement("pyside6") == "napari[pyside6]"
+        assert normalize_napari_requirement("napari[pyside6]") == "napari[pyside6]"
+
+    def test_resolve_napari_requirement_defaults_to_all(self):
+        """Test non-interactive resolution defaults to all."""
+        assert resolve_napari_requirement(None) == "napari[all]"
+
+    def test_resolve_napari_requirement_other_requires_interaction(self):
+        """Test non-interactive custom selection raises a helpful error."""
+        with pytest.raises(ValueError, match="Pass a specific value to --backend"):
+            resolve_napari_requirement("other")
+
+    @patch("rich.prompt.Prompt.ask")
+    def test_resolve_napari_requirement_other_interactive(self, mock_ask):
+        """Test interactive custom selection prompts for a specific backend."""
+        mock_ask.return_value = "pyside6"
+        assert (
+            resolve_napari_requirement("other", prompt_user=True)
+            == "napari[pyside6]"
+        )
 
 
 class TestInstallationSummary:

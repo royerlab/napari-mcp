@@ -49,6 +49,7 @@ class TestCLICommands:
         """Test install subcommand help."""
         result = cli_runner.invoke(app, ["install", "--help"])
         assert result.exit_code == 0
+        assert "--backend" in result.stdout
         assert "claude-desktop" in result.stdout
         assert "cursor" in result.stdout
 
@@ -93,6 +94,60 @@ class TestCLICommands:
         assert call_kwargs["force"] is True
         assert call_kwargs["backup"] is False
         assert call_kwargs["dry_run"] is True
+
+    @patch("napari_mcp.cli.main.ClaudeDesktopInstaller")
+    def test_claude_desktop_install_with_backend(
+        self, mock_installer_class, cli_runner
+    ):
+        """Test claude-desktop installation with a preset napari backend."""
+        mock = MagicMock()
+        mock.install.return_value = (True, "Success")
+        mock_installer_class.return_value = mock
+
+        result = cli_runner.invoke(
+            app,
+            ["install", "claude-desktop", "--backend", "pyqt6"],
+        )
+
+        assert result.exit_code == 0
+        call_kwargs = mock_installer_class.call_args[1]
+        assert call_kwargs["napari_backend"] == "napari[pyqt6]"
+
+    @patch("napari_mcp.cli.main.ClaudeDesktopInstaller")
+    def test_claude_desktop_install_with_custom_backend(
+        self, mock_installer_class, cli_runner
+    ):
+        """Test claude-desktop installation with a custom napari backend."""
+        mock = MagicMock()
+        mock.install.return_value = (True, "Success")
+        mock_installer_class.return_value = mock
+
+        result = cli_runner.invoke(
+            app,
+            ["install", "claude-desktop", "--backend", "pyside6"],
+        )
+
+        assert result.exit_code == 0
+        call_kwargs = mock_installer_class.call_args[1]
+        assert call_kwargs["napari_backend"] == "napari[pyside6]"
+
+    @patch("napari_mcp.cli.main.ClaudeDesktopInstaller")
+    def test_claude_desktop_install_with_backend_none(
+        self, mock_installer_class, cli_runner
+    ):
+        """Test claude-desktop installation can skip extra napari backend."""
+        mock = MagicMock()
+        mock.install.return_value = (True, "Success")
+        mock_installer_class.return_value = mock
+
+        result = cli_runner.invoke(
+            app,
+            ["install", "claude-desktop", "--backend", "none"],
+        )
+
+        assert result.exit_code == 0
+        call_kwargs = mock_installer_class.call_args[1]
+        assert call_kwargs["napari_backend"] is None
 
     @patch("napari_mcp.cli.main.ClaudeCodeInstaller")
     def test_claude_code_install(
