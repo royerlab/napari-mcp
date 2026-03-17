@@ -30,10 +30,11 @@ def ensure_qt_app(state: ServerState) -> Any:
     if app is None:
         state.qt_app = QtWidgets.QApplication([])
         app = state.qt_app
-    try:
-        app.setQuitOnLastWindowClosed(False)
-    except Exception:
-        pass
+    if isinstance(app, QtWidgets.QApplication):
+        try:
+            app.setQuitOnLastWindowClosed(False)
+        except Exception:
+            pass
     return app
 
 

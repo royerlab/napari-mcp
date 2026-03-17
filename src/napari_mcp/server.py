@@ -690,12 +690,12 @@ def create_server(state: ServerState | None = None) -> FastMCP:
                 lines = [
                     repr(item)
                     if not isinstance(item, np.ndarray)
-                    else np.array2string(item, threshold=np.inf)
+                    else np.array2string(item, threshold=sys.maxsize)
                     for item in large
                 ]
                 text = "\n---\n".join(lines)
             elif isinstance(large, np.ndarray):
-                text = np.array2string(large, threshold=np.inf)
+                text = np.array2string(large, threshold=sys.maxsize)
             else:
                 text = repr(large)
             oid = await state.store_output(
@@ -1897,7 +1897,7 @@ def create_server(state: ServerState | None = None) -> FastMCP:
     # The @server.tool() decorator wraps closures into FunctionTool objects.
     # We need to expose the raw async functions (stored in _raw_tools before
     # decoration) so that ``from napari_mcp.server import list_layers`` works.
-    _mod = sys.modules[__name__]
+    _mod: Any = sys.modules[__name__]
     for _name, _fn in _raw_tools.items():
         setattr(_mod, _name, _fn)
 

@@ -199,7 +199,7 @@ class NapariBridgeServer:
                 }
 
             # Resolve data
-            resolved = None
+            resolved: Any | None = None
             if path:
                 if lt not in ("image", "labels"):
                     return {

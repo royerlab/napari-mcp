@@ -1,5 +1,6 @@
 """Tests for main CLI installer commands."""
 
+import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -11,6 +12,13 @@ from napari_mcp.cli.main import (
     _get_installer_class,
     app,
 )
+
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape sequences from CLI output."""
+    return ANSI_ESCAPE_RE.sub("", text)
 
 
 @pytest.fixture
@@ -47,11 +55,17 @@ class TestCLICommands:
 
     def test_install_help(self, cli_runner):
         """Test install subcommand help."""
-        result = cli_runner.invoke(app, ["install", "--help"])
+        result = cli_runner.invoke(
+            app,
+            ["install", "--help"],
+            env={"FORCE_COLOR": "1"},
+        )
+        clean_output = strip_ansi(result.stdout)
+
         assert result.exit_code == 0
-        assert "--backend" in result.stdout
-        assert "claude-desktop" in result.stdout
-        assert "cursor" in result.stdout
+        assert "--backend" in clean_output
+        assert "claude-desktop" in clean_output
+        assert "cursor" in clean_output
 
     @patch("napari_mcp.cli.main.ClaudeDesktopInstaller")
     def test_claude_desktop_install(

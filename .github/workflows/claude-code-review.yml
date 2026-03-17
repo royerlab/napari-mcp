@@ -35,7 +35,31 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Check workflow parity with default branch
+        id: workflow-parity
+        run: |
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          git fetch --depth=1 origin "${DEFAULT_BRANCH}"
+
+          if ! git cat-file -e "origin/${DEFAULT_BRANCH}:.github/workflows/claude-code-review.yml" 2>/dev/null; then
+            echo "can_run=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if git diff --quiet "origin/${DEFAULT_BRANCH}" -- .github/workflows/claude-code-review.yml; then
+            echo "can_run=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "can_run=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Skip Claude Code Review
+        if: steps.workflow-parity.outputs.can_run != 'true'
+        run: |
+          echo "Skipping Claude Code Review because this workflow file differs from the default branch."
+          echo "The Claude action cannot exchange its app token unless the workflow file matches the default branch exactly."
+
       - name: Run Claude Code Review
+        if: steps.workflow-parity.outputs.can_run == 'true'
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
