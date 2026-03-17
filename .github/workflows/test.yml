@@ -158,7 +158,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv pip install --system ruff mypy types-Pillow
+        uv pip install --system ruff mypy types-Pillow types-toml
 
     - name: Run quality checks
       run: |
