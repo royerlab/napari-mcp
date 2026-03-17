@@ -425,8 +425,7 @@ class TestNapariBackendResolution:
         """Test interactive custom selection prompts for a specific backend."""
         mock_ask.return_value = "pyside6"
         assert (
-            resolve_napari_requirement("other", prompt_user=True)
-            == "napari[pyside6]"
+            resolve_napari_requirement("other", prompt_user=True) == "napari[pyside6]"
         )
 
 

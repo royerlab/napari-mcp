@@ -179,7 +179,9 @@ def install(
         try:
             resolved_napari_backend = resolve_napari_requirement(
                 napari_backend,
-                prompt_user=(not force and _sys.stdin is not None and _sys.stdin.isatty()),
+                prompt_user=(
+                    not force and _sys.stdin is not None and _sys.stdin.isatty()
+                ),
             )
         except ValueError as exc:
             console.print(f"[red]{exc}[/red]")

@@ -132,7 +132,7 @@ class ServerState:
 
     async def proxy_to_external(
         self, tool_name: str, params: dict[str, Any] | None = None
-    ) -> dict[str, Any] | None:
+    ) -> Any | None:
         """Proxy a tool call to an external viewer if in AUTO_DETECT mode.
 
         Returns None immediately in STANDALONE mode (zero overhead).
