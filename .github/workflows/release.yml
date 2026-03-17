@@ -45,22 +45,55 @@ jobs:
         uv build
         ls -la dist/
 
+    - name: Install release tools
+      run: |
+        uv pip install --system twine packaging
+
     - name: Validate version matches tag
       if: contains(github.ref, 'tags')
       run: |
-        WHEEL=$(ls dist/*.whl | head -1)
-        WHEEL_VERSION=$(echo "$WHEEL" | sed -n 's/.*-\([0-9][0-9.]*\)-.*/\1/p')
-        TAG_VERSION="${GITHUB_REF_NAME#v}"
-        echo "Wheel version: $WHEEL_VERSION"
-        echo "Tag version: $TAG_VERSION"
-        if [ "$WHEEL_VERSION" != "$TAG_VERSION" ]; then
-          echo "ERROR: Version mismatch! Wheel=$WHEEL_VERSION Tag=$TAG_VERSION"
-          exit 1
-        fi
+        TAG_VERSION="${GITHUB_REF_NAME#v}" python <<'PY'
+        import email
+        import os
+        import pathlib
+        import zipfile
+
+        from packaging.version import Version
+
+        wheel = next(pathlib.Path("dist").glob("*.whl"))
+        with zipfile.ZipFile(wheel) as zf:
+            metadata_name = next(
+                name for name in zf.namelist() if name.endswith(".dist-info/METADATA")
+            )
+            metadata = email.message_from_bytes(zf.read(metadata_name))
+
+        wheel_version = Version(metadata["Version"])
+        tag_version = Version(os.environ["TAG_VERSION"])
+
+        print(f"Wheel version: {wheel_version}")
+        print(f"Tag version: {tag_version}")
+
+        if wheel_version != tag_version:
+            raise SystemExit(
+                f"ERROR: Version mismatch! Wheel={wheel_version} Tag={tag_version}"
+            )
+        PY
+
+    - name: Detect prerelease
+      id: release_meta
+      if: contains(github.ref, 'tags')
+      run: |
+        TAG_VERSION="${GITHUB_REF_NAME#v}" python <<'PY'
+        import os
+        from packaging.version import Version
+
+        tag_version = Version(os.environ["TAG_VERSION"])
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+            f.write(f"prerelease={str(tag_version.is_prerelease).lower()}\n")
+        PY
 
     - name: Check build artifacts
       run: |
-        uv pip install --system twine
         twine check dist/*
 
     - name: Create GitHub Release
@@ -70,7 +103,7 @@ jobs:
         files: dist/*
         generate_release_notes: true
         draft: false
-        prerelease: false
+        prerelease: ${{ steps.release_meta.outputs.prerelease || 'false' }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
