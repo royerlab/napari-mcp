@@ -200,7 +200,9 @@ class TestCreateServer:
 
 class TestToolListCompleteness:
     def test_readme_lists_all_tools(self):
-        content = (Path(__file__).parent.parent / "README.md").read_text()
+        content = (Path(__file__).parent.parent / "README.md").read_text(
+            encoding="utf-8"
+        )
         missing = {t for t in EXPECTED_TOOLS if f"`{t}`" not in content}
         assert not missing, f"README.md missing tools: {missing}"
 
