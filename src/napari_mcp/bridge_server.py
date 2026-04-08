@@ -11,6 +11,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+
+logger = logging.getLogger(__name__)
 from concurrent.futures import Future
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import TYPE_CHECKING, Any
@@ -119,7 +121,15 @@ class NapariBridgeServer:
         # Remove lifecycle tools that should not be available in bridge mode
         # (the viewer is managed by napari, not the agent)
         for name in ("close_viewer", "init_viewer"):
-            self.server._tool_manager._tools.pop(name, None)
+            try:
+                self.server.remove_tool(name)
+            except AttributeError:
+                try:
+                    self.server._tool_manager._tools.pop(name, None)
+                except AttributeError:
+                    logger.debug("Could not remove tool %r using any method", name)
+            except Exception as e:
+                logger.debug("remove_tool(%r) failed unexpectedly: %s", name, e)
 
         # Override the 3 tools that differ in bridge mode
         self._register_bridge_overrides()
