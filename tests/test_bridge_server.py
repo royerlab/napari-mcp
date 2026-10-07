@@ -7,6 +7,7 @@ import pytest
 from qtpy.QtCore import QThread
 
 from napari_mcp.bridge_server import NapariBridgeServer, QtBridge
+from tests._fastmcp_compat import tools_by_name
 
 
 @pytest.fixture
@@ -75,7 +76,7 @@ class TestNapariBridgeServer:
         """
         viewer = make_napari_viewer()
         server = NapariBridgeServer(viewer)
-        tool_names = set(server.server._tool_manager._tools.keys())
+        tool_names = _tool_names(server.server)
         for excluded in ("close_viewer", "init_viewer"):
             assert excluded not in tool_names, (
                 f"{excluded} should not be available in bridge mode"
@@ -90,6 +91,47 @@ class TestNapariBridgeServer:
             assert expected in tool_names, (
                 f"{expected} should be available in bridge mode"
             )
+
+
+def _tool_names(server) -> set[str]:
+    """Registered tool names via the public client API (any fastmcp version)."""
+    import asyncio
+
+    from fastmcp import Client
+
+    async def _list() -> set[str]:
+        async with Client(server) as client:
+            return {tool.name for tool in await client.list_tools()}
+
+    return asyncio.run(_list())
+
+
+class TestBridgeToolRegistration:
+    """Every tool is registered once, through public API only."""
+
+    def test_overrides_registered_exactly_once(self, make_napari_viewer):
+        """The three bridge overrides exist and replace the shared versions."""
+        from napari_mcp.bridge_server import (
+            BRIDGE_EXCLUDED_TOOLS,
+            BRIDGE_OVERRIDDEN_TOOLS,
+        )
+
+        server = NapariBridgeServer(make_napari_viewer())
+        names = _tool_names(server.server)
+        assert set(BRIDGE_OVERRIDDEN_TOOLS) <= names
+        assert not set(BRIDGE_EXCLUDED_TOOLS) & names
+
+    def test_create_server_exclude_tools(self):
+        """create_server(exclude_tools=...) skips the named tools."""
+        from napari_mcp.server import create_server
+        from napari_mcp.state import ServerState
+
+        full = _tool_names(create_server(ServerState()))
+        trimmed = _tool_names(
+            create_server(ServerState(), exclude_tools=("screenshot",))
+        )
+        assert "screenshot" in full
+        assert trimmed == full - {"screenshot"}
 
 
 class TestQtBridge:
@@ -210,7 +252,7 @@ class TestBridgeServerTools:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "session_information":
                     result = await tool.fn()
@@ -234,7 +276,7 @@ class TestBridgeServerTools:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "list_layers":
                     result = await tool.fn()
@@ -265,7 +307,7 @@ class TestBridgeServerTools:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "list_layers":
                     result = await tool.fn()
@@ -289,7 +331,7 @@ class TestBridgeServerTools:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "execute_code":
                     result = await tool.fn("x = 2 + 2\nx")
@@ -312,7 +354,7 @@ class TestBridgeServerTools:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "execute_code":
                     result = await tool.fn("viewer.title")
@@ -331,7 +373,7 @@ class TestBridgeServerTools:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "execute_code":
                     result = await tool.fn("1/0")
@@ -353,7 +395,7 @@ class TestBridgeServerTools:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "screenshot":
                     result = await tool.fn(True)
@@ -381,7 +423,7 @@ class TestBridgeTimeoutBehavior:
         with patch.object(bridge_server.qt_bridge, "run_in_main_thread") as mock_run:
             mock_run.side_effect = TimeoutError("timed out")
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "execute_code":
                     result = await tool.fn("import time; time.sleep(9999)")
@@ -458,7 +500,7 @@ class TestBridgeServerLayerOperations:
 
             test_data = [[1, 2], [3, 4]]
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "add_layer":
                     result = await tool.fn(
@@ -484,7 +526,7 @@ class TestBridgeServerLayerOperations:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             tool = tools["add_layer"]
             result = await tool.fn(
                 layer_type="points", data=[[1, 2], [3, 4]], name="pts"
@@ -508,7 +550,7 @@ class TestBridgeServerLayerOperations:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "remove_layer":
                     result = await tool.fn(layer)
@@ -529,7 +571,7 @@ class TestBridgeServerLayerOperations:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "remove_layer":
                     result = await tool.fn("nonexistent")
@@ -545,7 +587,7 @@ class TestBridgeAddLayerValidation:
     @pytest.mark.asyncio
     async def test_path_rejected_for_non_image_types(self, bridge_server):
         """Bridge add_layer should reject path for non-image/labels types."""
-        tools = await bridge_server.server.get_tools()
+        tools = await tools_by_name(bridge_server.server)
         tool = tools["add_layer"]
 
         result = await tool.fn(layer_type="points", path="/some/file.csv")
@@ -555,7 +597,7 @@ class TestBridgeAddLayerValidation:
     @pytest.mark.asyncio
     async def test_surface_requires_data_var(self, bridge_server):
         """Bridge add_layer should require data_var for surface layers."""
-        tools = await bridge_server.server.get_tools()
+        tools = await tools_by_name(bridge_server.server)
         tool = tools["add_layer"]
 
         result = await tool.fn(layer_type="surface")
@@ -566,7 +608,7 @@ class TestBridgeAddLayerValidation:
     @pytest.mark.asyncio
     async def test_multiple_data_sources_rejected(self, bridge_server):
         """Bridge add_layer should reject multiple data sources."""
-        tools = await bridge_server.server.get_tools()
+        tools = await tools_by_name(bridge_server.server)
         tool = tools["add_layer"]
 
         result = await tool.fn(
@@ -578,7 +620,7 @@ class TestBridgeAddLayerValidation:
     @pytest.mark.asyncio
     async def test_unknown_layer_type_rejected(self, bridge_server):
         """Bridge add_layer should reject unknown layer types."""
-        tools = await bridge_server.server.get_tools()
+        tools = await tools_by_name(bridge_server.server)
         tool = tools["add_layer"]
 
         result = await tool.fn(layer_type="mesh", data=[[1, 2]])
@@ -599,7 +641,7 @@ class TestBridgeExecuteCodeParity:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "execute_code":
                     result = await tool.fn("42")
@@ -626,7 +668,7 @@ class TestBridgeExecuteCodeParity:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "execute_code":
                     result = await tool.fn(
@@ -651,7 +693,7 @@ class TestBridgeExecuteCodeParity:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "execute_code":
                     result = await tool.fn("print('hello')", line_limit=-1)
@@ -675,7 +717,7 @@ class TestBridgeExecNamespace:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "execute_code":
                     result = await tool.fn("type(napari).__name__")
@@ -696,7 +738,7 @@ class TestBridgeExecNamespace:
 
             mock_run.side_effect = execute_directly
 
-            tools = await bridge_server.server.get_tools()
+            tools = await tools_by_name(bridge_server.server)
             for name, tool in tools.items():
                 if name == "execute_code":
                     result = await tool.fn("int(np.array([1, 2, 3]).sum())")

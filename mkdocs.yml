@@ -120,6 +120,7 @@ nav:
   - User Guide:
       - guides/index.md
       - napari Plugin: guides/napari-plugin.md
+      - Adding Tools from Other Packages: guides/plugin-tools.md
       - Troubleshooting: guides/troubleshooting.md
 
 extra:
