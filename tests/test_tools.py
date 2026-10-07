@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 from napari_mcp import server as napari_mcp_server
+from tests._fastmcp_compat import tools_by_name
 
 # Authoritative set of all registered MCP tool names.
 # Update this when adding/removing tools in server.py.
@@ -215,7 +216,7 @@ class TestToolListCompleteness:
         state = ServerState()
         srv = create_server(state)
 
-        registered = set((await srv.get_tools()).keys())
+        registered = set((await tools_by_name(srv)).keys())
         assert registered == EXPECTED_TOOLS, (
             f"Mismatch — registered: {registered - EXPECTED_TOOLS}, "
             f"expected but missing: {EXPECTED_TOOLS - registered}"

@@ -83,6 +83,17 @@ class QtBridge(QObject):
             ) from None
 
 
+#: Tools the bridge never exposes: napari owns the viewer's lifecycle.
+BRIDGE_EXCLUDED_TOOLS: tuple[str, ...] = ("close_viewer", "init_viewer")
+
+#: Tools whose bridge-mode version replaces the shared one.
+BRIDGE_OVERRIDDEN_TOOLS: tuple[str, ...] = (
+    "session_information",
+    "add_layer",
+    "execute_code",
+)
+
+
 class NapariBridgeServer:
     """MCP Server that exposes the current napari viewer."""
 
@@ -113,13 +124,13 @@ class NapariBridgeServer:
         self.state.viewer = viewer
         self.state.gui_executor = self.qt_bridge.run_in_main_thread
 
-        # Create server with all shared tools bound to this state
-        self.server = create_server(self.state)
-
-        # Remove lifecycle tools that should not be available in bridge mode
-        # (the viewer is managed by napari, not the agent)
-        for name in ("close_viewer", "init_viewer"):
-            self.server._tool_manager._tools.pop(name, None)
+        # Create the server without the viewer lifecycle tools (the viewer is
+        # managed by napari, not the agent) and without the tools this class
+        # overrides, which _register_bridge_overrides() registers instead.
+        self.server = create_server(
+            self.state,
+            exclude_tools=BRIDGE_EXCLUDED_TOOLS + BRIDGE_OVERRIDDEN_TOOLS,
+        )
 
         # Override the 3 tools that differ in bridge mode
         self._register_bridge_overrides()

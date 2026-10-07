@@ -18,6 +18,7 @@ import os
 import re
 import shlex
 import sys
+from collections.abc import Iterable
 from io import BytesIO
 from typing import TYPE_CHECKING, Any
 
@@ -80,13 +81,21 @@ def get_state() -> ServerState:
 # ---------------------------------------------------------------------------
 
 
-def create_server(state: ServerState | None = None) -> FastMCP:
+def create_server(
+    state: ServerState | None = None,
+    exclude_tools: Iterable[str] = (),
+) -> FastMCP:
     """Create a FastMCP server with all tools bound to *state*.
 
     Parameters
     ----------
     state : ServerState, optional
         The server state instance. If None, creates a default STANDALONE state.
+    exclude_tools : iterable of str, optional
+        Names of tools not to register. Callers that provide their own
+        version of a tool (e.g. the bridge server) exclude it here and
+        register theirs, so every tool is registered exactly once through
+        FastMCP's public API.
 
     Returns
     -------
@@ -113,9 +122,13 @@ def create_server(state: ServerState | None = None) -> FastMCP:
     # Used at the end to expose backward-compatible module-level names.
     _raw_tools: dict[str, Any] = {}
 
+    excluded = frozenset(exclude_tools)
+
     def _register(fn: Any) -> Any:
         """Register fn in _raw_tools, then pass to @server.tool()."""
         _raw_tools[fn.__name__] = fn
+        if fn.__name__ in excluded:
+            return fn
         return server.tool()(fn)
 
     # ------------------------------------------------------------------
